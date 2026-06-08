@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUDIA HEALTH — 홍채 건강 진단 시스템</title>
+<style>
+:root {
+  --navy-dark: #0A1628;
+  --navy-mid: #1E3A5F;
+  --navy-light: #2E5C8A;
+  --blue-primary: #2E6DB4;
+  --blue-light: #5B9BD5;
+  --blue-pale: #B8D4F0;
+  --blue-bg: #EBF4FF;
+  --white: #FFFFFF;
+  --off-white: #F0F4F8;
+  --gray-light: #E2EAF2;
+  --text-dark: #0A1628;
+  --text-mid: #374151;
+  --text-light: #6B7280;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --orange: #F97316;
+  --danger: #EF4444;
+  --border: #D1DCE8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--off-white);color:var(--text-dark);min-height:100vh;}
+
+/* ── HEADER ── */
+.header{background:var(--navy-dark);height:66px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.35);}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;}
+.logo-eye{width:38px;height:38px;background:linear-gradient(135deg,var(--blue-primary),var(--navy-light));border-radius:10px;display:flex;align-items:center;justify-content:center;}
+.logo-eye svg{width:22px;height:22px;fill:none;stroke:white;stroke-width:1.8;}
+.logo-info{}
+.logo-name{font-size:18px;font-weight:800;color:white;letter-spacing:3px;}
+.logo-tagline{font-size:10px;color:var(--blue-pale);letter-spacing:1.5px;margin-top:-1px;}
+.header-badge{padding:5px 12px;border:1px solid rgba(255,255,255,.2);border-radius:20px;font-size:11px;color:rgba(255,255,255,.7);letter-spacing:.5px;}
+.lang-switch{display:flex;gap:0;border:1px solid rgba(255,255,255,.25);border-radius:8px;overflow:hidden;}
+.lang-btn{padding:5px 12px;background:none;border:none;color:rgba(255,255,255,.5);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.5px;transition:all .18s;}
+.lang-btn:hover{color:rgba(255,255,255,.85);}
+.lang-btn.active{background:var(--blue-primary);color:white;}
+.lang-sep{width:1px;background:rgba(255,255,255,.2);}
+
+/* ── PROGRESS ── */
+#progressBar{background:var(--navy-mid);padding:14px 28px;display:none;}
+.progress-inner{max-width:780px;margin:0 auto;}
+.progress-steps{display:flex;align-items:center;gap:0;}
+.step-item{display:flex;align-items:center;flex:1;}
+.step-item:last-child{flex:none;}
+.step-dot{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:rgba(255,255,255,.4);transition:all .35s;flex-shrink:0;}
+.step-dot.active{background:var(--blue-primary);border-color:var(--blue-primary);color:white;box-shadow:0 0 14px rgba(46,109,180,.7);}
+.step-dot.done{background:var(--success);border-color:var(--success);color:white;}
+.step-line{flex:1;height:2px;background:rgba(255,255,255,.15);transition:background .35s;margin:0 4px;}
+.step-line.done{background:var(--success);}
+.progress-label{display:flex;justify-content:space-between;margin-top:8px;padding:0 2px;}
+.progress-label span{font-size:10px;color:rgba(255,255,255,.45);text-align:center;width:30px;}
+.progress-label span.active{color:var(--blue-pale);}
+
+/* ── MAIN ── */
+.main{max-width:780px;margin:32px auto;padding:0 16px 80px;}
+.card{background:white;border-radius:18px;padding:40px 44px;box-shadow:0 4px 28px rgba(10,22,40,.09);border:1px solid var(--border);}
+@media(max-width:600px){.card{padding:24px 20px;}.main{margin:16px auto;}}
+
+/* ── STEP HEADER ── */
+.step-header{margin-bottom:28px;}
+.step-badge{display:inline-flex;align-items:center;gap:6px;background:var(--blue-bg);border:1px solid var(--blue-pale);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;color:var(--blue-primary);letter-spacing:.5px;margin-bottom:10px;}
+.step-title{font-size:22px;font-weight:800;color:var(--navy-dark);margin-bottom:5px;}
+.step-desc{font-size:14px;color:var(--text-light);line-height:1.6;}
+
+/* ── FORM ── */
+.form-group{margin-bottom:20px;}
+.form-label{display:block;font-size:13px;font-weight:700;color:var(--navy-mid);margin-bottom:7px;letter-spacing:.2px;}
+.req{color:var(--danger);}
+.form-input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;color:var(--text-dark);background:white;transition:border-color .2s,box-shadow .2s;outline:none;font-family:inherit;}
+.form-input:focus{border-color:var(--blue-primary);box-shadow:0 0 0 3px rgba(46,109,180,.1);}
+select.form-input{cursor:pointer;}
+textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:520px){.form-row{grid-template-columns:1fr;}}
+.hint{font-size:11px;color:var(--text-light);margin-top:5px;}
+
+/* ── CHECKBOXES ── */
+.check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px;}
+.check-item{display:flex;align-items:center;gap:9px;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;cursor:pointer;transition:all .18s;background:var(--off-white);user-select:none;}
+.check-item:hover{border-color:var(--blue-light);background:var(--blue-bg);}
+.check-item.checked{border-color:var(--blue-primary);background:var(--blue-bg);}
+.check-item input{width:15px;height:15px;accent-color:var(--blue-primary);cursor:pointer;flex-shrink:0;}
+.check-text{font-size:13px;color:var(--text-dark);}
+
+/* ── RADIO ── */
+.radio-row{display:flex;gap:10px;flex-wrap:wrap;}
+.radio-item{display:flex;align-items:center;gap:8px;padding:9px 18px;border:1.5px solid var(--border);border-radius:9px;cursor:pointer;transition:all .18s;user-select:none;}
+.radio-item:hover{border-color:var(--blue-light);}
+.radio-item.sel{border-color:var(--blue-primary);background:var(--blue-bg);}
+.radio-item input{accent-color:var(--blue-primary);cursor:pointer;}
+.radio-text{font-size:13px;font-weight:500;}
+
+/* ── PAIN SLIDER ── */
+.pain-val{text-align:center;font-size:36px;font-weight:800;color:var(--blue-primary);margin:4px 0;}
+.pain-slider{width:100%;-webkit-appearance:none;height:8px;border-radius:4px;background:linear-gradient(to right,var(--success),var(--warning),var(--danger));outline:none;cursor:pointer;}
+.pain-slider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--blue-primary);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer;}
+.pain-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text-light);margin-top:5px;}
+
+/* ── DYNAMIC LIST ── */
+.dyn-list{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
+.dyn-item{display:flex;gap:8px;align-items:stretch;}
+.dyn-item .form-input{flex:1;}
+.btn-rm{width:34px;min-width:34px;border:1.5px solid #FCA5A5;border-radius:8px;background:none;color:var(--danger);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .18s;}
+.btn-rm:hover{background:#FEE2E2;}
+.btn-add{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--blue-light);border-radius:9px;background:none;color:var(--blue-primary);font-size:13px;cursor:pointer;transition:all .18s;font-family:inherit;}
+.btn-add:hover{background:var(--blue-bg);}
+
+/* ── YES/NO TOGGLE ── */
+.toggle-row{display:flex;gap:10px;}
+.toggle-btn{flex:1;padding:11px;border:1.5px solid var(--border);border-radius:9px;background:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;font-family:inherit;}
+.toggle-btn.active-yes{border-color:var(--blue-primary);background:var(--blue-bg);color:var(--blue-primary);}
+.toggle-btn.active-no{border-color:var(--border);background:var(--gray-light);color:var(--text-mid);}
+
+/* ── LIFESTYLE GRID ── */
+.ls-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:520px){.ls-grid{grid-template-columns:1fr;}}
+.ls-card{background:var(--off-white);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.ls-label{font-size:12px;font-weight:700;color:var(--navy-mid);margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+
+/* ── IRIS UPLOAD ── */
+.iris-panel{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:560px){.iris-panel{grid-template-columns:1fr;}}
+.iris-upload{border:2px dashed var(--blue-light);border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#F5FAFF;position:relative;overflow:hidden;}
+.iris-upload:hover{border-color:var(--blue-primary);background:var(--blue-bg);}
+.iris-upload.has-img{border-style:solid;border-color:var(--blue-primary);}
+.iris-upload input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.iris-thumb{width:140px;height:140px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block;box-shadow:0 4px 16px rgba(0,0,0,.15);}
+.upload-icon{font-size:44px;margin-bottom:10px;}
+.upload-title{font-size:14px;font-weight:700;color:var(--navy-mid);margin-bottom:4px;}
+.upload-sub{font-size:12px;color:var(--text-light);}
+.eye-side-btn{width:100%;margin-top:10px;padding:9px;border:1.5px solid var(--border);border-radius:9px;background:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;}
+.eye-side-btn.active{border-color:var(--blue-primary);background:var(--blue-bg);color:var(--blue-primary);}
+.iris-guide{background:var(--blue-bg);border:1px solid var(--blue-pale);border-radius:10px;padding:16px;}
+.iris-guide h4{font-size:13px;font-weight:700;color:var(--navy-mid);margin-bottom:10px;}
+.iris-guide li{font-size:12px;color:var(--text-mid);line-height:1.8;margin-left:14px;}
+
+/* ── ZONE ASSESSMENT ── */
+.zone-assess-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:4px;}
+@media(max-width:560px){.zone-assess-grid{grid-template-columns:1fr;}}
+.zone-assess-card{background:var(--off-white);border:1.5px solid var(--border);border-radius:12px;padding:15px;transition:border-color .2s;}
+.zone-assess-card:hover{border-color:var(--blue-light);}
+.za-header{display:flex;align-items:center;gap:7px;margin-bottom:10px;}
+.za-icon{font-size:18px;line-height:1;}
+.za-name{font-size:13px;font-weight:700;color:var(--navy-mid);}
+.status-btns{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:9px;}
+.status-btn{padding:5px 8px;border:1.5px solid var(--border);border-radius:7px;background:none;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .16s;color:var(--text-mid);}
+.status-btn:hover{border-color:var(--blue-light);color:var(--navy-mid);}
+.za-note{font-size:12px;min-height:unset;padding:8px 10px;}
+.rpt-zone-status{font-size:13px;font-weight:700;margin-bottom:2px;}
+.rpt-zone-note{font-size:11px;color:var(--text-light);font-style:italic;margin-top:3px;line-height:1.5;}
+.pupil-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;}
+.pupil-card{background:var(--off-white);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:120px;}
+.overall-note-box{margin-top:14px;background:#F0F7FF;border:1px solid var(--blue-pale);border-radius:9px;padding:14px;}
+.overall-note-label{font-size:12px;font-weight:700;color:var(--navy-mid);margin-bottom:5px;}
+.overall-note-text{font-size:13px;color:var(--text-mid);line-height:1.7;}
+
+/* ── ANALYZING OVERLAY ── */
+.overlay{position:fixed;inset:0;background:rgba(10,22,40,.88);z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column;}
+.overlay.on{display:flex;}
+.spinner{width:72px;height:72px;border:4px solid rgba(255,255,255,.1);border-top-color:var(--blue-primary);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:24px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ov-title{color:white;font-size:20px;font-weight:700;margin-bottom:8px;}
+.ov-sub{color:rgba(255,255,255,.55);font-size:13px;}
+.ov-bar{width:260px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin-top:20px;overflow:hidden;}
+.ov-bar-fill{height:100%;width:0;background:var(--blue-primary);border-radius:2px;transition:width .4s ease;}
+
+/* ── REPORT ── */
+.rpt-hero{background:linear-gradient(135deg,var(--navy-dark) 0%,var(--navy-mid) 100%);border-radius:14px;padding:26px 30px;color:white;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-start;}
+.rpt-name{font-size:18px;font-weight:800;letter-spacing:.5px;margin-bottom:3px;}
+.rpt-meta{font-size:12px;opacity:.65;line-height:1.8;}
+.rpt-score-ring{width:82px;height:82px;border-radius:50%;background:rgba(255,255,255,.1);border:3px solid rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+.rpt-score-num{font-size:26px;font-weight:800;}
+.rpt-score-lbl{font-size:10px;opacity:.65;margin-top:-2px;}
+.sec-title{font-size:15px;font-weight:800;color:var(--navy-mid);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--blue-pale);display:flex;align-items:center;gap:8px;}
+.sec-title span{font-size:18px;}
+.rpt-section{margin-bottom:26px;}
+.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+@media(max-width:500px){.info-grid{grid-template-columns:1fr 1fr;}}
+.info-card{background:var(--off-white);border:1px solid var(--border);border-radius:9px;padding:12px 14px;}
+.info-lbl{font-size:11px;color:var(--text-light);margin-bottom:3px;}
+.info-val{font-size:14px;font-weight:700;color:var(--navy-dark);}
+.iris-rpt-grid{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:start;}
+@media(max-width:560px){.iris-rpt-grid{grid-template-columns:1fr;}}
+.iris-canvas-box{text-align:center;}
+.iris-canvas-box canvas{border-radius:50%;box-shadow:0 6px 24px rgba(0,0,0,.18);}
+.iris-legend{font-size:11px;color:var(--text-light);margin-top:8px;line-height:1.8;}
+.zone-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.zone-card{padding:11px 13px;border-radius:9px;border-left:3px solid;}
+.zone-card.g{background:#F0FDF4;border-left-color:var(--success);}
+.zone-card.w{background:#FFFBEB;border-left-color:var(--warning);}
+.zone-card.o{background:#FFF7ED;border-left-color:var(--orange);}
+.zone-card.r{background:#FEF2F2;border-left-color:var(--danger);}
+.zone-name{font-size:11px;font-weight:700;color:var(--navy-mid);margin-bottom:3px;}
+.zone-score{font-size:20px;font-weight:800;}
+.zone-card.g .zone-score{color:var(--success);}
+.zone-card.w .zone-score{color:var(--warning);}
+.zone-card.o .zone-score{color:var(--orange);}
+.zone-card.r .zone-score{color:var(--danger);}
+.zone-note{font-size:11px;color:var(--text-light);margin-top:2px;}
+.tag-list{display:flex;flex-wrap:wrap;gap:7px;}
+.tag{padding:4px 10px;background:var(--blue-bg);border:1px solid var(--blue-pale);border-radius:20px;font-size:12px;color:var(--blue-primary);font-weight:600;}
+.tag.none{background:var(--gray-light);border-color:var(--border);color:var(--text-light);}
+.rec-list{display:flex;flex-direction:column;gap:10px;}
+.rec-item{display:flex;gap:12px;padding:13px 15px;background:var(--off-white);border:1px solid var(--border);border-radius:10px;}
+.rec-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.rec-icon.blue{background:var(--blue-bg);}
+.rec-icon.green{background:#F0FDF4;}
+.rec-icon.yellow{background:#FFFBEB;}
+.rec-icon.red{background:#FEF2F2;}
+.rec-body strong{font-size:13px;font-weight:700;color:var(--navy-dark);display:block;margin-bottom:2px;}
+.rec-body p{font-size:12px;color:var(--text-mid);line-height:1.6;}
+.disclaimer{font-size:11px;color:var(--text-light);background:var(--gray-light);border-radius:9px;padding:13px 16px;line-height:1.7;margin-top:16px;border:1px solid var(--border);}
+
+/* ── WELCOME ── */
+.welcome{text-align:center;padding:50px 36px;}
+.wlc-icon{width:84px;height:84px;background:linear-gradient(135deg,var(--blue-primary),var(--navy-mid));border-radius:22px;margin:0 auto 22px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(46,109,180,.35);}
+.wlc-icon svg{width:44px;height:44px;fill:none;stroke:white;stroke-width:1.6;}
+.wlc-title{font-size:28px;font-weight:800;color:var(--navy-dark);margin-bottom:8px;}
+.wlc-desc{font-size:15px;color:var(--text-mid);max-width:460px;margin:0 auto 32px;line-height:1.75;}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:34px;text-align:left;}
+@media(max-width:560px){.feat-grid{grid-template-columns:1fr;}}
+.feat-card{background:var(--off-white);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.feat-icon{font-size:26px;margin-bottom:8px;}
+.feat-title{font-size:13px;font-weight:700;color:var(--navy-mid);margin-bottom:4px;}
+.feat-desc{font-size:12px;color:var(--text-light);line-height:1.55;}
+
+/* ── NAV BUTTONS ── */
+.nav{display:flex;justify-content:space-between;align-items:center;margin-top:32px;padding-top:22px;border-top:1px solid var(--border);}
+.btn-back{padding:11px 24px;border:1.5px solid var(--border);border-radius:10px;background:none;color:var(--text-mid);font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;font-family:inherit;}
+.btn-back:hover{border-color:var(--navy-mid);color:var(--navy-dark);}
+.btn-next{padding:11px 30px;border:none;border-radius:10px;background:var(--blue-primary);color:white;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(46,109,180,.32);font-family:inherit;letter-spacing:.3px;}
+.btn-next:hover{background:var(--navy-light);transform:translateY(-1px);box-shadow:0 6px 18px rgba(46,109,180,.4);}
+.btn-start{padding:15px 50px;border:none;border-radius:13px;background:linear-gradient(135deg,var(--blue-primary),var(--navy-mid));color:white;font-size:16px;font-weight:800;cursor:pointer;transition:all .22s;box-shadow:0 6px 22px rgba(46,109,180,.38);letter-spacing:.5px;font-family:inherit;}
+.btn-start:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(46,109,180,.48);}
+.btn-outline{padding:11px 24px;border:1.5px solid var(--blue-primary);border-radius:10px;background:none;color:var(--blue-primary);font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;font-family:inherit;}
+.btn-outline:hover{background:var(--blue-bg);}
+.btn-dark{padding:11px 24px;border:none;border-radius:10px;background:var(--navy-dark);color:white;font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:7px;font-family:inherit;}
+.btn-dark:hover{background:var(--navy-mid);}
+.divider{height:1px;background:var(--border);margin:22px 0;}
+
+/* ── IRIS DRAWING CANVAS ── */
+.iris-draw-layout{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start;}
+@media(max-width:660px){.iris-draw-layout{grid-template-columns:1fr;}.iris-canvas-outer{align-items:stretch;}.iris-draw-canvas-wrap{width:100%!important;height:auto!important;aspect-ratio:1;}}
+.iris-canvas-outer{display:flex;flex-direction:column;gap:8px;}
+.iris-draw-canvas-wrap{position:relative;width:300px;height:300px;border-radius:50%;overflow:hidden;box-shadow:0 4px 28px rgba(0,0,0,.22);flex-shrink:0;}
+#irisTemplateCanvas,#irisDrawCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block;}
+#irisTemplateCanvas{pointer-events:none;}
+#irisDrawCanvas{cursor:crosshair;touch-action:none;}
+.draw-toolbar{background:var(--off-white);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;}
+.dtool-label{font-size:10px;font-weight:700;color:var(--text-light);letter-spacing:.5px;margin-bottom:8px;text-transform:uppercase;}
+.color-palette{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+.color-swatch{width:32px;height:32px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+.color-swatch:hover{transform:scale(1.1);}
+.color-swatch.active{box-shadow:0 0 0 2px white,0 0 0 4px var(--navy-dark);}
+.size-row{display:flex;gap:6px;margin-bottom:14px;}
+.sz-btn{flex:1;height:32px;border:1.5px solid var(--border);border-radius:7px;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;color:var(--text-dark);}
+.sz-btn:hover{border-color:var(--blue-light);}
+.sz-btn.active{border-color:var(--blue-primary);background:var(--blue-bg);}
+.draw-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+.da-btn{padding:7px 4px;border:1.5px solid var(--border);border-radius:8px;background:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text-mid);display:flex;align-items:center;gap:4px;justify-content:center;transition:all .15s;white-space:nowrap;}
+.da-btn:hover{border-color:var(--blue-light);color:var(--navy-mid);}
+.da-btn.t-active{border-color:var(--blue-primary);background:var(--blue-bg);color:var(--blue-primary);}
+.da-btn.e-active{border-color:#F97316;background:#FFF7ED;color:#C2410C;}
+.draw-legend{border-top:1px solid var(--border);padding-top:10px;}
+.dl-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-mid);margin-bottom:5px;line-height:1.3;}
+.dl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* ── A4 PRINT ── */
+@media print{
+  @page{size:A4 portrait;margin:12mm 15mm;}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  body{background:white!important;font-size:10.5pt!important;}
+  .header,#progressBar,.nav{display:none!important;}
+  .main{margin:0!important;padding:0!important;max-width:100%!important;}
+  .card{box-shadow:none!important;border:none!important;padding:0!important;border-radius:0!important;}
+  .rpt-hero{border-radius:8px!important;padding:16px 22px!important;margin-bottom:14px!important;background:#0A1628!important;}
+  .rpt-score-ring{width:68px!important;height:68px!important;}
+  .rpt-score-num{font-size:22px!important;}
+  .rpt-section{margin-bottom:12px!important;page-break-inside:avoid;}
+  .rec-item,zone-card{page-break-inside:avoid;}
+  .divider{margin:8px 0!important;}
+  .sec-title{font-size:12pt!important;margin-bottom:7px!important;padding-bottom:5px!important;}
+  .info-grid{gap:6px!important;}
+  .info-card{padding:8px 10px!important;}
+  .iris-rpt-grid{grid-template-columns:190px 1fr!important;gap:14px!important;}
+  .zone-grid{gap:6px!important;}
+  .zone-card{padding:8px 10px!important;}
+  .rec-list{gap:6px!important;}
+  .rec-item{padding:9px 12px!important;}
+  .overall-note-box{padding:10px 14px!important;}
+  .disclaimer{font-size:8.5pt!important;padding:8px 12px!important;margin-top:8px!important;}
+  .tag{font-size:9pt!important;padding:2px 7px!important;}
+  .pupil-row{margin-top:8px!important;}
+  .pupil-card{padding:7px 12px!important;}
+  .iris-canvas-box img,.iris-canvas-box canvas{width:180px!important;height:180px!important;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <a class="logo" href="#">
+    <div class="logo-eye">
+      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3" fill="white" stroke="none"/><circle cx="10.8" cy="10.8" r="1" fill="rgba(0,0,0,.3)" stroke="none"/></svg>
+    </div>
+    <div class="logo-info">
+      <div class="logo-name">LUDIA HEALTH</div>
+      <div class="logo-tagline">IRIS DIAGNOSTIC SYSTEM</div>
+    </div>
+  </a>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="lang-switch">
+      <button class="lang-btn active" data-lang="ko" onclick="switchLang('ko')">한국어</button>
+      <div class="lang-sep"></div>
+      <button class="lang-btn" data-lang="en" onclick="switchLang('en')">English</button>
+    </div>
+  </div>
+</header>
+
+<!-- PROGRESS -->
+<div id="progressBar">
+  <div class="progress-inner">
+    <div class="progress-steps" id="progressSteps"></div>
+    <div class="progress-label" id="progressLabels"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="main" id="app"></div>
+
+<!-- OVERLAY -->
+
+<script>
+// ═══════════════════════════════════════════
+//  LANG & STATE
+// ═══════════════════════════════════════════
+let lang = 'ko';
+const t = (ko, en) => lang === 'en' ? en : ko;
+const tbi = item => lang === 'en' ? item[2] : item[1]; // [key, ko, en]
+
+function switchLang(l) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  document.documentElement.lang = l;
+  renderStep();
+}
+
+let step = 0;
+
+const fd = {
+  name:'', dob:'', gender:'', phone:'', email:'', occupation:'',
+  symptoms:[], symptomDuration:'none', painLevel:5, painDesc:'',
+  pastConditions:[], otherConditions:'',
+  hadSurgery:'no', surgeries:[''],
+  medications:[{name:'',dose:'',period:''}],
+  familyConditions:[], familyOther:'',
+  smoking:'none', alcohol:'none', exercise:'rarely', sleep:'lt6h', diet:'irregular', stress:'high',
+  irisAssessment:{
+    zones:{
+      respiratory:{status:'normal',note:''}, cardiovascular:{status:'normal',note:''},
+      immune:{status:'normal',note:''}, digestive:{status:'normal',note:''},
+      urinary:{status:'normal',note:''}, musculoskeletal:{status:'normal',note:''},
+      endocrine:{status:'normal',note:''}, nervous:{status:'normal',note:''}
+    },
+    findings:[], pupilSize:'normal', pupilShape:'round', overallNote:''
+  },
+  irisDrawing:null, irisDrawingLayer:null, scores:null
+};
+
+// ═══════════════════════════════════════════
+//  BILINGUAL DATA
+// ═══════════════════════════════════════════
+const SYMPTOMS_BI = [
+  ['headache','두통 / 어지러움','Headache / Dizziness'],
+  ['eye','눈 이상','Eye Problems'],
+  ['ent','귀·코·목 증상','ENT Symptoms'],
+  ['chest','흉통 / 호흡곤란','Chest Pain / Dyspnea'],
+  ['abdominal','복통 / 소화불량','Abdominal Pain / Indigestion'],
+  ['joint','관절통 / 근육통','Joint / Muscle Pain'],
+  ['fatigue','피로 / 무기력','Fatigue / Lethargy'],
+  ['sleep','수면장애','Sleep Disorder'],
+  ['weight','체중 변화','Weight Change'],
+  ['skin','피부 이상','Skin Problems'],
+  ['urinary','비뇨기 증상','Urinary Symptoms'],
+  ['psych','심리적 증상','Psychological Symptoms'],
+];
+
+const PAST_BI = [
+  ['htn','고혈압','Hypertension'],
+  ['dm','당뇨병','Diabetes Mellitus'],
+  ['heart','심장질환','Heart Disease'],
+  ['cerebro','뇌혈관질환','Cerebrovascular Disease'],
+  ['thyroid','갑상선질환','Thyroid Disease'],
+  ['gi','위장질환','GI Disease'],
+  ['liver','간 / 담도질환','Liver / Biliary Disease'],
+  ['kidney','신장질환','Kidney Disease'],
+  ['lung','폐질환','Lung Disease'],
+  ['cancer','암','Cancer'],
+  ['mental','정신건강 질환','Mental Health Disorder'],
+  ['autoimmune','자가면역질환','Autoimmune Disease'],
+];
+
+const FAMILY_BI = [
+  ['fheart','심장질환','Heart Disease'],
+  ['fdm','당뇨병','Diabetes'],
+  ['fcancer','암','Cancer'],
+  ['fhtn','고혈압','Hypertension'],
+  ['fcerebro','뇌혈관질환','Cerebrovascular Disease'],
+  ['fdementia','치매','Dementia'],
+  ['fmental','정신건강 질환','Mental Health Disorder'],
+  ['fkidney','신장질환','Kidney Disease'],
+];
+
+const DURATION_BI = [
+  ['none','선택 안함','Not specified'],
+  ['lt1w','1주일 미만','< 1 Week'],
+  ['w1_4','1~4주','1–4 Weeks'],
+  ['m1_3','1~3개월','1–3 Months'],
+  ['m3_6','3~6개월','3–6 Months'],
+  ['m6_12','6개월~1년','6–12 Months'],
+  ['gt1y','1년 이상','> 1 Year'],
+];
+
+const GENDER_BI = [
+  ['male','남성','Male'],
+  ['female','여성','Female'],
+  ['other','기타','Other'],
+];
+
+const ZONE_INFO = [
+  {key:'respiratory',    ko:'호흡기계', en:'Respiratory',    icon:'🫁'},
+  {key:'cardiovascular', ko:'심혈관계', en:'Cardiovascular', icon:'❤️'},
+  {key:'immune',         ko:'면역계',   en:'Immune',         icon:'🛡️'},
+  {key:'digestive',      ko:'소화기계', en:'Digestive',      icon:'🫙'},
+  {key:'urinary',        ko:'비뇨기계', en:'Urinary',        icon:'💧'},
+  {key:'musculoskeletal',ko:'근골격계', en:'Musculoskeletal',icon:'🦴'},
+  {key:'endocrine',      ko:'내분비계', en:'Endocrine',      icon:'⚡'},
+  {key:'nervous',        ko:'신경계',   en:'Nervous System', icon:'🧠'},
+];
+
+const STATUSES_BI = [
+  ['normal',    '정상',   'Normal'],
+  ['good',      '양호',   'Good'],
+  ['caution',   '주의',   'Caution'],
+  ['needs_care','관리필요','Needs Care'],
+  ['intensive', '집중관리','Intensive'],
+];
+const STATUS_COLORS = {normal:'#10B981',good:'#3B82F6',caution:'#F59E0B',needs_care:'#F97316',intensive:'#EF4444'};
+
+const IRIS_FINDINGS_BI = [
+  ['lacunae',            '함몰 (Lacunae)',                    'Lacunae'],
+  ['pigment_spots',      '색소 반점 (Pigment spots)',          'Pigment Spots'],
+  ['radii_solaris',      '방사선조 (Radii solaris)',           'Radii Solaris'],
+  ['contraction_furrows','수축환 (Contraction furrows)',       'Contraction Furrows'],
+  ['arcus_senilis',      '각막환 (Arcus senilis)',             'Arcus Senilis'],
+  ['lymphatic_rosary',   '림프환 (Lymphatic rosary)',          'Lymphatic Rosary'],
+  ['pupil_displacement', '동공 편위 (Pupil displacement)',     'Pupil Displacement'],
+  ['irregular_collarette','자율신경환 불규칙',                 'Irregular Collarette'],
+  ['loose_fiber',        '홍채 섬유 이완',                    'Loose Fiber Structure'],
+  ['abnormal_pigment',   '홍채색 이상 (Abnormal pigmentation)','Abnormal Pigmentation'],
+];
+
+const PUPIL_SIZE_BI  = [['normal','정상','Normal'],['small','소동공 (축소)','Miosis'],['large','대동공 (산대)','Mydriasis']];
+const PUPIL_SHAPE_BI = [['round','정원형','Round'],['oval','타원형','Oval'],['irregular','불규칙형','Irregular']];
+
+const LS_OPTS = {
+  smoking:  [['none','없음','None'],['former','과거 흡연','Former Smoker'],['current','현재 흡연','Current Smoker']],
+  alcohol:  [['none','없음','None'],['monthly','월 1~2회','1–2×/Month'],['weekly12','주 1~2회','1–2×/Week'],['weekly3p','주 3회 이상','3+×/Week']],
+  exercise: [['rarely','거의 안함','Rarely'],['weekly12','주 1~2회','1–2×/Week'],['weekly34','주 3~4회','3–4×/Week'],['daily','매일','Daily']],
+  sleep:    [['lt6h','6시간 미만','< 6 Hours'],['h6_7','6~7시간','6–7 Hours'],['h7_8','7~8시간','7–8 Hours'],['gt8h','8시간 이상','8+ Hours']],
+  diet:     [['irregular','불규칙','Irregular'],['moderate','보통','Moderate'],['regular','규칙적','Regular'],['very_regular','매우 규칙적','Very Regular']],
+  stress:   [['low','낮음','Low'],['moderate','보통','Moderate'],['high','높음','High'],['very_high','매우 높음','Very High']],
+};
+function lsLabel(key, val) {
+  const item = (LS_OPTS[key]||[]).find(o=>o[0]===val);
+  return item ? tbi(item) : val;
+}
+function biLabel(biArr, val) {
+  const item = biArr.find(x=>x[0]===val||x[2]===val);
+  return item ? tbi(item) : val;
+}
+
+const DRAW_COLORS = [
+  {c:'#EF4444', ko:'이상 소견',   en:'Abnormal Finding'},
+  {c:'#F97316', ko:'주의 요망',   en:'Caution'},
+  {c:'#EAB308', ko:'경미한 이상', en:'Mild Finding'},
+  {c:'#3B82F6', ko:'일반 표시',   en:'General Mark'},
+  {c:'#10B981', ko:'정상 범위',   en:'Normal Range'},
+  {c:'#1E3A5F', ko:'메모',        en:'Note'},
+];
+
+const STEP_LABELS = {
+  ko:['기본정보','현재증상','과거병력','수술력','복용약','가족력','생활습관','홍채진단'],
+  en:['Basic Info','Symptoms','Med Hx','Surgery','Meds','Family Hx','Lifestyle','Iris Dx'],
+};
+const TOTAL_STEPS = 8;
+
+// ═══════════════════════════════════════════
+//  INIT & PROGRESS
+// ═══════════════════════════════════════════
+function init() { buildProgress(); renderStep(); }
+
+function buildProgress() {
+  const steps = document.getElementById('progressSteps');
+  const labels = document.getElementById('progressLabels');
+  let sh='', lh='';
+  for (let i=1;i<=TOTAL_STEPS;i++) {
+    sh+=`<div class="step-dot" id="sd${i}">${i}</div>`;
+    if(i<TOTAL_STEPS) sh+=`<div class="step-line" id="sl${i}"></div>`;
+    lh+=`<span id="sl_lbl${i}"></span>`;
+  }
+  steps.innerHTML=sh; labels.innerHTML=lh;
+}
+
+function updateProgress() {
+  const pb=document.getElementById('progressBar');
+  if(step===0||step===9){pb.style.display='none';return;}
+  pb.style.display='block';
+  const lbls=STEP_LABELS[lang];
+  for(let i=1;i<=TOTAL_STEPS;i++){
+    const dot=document.getElementById(`sd${i}`);
+    dot.className='step-dot'+(i<step?' done':i===step?' active':'');
+    dot.textContent=i<step?'✓':i;
+    if(i<TOTAL_STEPS) document.getElementById(`sl${i}`).className='step-line'+(i<step?' done':'');
+    const lbl=document.getElementById(`sl_lbl${i}`);
+    if(lbl){lbl.textContent=lbls[i-1];lbl.className=i===step?'active':'';}
+  }
+}
+
+function renderStep() {
+  updateProgress();
+  [r0,r1,r2,r3,r4,r5,r6,r7,r8,r9][step]();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function next(){step++;renderStep();}
+
+// ═══════════════════════════════════════════
+//  STEP 0 — WELCOME
+// ═══════════════════════════════════════════
+function r0(){
+  document.getElementById('app').innerHTML=`
+  <div class="card"><div class="welcome">
+    <div class="wlc-icon">
+      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3.5" fill="white" stroke="none"/><circle cx="10.5" cy="10.5" r="1.2" fill="rgba(30,58,95,.5)" stroke="none"/></svg>
+    </div>
+    <div class="wlc-title">LUDIA HEALTH</div>
+    <div style="font-size:13px;font-weight:700;color:var(--blue-primary);letter-spacing:2px;margin-bottom:12px;">IRIS DIAGNOSTIC SYSTEM</div>
+    <div class="wlc-desc">${t(
+      '홍채 진단과 체계적인 문진을 통해 당신의 건강 상태를 종합적으로 분석하고 개인 맞춤형 건강 리포트를 제공합니다.',
+      'Comprehensive health analysis through iris diagnosis and systematic medical questionnaire, delivering a personalized health report.'
+    )}</div>
+    <div class="feat-grid">
+      <div class="feat-card"><div class="feat-icon">📋</div>
+        <div class="feat-title">${t('체계적 문진','Systematic Questionnaire')}</div>
+        <div class="feat-desc">${t('현재 증상, 병력, 가족력, 생활습관을 단계별로 기록합니다.','Records current symptoms, medical history, family history, and lifestyle step by step.')}</div>
+      </div>
+      <div class="feat-card"><div class="feat-icon">👁️</div>
+        <div class="feat-title">${t('홍채 진단','Iris Diagnosis')}</div>
+        <div class="feat-desc">${t('홍채 모형에 직접 소견을 표기하여 8개 기관계를 평가합니다.','Directly annotate the iris model to assess 8 organ systems.')}</div>
+      </div>
+      <div class="feat-card"><div class="feat-icon">📊</div>
+        <div class="feat-title">${t('종합 리포트','Comprehensive Report')}</div>
+        <div class="feat-desc">${t('분석 결과를 바탕으로 상세한 건강 리포트와 권장사항을 제공합니다.','Provides a detailed health report and recommendations based on analysis results.')}</div>
+      </div>
+    </div>
+    <button class="btn-start" onclick="step=1;renderStep()">${t('진단 시작하기 →','Start Diagnosis →')}</button>
+    <div style="font-size:11px;color:var(--text-light);margin-top:16px">${t('소요 시간 약 5~10분 · 개인정보는 안전하게 보호됩니다','Approx. 5–10 min · Your data is securely protected')}</div>
+  </div></div>`;
+}
+
+// ═══════════════════════════════════════════
+//  STEP 1 — 기본정보 / Basic Info
+// ═══════════════════════════════════════════
+function r1(){
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">STEP 1 / 8 &nbsp;·&nbsp; ${t('기본 정보','Basic Information')}</div>
+      <div class="step-title">${t('환자 기본 정보','Patient Information')}</div>
+      <div class="step-desc">${t('정확한 진단을 위해 기본 정보를 입력해 주세요.','Please enter basic information for accurate diagnosis.')}</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">${t('성명','Full Name')} <span class="req">*</span></label>
+        <input class="form-input" id="f_name" placeholder="${t('홍길동','John Doe')}" value="${fd.name}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">${t('생년월일','Date of Birth')} <span class="req">*</span></label>
+        <input class="form-input" type="date" id="f_dob" value="${fd.dob}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('성별','Gender')} <span class="req">*</span></label>
+      <div class="radio-row" id="genderGroup">
+        ${GENDER_BI.map(g=>`<label class="radio-item${fd.gender===g[0]?' sel':''}">
+          <input type="radio" name="gender" value="${g[0]}" ${fd.gender===g[0]?'checked':''}
+            onchange="fd.gender=this.value;document.querySelectorAll('#genderGroup .radio-item').forEach(x=>x.classList.remove('sel'));this.closest('.radio-item').classList.add('sel')">
+          <span class="radio-text">${tbi(g)}</span>
+        </label>`).join('')}
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">${t('연락처','Phone')}</label>
+        <input class="form-input" id="f_phone" placeholder="010-0000-0000" value="${fd.phone}" type="tel">
+      </div>
+      <div class="form-group">
+        <label class="form-label">${t('이메일','Email')}</label>
+        <input class="form-input" id="f_email" placeholder="example@email.com" value="${fd.email}" type="email">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('직업','Occupation')}</label>
+      <input class="form-input" id="f_occ" placeholder="${t('직업을 입력하세요','Enter your occupation')}" value="${fd.occupation}">
+    </div>
+    <div class="nav">
+      <button class="btn-back" onclick="save1();step=0;renderStep()">← ${t('처음으로','Back')}</button>
+      <button class="btn-next" onclick="save1();next()">${t('다음 단계','Next')} →</button>
+    </div>
+  </div>`;
+}
+function save1(){
+  fd.name=document.getElementById('f_name').value.trim();
+  fd.dob=document.getElementById('f_dob').value;
+  fd.phone=document.getElementById('f_phone').value.trim();
+  fd.email=document.getElementById('f_email').value.trim();
+  fd.occupation=document.getElementById('f_occ').value.trim();
+}
+
+// ═══════════════════════════════════════════
+//  STEP 2 — 현재증상
+// ═══════════════════════════════════════════
+function r2(){
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">STEP 2 / 8 &nbsp;·&nbsp; ${t('현재 증상','Current Symptoms')}</div>
+      <div class="step-title">${t('현재 불편한 사항','Current Complaints')}</div>
+      <div class="step-desc">${t('현재 불편하거나 걱정되는 증상을 모두 선택해 주세요.','Select all symptoms that currently bother or concern you.')}</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('주요 증상 (복수 선택 가능)','Main Symptoms (multiple selection allowed)')}</label>
+      <div class="check-grid" id="symptomGrid">
+        ${SYMPTOMS_BI.map(s=>`<label class="check-item${fd.symptoms.includes(s[0])?' checked':''}">
+          <input type="checkbox" value="${s[0]}" ${fd.symptoms.includes(s[0])?'checked':''}
+            onchange="toggleCheck(this,'symptoms');document.querySelectorAll('#symptomGrid .check-item').forEach(x=>x.classList.toggle('checked',x.querySelector('input').checked))">
+          <span class="check-text">${tbi(s)}</span>
+        </label>`).join('')}
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">${t('증상 지속 기간','Duration of Symptoms')}</label>
+        <select class="form-input" id="f_dur">
+          ${DURATION_BI.map(d=>`<option value="${d[0]}"${fd.symptomDuration===d[0]?' selected':''}>${tbi(d)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">${t('불편함 정도 (1 = 매우 가벼움, 10 = 매우 심함)','Severity (1 = Very Mild, 10 = Very Severe)')}</label>
+        <div class="pain-val" id="painVal">${fd.painLevel}</div>
+        <input type="range" class="pain-slider" min="1" max="10" value="${fd.painLevel}" id="painSlider"
+          oninput="fd.painLevel=+this.value;document.getElementById('painVal').textContent=this.value">
+        <div class="pain-labels"><span>${t('1 (매우 가벼움)','1 (Very Mild)')}</span><span>${t('10 (매우 심함)','10 (Very Severe)')}</span></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('증상 상세 설명 (선택)','Symptom Details (optional)')}</label>
+      <textarea class="form-input" id="f_pdesc" placeholder="${t('증상이 시작된 시기, 악화·완화 요인, 동반 증상 등을 자유롭게 기술해 주세요.','Describe onset, aggravating/relieving factors, associated symptoms, etc.')}">${fd.painDesc}</textarea>
+    </div>
+    <div class="nav">
+      <button class="btn-back" onclick="save2();step=1;renderStep()">← ${t('이전','Back')}</button>
+      <button class="btn-next" onclick="save2();next()">${t('다음 단계','Next')} →</button>
+    </div>
+  </div>`;
+}
+function save2(){
+  fd.symptoms=[...document.querySelectorAll('#symptomGrid input:checked')].map(x=>x.value);
+  fd.symptomDuration=document.getElementById('f_dur').value;
+  fd.painLevel=+document.getElementById('painSlider').value;
+  fd.painDesc=document.getElementById('f_pdesc').value.trim();
+}
+
+// ═══════════════════════════════════════════
+//  STEP 3 — 과거병력
+// ═══════════════════════════════════════════
+function r3(){
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">STEP 3 / 8 &nbsp;·&nbsp; ${t('과거 병력','Medical History')}</div>
+      <div class="step-title">${t('과거 병력','Past Medical History')}</div>
+      <div class="step-desc">${t('과거에 진단받거나 치료한 경험이 있는 질환을 선택해 주세요.','Select conditions previously diagnosed or treated.')}</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('기왕증 (복수 선택 가능)','Past Conditions (multiple selection)')}</label>
+      <div class="check-grid" id="pastGrid">
+        ${PAST_BI.map(p=>`<label class="check-item${fd.pastConditions.includes(p[0])?' checked':''}">
+          <input type="checkbox" value="${p[0]}" ${fd.pastConditions.includes(p[0])?'checked':''}
+            onchange="toggleCheck(this,'pastConditions');document.querySelectorAll('#pastGrid .check-item').forEach(x=>x.classList.toggle('checked',x.querySelector('input').checked))">
+          <span class="check-text">${tbi(p)}</span>
+        </label>`).join('')}
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('기타 병력 (직접 기재)','Other (please specify)')}</label>
+      <textarea class="form-input" id="f_other" placeholder="${t('위 목록에 없는 질환을 입력해 주세요.','Enter any conditions not listed above.')}">${fd.otherConditions}</textarea>
+    </div>
+    <div class="nav">
+      <button class="btn-back" onclick="save3();step=2;renderStep()">← ${t('이전','Back')}</button>
+      <button class="btn-next" onclick="save3();next()">${t('다음 단계','Next')} →</button>
+    </div>
+  </div>`;
+}
+function save3(){
+  fd.pastConditions=[...document.querySelectorAll('#pastGrid input:checked')].map(x=>x.value);
+  fd.otherConditions=document.getElementById('f_other').value.trim();
+}
+
+// ═══════════════════════════════════════════
+//  STEP 4 — 수술력
+// ═══════════════════════════════════════════
+function r4(){
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">STEP 4 / 8 &nbsp;·&nbsp; ${t('수술력','Surgical History')}</div>
+      <div class="step-title">${t('수술력','Surgical History')}</div>
+      <div class="step-desc">${t('과거 수술 경험이 있으신가요?','Do you have a history of surgery?')}</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('수술 경험 여부','Surgical History')} <span class="req">*</span></label>
+      <div class="toggle-row">
+        <button class="toggle-btn${fd.hadSurgery==='yes'?' active-yes':''}" onclick="fd.hadSurgery='yes';renderSurgeryList();this.className='toggle-btn active-yes';this.nextElementSibling.className='toggle-btn'">${t('예, 있습니다','Yes')}</button>
+        <button class="toggle-btn${fd.hadSurgery==='no'?' active-no':''}" onclick="fd.hadSurgery='no';renderSurgeryList();this.className='toggle-btn active-no';this.previousElementSibling.className='toggle-btn'">${t('없습니다','No')}</button>
+      </div>
+    </div>
+    <div id="surgerySection"></div>
+    <div class="nav">
+      <button class="btn-back" onclick="save4();step=3;renderStep()">← ${t('이전','Back')}</button>
+      <button class="btn-next" onclick="save4();next()">${t('다음 단계','Next')} →</button>
+    </div>
+  </div>`;
+  renderSurgeryList();
+}
+function renderSurgeryList(){
+  const s=document.getElementById('surgerySection');
+  if(fd.hadSurgery!=='yes'){s.innerHTML='';return;}
+  let h=`<div class="form-group"><label class="form-label">${t('수술 내역 (수술명 / 시기 / 병원)','Surgery Records (name / date / hospital)')}</label><div class="dyn-list" id="surgList">`;
+  fd.surgeries.forEach((v,i)=>{
+    h+=`<div class="dyn-item"><input class="form-input" placeholder="${t('예: 충수염 제거 / 2019년 / 서울대병원','e.g. Appendectomy / 2019 / General Hospital')}" value="${v}" oninput="fd.surgeries[${i}]=this.value">${fd.surgeries.length>1?`<button class="btn-rm" onclick="fd.surgeries.splice(${i},1);renderSurgeryList()">×</button>`:''}</div>`;
+  });
+  h+=`</div><button class="btn-add" onclick="fd.surgeries.push('');renderSurgeryList()">+ ${t('수술 내역 추가','Add Surgery')}</button></div>`;
+  s.innerHTML=h;
+}
+function save4(){
+  const el=document.getElementById('surgList');
+  if(el) fd.surgeries=[...el.querySelectorAll('input')].map(x=>x.value);
+}
+
+// ═══════════════════════════════════════════
+//  STEP 5 — 복용약
+// ═══════════════════════════════════════════
+function r5(){
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">STEP 5 / 8 &nbsp;·&nbsp; ${t('복용 약물','Medications')}</div>
+      <div class="step-title">${t('복용 중인 약물','Current Medications')}</div>
+      <div class="step-desc">${t('현재 복용 중인 처방약, 건강기능식품, 한약 등을 모두 기재해 주세요.','List all current medications, supplements, and herbal remedies.')}</div>
+    </div>
+    <div class="form-group"><div class="dyn-list" id="medList"></div>
+      <button class="btn-add" onclick="fd.medications.push({name:'',dose:'',period:''});renderMeds()">+ ${t('약물 추가','Add Medication')}</button>
+    </div>
+    <div class="hint">${t('복용하는 약이 없으면 그냥 다음 단계로 이동하세요.','If you take no medications, simply proceed to the next step.')}</div>
+    <div class="nav">
+      <button class="btn-back" onclick="saveMeds();step=4;renderStep()">← ${t('이전','Back')}</button>
+      <button class="btn-next" onclick="saveMeds();next()">${t('다음 단계','Next')} →</button>
+    </div>
+  </div>`;
+  renderMeds();
+}
+function renderMeds(){
+  document.getElementById('medList').innerHTML=fd.medications.map((m,i)=>`
+    <div class="dyn-item" style="flex-wrap:wrap;gap:6px">
+      <input class="form-input" style="min-width:160px;flex:3" placeholder="${t('약품명 (예: 아스피린 100mg)','Medication name (e.g. Aspirin 100mg)')}" value="${m.name}" oninput="fd.medications[${i}].name=this.value">
+      <input class="form-input" style="min-width:110px;flex:2" placeholder="${t('용량 / 횟수','Dose / Frequency')}" value="${m.dose}" oninput="fd.medications[${i}].dose=this.value">
+      <input class="form-input" style="min-width:110px;flex:2" placeholder="${t('복용 기간','Duration')}" value="${m.period}" oninput="fd.medications[${i}].period=this.value">
+      ${fd.medications.length>1?`<button class="btn-rm" onclick="fd.medications.splice(${i},1);renderMeds()">×</button>`:''}
+    </div>`).join('');
+}
+function saveMeds(){
+  const rows=document.querySelectorAll('#medList .dyn-item');
+  fd.medications=[...rows].map(r=>{const ins=r.querySelectorAll('input');return{name:ins[0]?.value||'',dose:ins[1]?.value||'',period:ins[2]?.value||''};});
+}
+
+// ═══════════════════════════════════════════
+//  STEP 6 — 가족력
+// ═══════════════════════════════════════════
+function r6(){
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">STEP 6 / 8 &nbsp;·&nbsp; ${t('가족력','Family History')}</div>
+      <div class="step-title">${t('가족력','Family History')}</div>
+      <div class="step-desc">${t('부모, 형제자매, 조부모 등 가족 중 진단받은 질환을 선택해 주세요.','Select conditions diagnosed in parents, siblings, grandparents, etc.')}</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('가족 질환력 (복수 선택 가능)','Family Conditions (multiple selection)')}</label>
+      <div class="check-grid" id="familyGrid">
+        ${FAMILY_BI.map(f=>`<label class="check-item${fd.familyConditions.includes(f[0])?' checked':''}">
+          <input type="checkbox" value="${f[0]}" ${fd.familyConditions.includes(f[0])?'checked':''}
+            onchange="toggleCheck(this,'familyConditions');document.querySelectorAll('#familyGrid .check-item').forEach(x=>x.classList.toggle('checked',x.querySelector('input').checked))">
+          <span class="check-text">${tbi(f)}</span>
+        </label>`).join('')}
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('기타 가족력','Other Family History')}</label>
+      <textarea class="form-input" id="f_fOther" placeholder="${t('위 목록에 없는 가족 질환을 입력해 주세요.','Enter any family conditions not listed above.')}">${fd.familyOther}</textarea>
+    </div>
+    <div class="nav">
+      <button class="btn-back" onclick="save6();step=5;renderStep()">← ${t('이전','Back')}</button>
+      <button class="btn-next" onclick="save6();next()">${t('다음 단계','Next')} →</button>
+    </div>
+  </div>`;
+}
+function save6(){
+  fd.familyConditions=[...document.querySelectorAll('#familyGrid input:checked')].map(x=>x.value);
+  fd.familyOther=document.getElementById('f_fOther').value.trim();
+}
+
+// ═══════════════════════════════════════════
+//  STEP 7 — 생활습관
+// ═══════════════════════════════════════════
+function r7(){
+  const lsKeys=[
+    {k:'smoking', icon:'🚬', ko:'흡연', en:'Smoking'},
+    {k:'alcohol', icon:'🍺', ko:'음주', en:'Alcohol'},
+    {k:'exercise',icon:'🏃', ko:'운동 빈도', en:'Exercise'},
+    {k:'sleep',   icon:'💤', ko:'수면 시간', en:'Sleep'},
+    {k:'diet',    icon:'🥗', ko:'식습관', en:'Diet'},
+    {k:'stress',  icon:'😓', ko:'스트레스', en:'Stress'},
+  ];
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">STEP 7 / 8 &nbsp;·&nbsp; ${t('생활습관','Lifestyle')}</div>
+      <div class="step-title">${t('생활습관','Lifestyle Habits')}</div>
+      <div class="step-desc">${t('평소 생활습관을 선택해 주세요.','Please select your typical lifestyle habits.')}</div>
+    </div>
+    <div class="ls-grid">
+      ${lsKeys.map(lk=>`
+        <div class="ls-card">
+          <div class="ls-label">${lk.icon} ${t(lk.ko,lk.en)}</div>
+          <select class="form-input" onchange="fd.${lk.k}=this.value">
+            ${(LS_OPTS[lk.k]||[]).map(o=>`<option value="${o[0]}"${fd[lk.k]===o[0]?' selected':''}>${tbi(o)}</option>`).join('')}
+          </select>
+        </div>`).join('')}
+    </div>
+    <div class="nav">
+      <button class="btn-back" onclick="step=6;renderStep()">← ${t('이전','Back')}</button>
+      <button class="btn-next" onclick="next()">${t('다음 단계','Next')} →</button>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+//  STEP 8 — 홍채 진단
+// ═══════════════════════════════════════════
+const DS={active:false,tool:'pen',color:'#EF4444',size:4,lx:0,ly:0,history:[]};
+
+function r8(){
+  const ia=fd.irisAssessment;
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="step-header">
+      <div class="step-badge">STEP 8 / 8 &nbsp;·&nbsp; ${t('홍채 진단','Iris Diagnosis')}</div>
+      <div class="step-title">${t('홍채 진단 소견 입력','Iris Diagnosis Entry')}</div>
+      <div class="step-desc">${t('홍채 모형에 직접 소견을 표기하고, 기관계별 상태와 특이 소견을 기록해 주세요.','Draw findings directly on the iris model, then record zone status and special findings.')}</div>
+    </div>
+
+    <div class="form-label" style="margin-bottom:10px">${t('홍채 모형 직접 표기','Direct Iris Annotation')}
+      <span style="font-size:11px;font-weight:400;color:var(--text-light);margin-left:6px">${t('마우스 또는 손가락으로 그릴 수 있습니다','Draw with mouse or finger')}</span>
+    </div>
+    <div class="iris-draw-layout">
+      <div class="iris-canvas-outer">
+        <div class="iris-draw-canvas-wrap">
+          <canvas id="irisTemplateCanvas" width="300" height="300"></canvas>
+          <canvas id="irisDrawCanvas" width="300" height="300"></canvas>
+        </div>
+        <div style="font-size:11px;color:var(--text-light);text-align:center;max-width:300px">${t('홍채 모형 위에 소견을 직접 표시하세요','Annotate findings directly on the iris model')}</div>
+      </div>
+      <div class="draw-toolbar">
+        <div class="dtool-label">${t('색상','Color')}</div>
+        <div class="color-palette">
+          ${DRAW_COLORS.map((x,i)=>`<div class="color-swatch${i===0?' active':''}" style="background:${x.c}" title="${lang==='ko'?x.ko:x.en}" onclick="setDrawColor('${x.c}',this)"></div>`).join('')}
+        </div>
+        <div class="dtool-label">${t('굵기','Thickness')}</div>
+        <div class="size-row">
+          <button class="sz-btn" onclick="setDrawSize(2,this)"><div style="width:2px;height:14px;background:var(--text-dark);border-radius:1px"></div></button>
+          <button class="sz-btn active" onclick="setDrawSize(4,this)"><div style="width:4px;height:14px;background:var(--text-dark);border-radius:2px"></div></button>
+          <button class="sz-btn" onclick="setDrawSize(9,this)"><div style="width:9px;height:14px;background:var(--text-dark);border-radius:4px"></div></button>
+        </div>
+        <div class="dtool-label">${t('도구','Tools')}</div>
+        <div class="draw-actions">
+          <button class="da-btn t-active" id="toolPen" onclick="setDrawTool('pen',this)">✏️ ${t('펜','Pen')}</button>
+          <button class="da-btn" id="toolEraser" onclick="setDrawTool('eraser',this)">⬜ ${t('지우개','Eraser')}</button>
+          <button class="da-btn" onclick="undoDraw()">↩ ${t('취소','Undo')}</button>
+          <button class="da-btn" onclick="clearDrawing()" style="color:var(--danger);border-color:#FCA5A5">🗑 ${t('초기화','Clear')}</button>
+        </div>
+        <div class="draw-legend">
+          <div class="dtool-label" style="margin-bottom:6px">${t('색상 의미','Legend')}</div>
+          ${DRAW_COLORS.map(x=>`<div class="dl-item"><div class="dl-dot" style="background:${x.c}"></div>${lang==='ko'?x.ko:x.en}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="form-label" style="margin-bottom:12px">${t('기관계별 홍채 상태 평가','Zone Assessment')} <span class="req">*</span></div>
+    <div class="zone-assess-grid">
+      ${ZONE_INFO.map(z=>{
+        const zd=ia.zones[z.key];
+        return `<div class="zone-assess-card">
+          <div class="za-header"><span class="za-icon">${z.icon}</span><span class="za-name">${z[lang]}</span></div>
+          <div class="status-btns" id="sb_${z.key}">
+            ${STATUSES_BI.map(st=>`<button class="status-btn${zd.status===st[0]?' sts-active':''}"
+              style="${zd.status===st[0]?`background:${STATUS_COLORS[st[0]]};border-color:${STATUS_COLORS[st[0]]};color:white;`:''}"
+              onclick="setZoneStatus('${z.key}','${st[0]}',this)">${tbi(st)}</button>`).join('')}
+          </div>
+          <textarea class="form-input za-note" placeholder="${t('소견 메모 (선택)','Notes (optional)')}" rows="2"
+            oninput="fd.irisAssessment.zones['${z.key}'].note=this.value">${zd.note}</textarea>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="divider"></div>
+    <div class="form-group">
+      <div class="form-label" style="margin-bottom:10px">${t('특이 홍채 소견 (해당 항목 모두 선택)','Special Iris Findings (select all that apply)')}</div>
+      <div class="check-grid" id="findingsGrid">
+        ${IRIS_FINDINGS_BI.map(f=>`<label class="check-item${ia.findings.includes(f[0])?' checked':''}">
+          <input type="checkbox" value="${f[0]}" ${ia.findings.includes(f[0])?'checked':''}
+            onchange="toggleIrisFinding(this);document.querySelectorAll('#findingsGrid .check-item').forEach(x=>x.classList.toggle('checked',x.querySelector('input').checked))">
+          <span class="check-text">${tbi(f)}</span>
+        </label>`).join('')}
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">${t('동공 크기','Pupil Size')}</label>
+        <select class="form-input" onchange="fd.irisAssessment.pupilSize=this.value">
+          ${PUPIL_SIZE_BI.map(o=>`<option value="${o[0]}"${ia.pupilSize===o[0]?' selected':''}>${tbi(o)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">${t('동공 형태','Pupil Shape')}</label>
+        <select class="form-input" onchange="fd.irisAssessment.pupilShape=this.value">
+          ${PUPIL_SHAPE_BI.map(o=>`<option value="${o[0]}"${ia.pupilShape===o[0]?' selected':''}>${tbi(o)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">${t('종합 홍채 소견','Overall Iris Findings')}</label>
+      <textarea class="form-input" rows="3" placeholder="${t('전반적인 홍채 관찰 소견을 자유롭게 기술해 주세요.','Describe overall iris observations freely.')}"
+        oninput="fd.irisAssessment.overallNote=this.value">${ia.overallNote}</textarea>
+    </div>
+    <div class="nav">
+      <button class="btn-back" onclick="saveDrawLayer();step=7;renderStep()">← ${t('이전','Back')}</button>
+      <button class="btn-next" onclick="goToReport()">${t('리포트 생성','Generate Report')} →</button>
+    </div>
+  </div>`;
+  setTimeout(initIrisDrawing,30);
+}
+
+// ═══════════════════════════════════════════
+//  IRIS TEMPLATE & DRAWING ENGINE
+// ═══════════════════════════════════════════
+function drawIrisTemplate(ctx,cx,cy,R){
+  const W=cx*2; ctx.clearRect(0,0,W,W);
+  const sg=ctx.createRadialGradient(cx,cy-R*.12,R*.15,cx,cy,R);
+  sg.addColorStop(0,'#FFFFFF'); sg.addColorStop(1,'#EDF2F7');
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fillStyle=sg; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,R*.88,0,Math.PI*2); ctx.fillStyle='#C8DCF0'; ctx.fill();
+  const zNames=lang==='ko'?['호흡기','심혈관','면역','소화기','비뇨기','근골격','내분비','신경']:['Resp.','Cardio.','Immune','Digest.','Urinary','Musculo.','Endo.','Nervous'];
+  const n=8,aStep=Math.PI*2/n;
+  for(let i=0;i<n;i++){
+    const a=-Math.PI/2+i*aStep;
+    ctx.beginPath(); ctx.moveTo(cx+R*.38*Math.cos(a),cy+R*.38*Math.sin(a)); ctx.lineTo(cx+R*.9*Math.cos(a),cy+R*.9*Math.sin(a));
+    ctx.strokeStyle='rgba(20,45,90,.28)'; ctx.lineWidth=1; ctx.stroke();
+    const ma=a+aStep/2;
+    ctx.fillStyle='rgba(12,30,60,.6)'; ctx.font=`bold ${Math.round(R*.073)}px -apple-system,sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(zNames[i],cx+R*.63*Math.cos(ma),cy+R*.63*Math.sin(ma));
+  }
+  [.52,.68,.81].forEach(r=>{
+    ctx.beginPath(); ctx.arc(cx,cy,R*r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(20,58,100,.12)'; ctx.lineWidth=.8; ctx.setLineDash([3,5]); ctx.stroke(); ctx.setLineDash([]);
+  });
+  for(let a=0;a<Math.PI*2;a+=Math.PI/24){
+    ctx.beginPath(); ctx.moveTo(cx+R*.39*Math.cos(a),cy+R*.39*Math.sin(a)); ctx.lineTo(cx+R*.88*Math.cos(a),cy+R*.88*Math.sin(a));
+    ctx.strokeStyle='rgba(80,130,190,.08)'; ctx.lineWidth=.5; ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(cx,cy,R*.41,0,Math.PI*2); ctx.strokeStyle='rgba(20,50,100,.5)'; ctx.lineWidth=2; ctx.stroke();
+  const ig=ctx.createRadialGradient(cx,cy,R*.2,cx,cy,R*.41);
+  ig.addColorStop(0,'#2A4A6F'); ig.addColorStop(1,'#1A3356');
+  ctx.beginPath(); ctx.arc(cx,cy,R*.41,0,Math.PI*2); ctx.fillStyle=ig; ctx.fill();
+  const pg=ctx.createRadialGradient(cx-R*.05,cy-R*.07,R*.02,cx,cy,R*.28);
+  pg.addColorStop(0,'#1A1A2E'); pg.addColorStop(1,'#05050D');
+  ctx.beginPath(); ctx.arc(cx,cy,R*.28,0,Math.PI*2); ctx.fillStyle=pg; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx-R*.1,cy-R*.1,R*.065,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,.52)'; ctx.fill();
+  ctx.fillStyle='rgba(20,50,100,.4)'; ctx.font=`${Math.round(R*.068)}px -apple-system,sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const cr=R*.94;
+  [[0,'12'],[90,'3'],[180,'6'],[270,'9']].forEach(([d,l])=>{
+    const rad=(d-90)*Math.PI/180; ctx.fillText(l,cx+cr*Math.cos(rad),cy+cr*Math.sin(rad));
+  });
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.strokeStyle='#A0BAD0'; ctx.lineWidth=2; ctx.stroke();
+}
+
+function initIrisDrawing(){
+  const tmpl=document.getElementById('irisTemplateCanvas');
+  const draw=document.getElementById('irisDrawCanvas');
+  if(!tmpl||!draw) return;
+  drawIrisTemplate(tmpl.getContext('2d'),150,150,148);
+  if(fd.irisDrawingLayer){
+    const img=new Image();
+    img.onload=()=>{draw.getContext('2d').clearRect(0,0,300,300);draw.getContext('2d').drawImage(img,0,0);DS.history=[draw.toDataURL()];};
+    img.src=fd.irisDrawingLayer;
+  } else { DS.history=['empty']; }
+  draw.onmousedown=e=>{DS.active=true;const p=cvPos(draw,e);DS.lx=p.x;DS.ly=p.y;};
+  draw.onmousemove=e=>{if(DS.active)cvDraw(draw.getContext('2d'),cvPos(draw,e));};
+  draw.onmouseup=()=>{if(DS.active){DS.active=false;pushHistory(draw);}};
+  draw.onmouseleave=()=>{if(DS.active){DS.active=false;pushHistory(draw);}};
+  draw.ontouchstart=e=>{e.preventDefault();DS.active=true;const p=cvPos(draw,e.touches[0]);DS.lx=p.x;DS.ly=p.y;};
+  draw.ontouchmove=e=>{e.preventDefault();if(DS.active)cvDraw(draw.getContext('2d'),cvPos(draw,e.touches[0]));};
+  draw.ontouchend=()=>{DS.active=false;pushHistory(draw);};
+}
+function cvPos(canvas,evt){
+  const r=canvas.getBoundingClientRect(),sx=canvas.width/r.width,sy=canvas.height/r.height;
+  return{x:(evt.clientX-r.left)*sx,y:(evt.clientY-r.top)*sy};
+}
+function cvDraw(ctx,pos){
+  ctx.beginPath(); ctx.moveTo(DS.lx,DS.ly); ctx.lineTo(pos.x,pos.y);
+  if(DS.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';ctx.lineWidth=DS.size*5;}
+  else{ctx.globalCompositeOperation='source-over';ctx.strokeStyle=DS.color;ctx.lineWidth=DS.size;}
+  ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();
+  ctx.globalCompositeOperation='source-over';DS.lx=pos.x;DS.ly=pos.y;
+}
+function pushHistory(draw){const url=draw.toDataURL();if(DS.history.length>=20)DS.history.shift();DS.history.push(url);}
+function undoDraw(){
+  if(DS.history.length<=1)return;
+  DS.history.pop();
+  const draw=document.getElementById('irisDrawCanvas');if(!draw)return;
+  const ctx=draw.getContext('2d'),prev=DS.history[DS.history.length-1];
+  ctx.clearRect(0,0,300,300);
+  if(prev!=='empty'){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0);img.src=prev;}
+}
+function clearDrawing(){const draw=document.getElementById('irisDrawCanvas');if(!draw)return;draw.getContext('2d').clearRect(0,0,300,300);DS.history=['empty'];}
+function setDrawColor(color,el){DS.color=color;DS.tool='pen';document.querySelectorAll('.color-swatch').forEach(d=>d.classList.remove('active'));el.classList.add('active');document.getElementById('toolPen')?.classList.add('t-active');document.getElementById('toolEraser')?.classList.remove('t-active','e-active');}
+function setDrawSize(size,el){DS.size=size;document.querySelectorAll('.sz-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');}
+function setDrawTool(tool,el){DS.tool=tool;document.getElementById('toolPen')?.classList.toggle('t-active',tool==='pen');const er=document.getElementById('toolEraser');if(er){er.classList.toggle('t-active',false);er.classList.toggle('e-active',tool==='eraser');}}
+function saveDrawLayer(){const draw=document.getElementById('irisDrawCanvas');if(draw)fd.irisDrawingLayer=draw.toDataURL();}
+function goToReport(){
+  const tmpl=document.getElementById('irisTemplateCanvas'),draw=document.getElementById('irisDrawCanvas');
+  if(tmpl&&draw){
+    const merge=document.createElement('canvas');merge.width=300;merge.height=300;
+    const mctx=merge.getContext('2d');mctx.drawImage(tmpl,0,0);mctx.drawImage(draw,0,0);
+    fd.irisDrawing=merge.toDataURL('image/png');fd.irisDrawingLayer=draw.toDataURL();
+  }
+  fd.scores=scoreFromAssessment();step=9;renderStep();
+}
+
+// ═══════════════════════════════════════════
+//  ZONE STATUS & FINDINGS
+// ═══════════════════════════════════════════
+function setZoneStatus(zoneKey,status,btn){
+  fd.irisAssessment.zones[zoneKey].status=status;
+  btn.closest('.status-btns').querySelectorAll('.status-btn').forEach(b=>{b.classList.remove('sts-active');b.style.background='';b.style.borderColor='';b.style.color='';});
+  btn.classList.add('sts-active');btn.style.background=STATUS_COLORS[status];btn.style.borderColor=STATUS_COLORS[status];btn.style.color='white';
+}
+function toggleIrisFinding(el){const v=el.value,arr=fd.irisAssessment.findings,idx=arr.indexOf(v);if(idx===-1)arr.push(v);else arr.splice(idx,1);}
+function scoreFromAssessment(){
+  const MAP={normal:88,good:76,caution:62,needs_care:48,intensive:35};
+  const s={};Object.entries(fd.irisAssessment.zones).forEach(([k,z])=>{s[k]=MAP[z.status]??88;});return s;
+}
+
+// ═══════════════════════════════════════════
+//  STEP 9 — REPORT
+// ═══════════════════════════════════════════
+function r9(){
+  const sc=fd.scores;
+  const overall=Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/8);
+  const today=new Date().toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{year:'numeric',month:'long',day:'numeric'});
+  const rid='LH-'+Date.now().toString(36).toUpperCase();
+  const age=fd.dob?Math.floor((new Date()-new Date(fd.dob))/31557600000):'–';
+  function cls(v){return v>=80?'g':v>=65?'w':v>=50?'o':'r';}
+  function clsColor(v){return v>=80?'var(--success)':v>=65?'var(--warning)':v>=50?'var(--orange)':'var(--danger)';}
+  function scoreLabel(v){return v>=80?t('양호','Good'):v>=65?t('주의 권고','Caution'):v>=50?t('관리 필요','Needs Care'):t('집중 관리','Intensive Care');}
+  const meds=fd.medications.filter(m=>m.name.trim());
+  const gLabel=biLabel(GENDER_BI,fd.gender)||'–';
+
+  document.getElementById('app').innerHTML=`
+  <div class="card">
+    <div class="rpt-hero">
+      <div>
+        <div class="rpt-name">${fd.name||t('환자','Patient')} ${t('님의 건강 진단 리포트',"'s Health Diagnostic Report")}</div>
+        <div class="rpt-meta">
+          ${t('진단일','Date')}: ${today}<br>
+          ${t('리포트 번호','Report No.')}: ${rid}<br>
+          ${fd.occupation?`${t('직업','Occupation')}: ${fd.occupation}`:''}
+        </div>
+      </div>
+      <div>
+        <div class="rpt-score-ring" style="border-color:${clsColor(overall)}50;background:${clsColor(overall)}15">
+          <div class="rpt-score-num" style="color:${clsColor(overall)}">${overall}</div>
+          <div class="rpt-score-lbl">${t('종합점수','Overall')}</div>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);text-align:center;margin-top:6px">${scoreLabel(overall)}</div>
+      </div>
+    </div>
+
+    <div class="rpt-section">
+      <div class="sec-title"><span>👤</span> ${t('환자 기본 정보','Patient Information')}</div>
+      <div class="info-grid">
+        <div class="info-card"><div class="info-lbl">${t('성명','Name')}</div><div class="info-val">${fd.name||'–'}</div></div>
+        <div class="info-card"><div class="info-lbl">${t('생년월일','Date of Birth')}</div><div class="info-val">${fd.dob||'–'}</div></div>
+        <div class="info-card"><div class="info-lbl">${t('성별 / 나이','Gender / Age')}</div><div class="info-val">${gLabel} / ${age}${t('세','yr')}</div></div>
+        <div class="info-card"><div class="info-lbl">${t('연락처','Phone')}</div><div class="info-val">${fd.phone||'–'}</div></div>
+        <div class="info-card"><div class="info-lbl">${t('이메일','Email')}</div><div class="info-val">${fd.email||'–'}</div></div>
+        <div class="info-card"><div class="info-lbl">${t('직업','Occupation')}</div><div class="info-val">${fd.occupation||'–'}</div></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="rpt-section">
+      <div class="sec-title"><span>👁️</span> ${t('홍채 진단 소견','Iris Diagnosis Findings')}</div>
+      <div class="iris-rpt-grid">
+        <div class="iris-canvas-box">
+          ${fd.irisDrawing
+            ?`<img src="${fd.irisDrawing}" style="width:200px;height:200px;border-radius:50%;box-shadow:0 6px 24px rgba(0,0,0,.18);display:block;margin:0 auto">`
+            :`<canvas id="irisCanvas" width="200" height="200"></canvas>`}
+          <div class="iris-legend">
+            ${fd.irisDrawing?`
+              <span style="color:#EF4444">●</span> ${t('이상 소견','Abnormal Finding')}<br>
+              <span style="color:#F97316">●</span> ${t('주의 요망','Caution')}<br>
+              <span style="color:#EAB308">●</span> ${t('경미한 이상','Mild Finding')}<br>
+              <span style="color:#3B82F6">●</span> ${t('일반 표시','General Mark')}`:`
+              <span style="color:var(--success)">●</span> ${t('정상 / 양호','Normal / Good')}<br>
+              <span style="color:var(--warning)">●</span> ${t('주의','Caution')}<br>
+              <span style="color:var(--orange)">●</span> ${t('관리필요','Needs Care')}<br>
+              <span style="color:var(--danger)">●</span> ${t('집중관리','Intensive Care')}`}
+          </div>
+        </div>
+        <div class="zone-grid">
+          ${ZONE_INFO.map(z=>{
+            const v=sc[z.key],c=cls(v),ia=fd.irisAssessment.zones[z.key];
+            const stItem=STATUSES_BI.find(s=>s[0]===ia.status);
+            const stColor=STATUS_COLORS[ia.status]||'var(--navy-mid)';
+            return `<div class="zone-card ${c}">
+              <div class="zone-name">${z.icon} ${z[lang]}</div>
+              <div class="rpt-zone-status" style="color:${stColor}">${stItem?tbi(stItem):ia.status}</div>
+              ${ia.note?`<div class="rpt-zone-note">${ia.note}</div>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      ${fd.irisAssessment.findings.length?`
+      <div style="margin-top:16px">
+        <div class="form-label" style="margin-bottom:8px;font-size:12px">${t('특이 홍채 소견','Special Iris Findings')}</div>
+        <div class="tag-list">${fd.irisAssessment.findings.map(k=>{
+          const item=IRIS_FINDINGS_BI.find(x=>x[0]===k);
+          return `<span class="tag" style="background:#FFF7ED;border-color:#FDBA74;color:#C2410C">${item?tbi(item):k}</span>`;
+        }).join('')}</div>
+      </div>`:''}
+
+      <div class="pupil-row">
+        <div class="pupil-card">
+          <div class="info-lbl">${t('동공 크기','Pupil Size')}</div>
+          <div class="info-val">${biLabel(PUPIL_SIZE_BI,fd.irisAssessment.pupilSize)}</div>
+        </div>
+        <div class="pupil-card">
+          <div class="info-lbl">${t('동공 형태','Pupil Shape')}</div>
+          <div class="info-val">${biLabel(PUPIL_SHAPE_BI,fd.irisAssessment.pupilShape)}</div>
+        </div>
+      </div>
+      ${fd.irisAssessment.overallNote?`
+      <div class="overall-note-box">
+        <div class="overall-note-label">${t('종합 홍채 소견','Overall Iris Findings')}</div>
+        <div class="overall-note-text">${fd.irisAssessment.overallNote}</div>
+      </div>`:''}
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="rpt-section">
+      <div class="sec-title"><span>📋</span> ${t('문진 요약','Questionnaire Summary')}</div>
+      <div class="form-group">
+        <div class="form-label">${t('주요 증상','Main Symptoms')}</div>
+        <div class="tag-list">${fd.symptoms.length
+          ?fd.symptoms.map(k=>{const item=SYMPTOMS_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join('')
+          :`<span class="tag none">${t('해당 없음','None')}</span>`}</div>
+      </div>
+      <div class="form-row" style="margin-top:14px">
+        <div class="form-group">
+          <div class="form-label">${t('과거 병력','Past Medical History')}</div>
+          <div class="tag-list">${fd.pastConditions.length
+            ?fd.pastConditions.map(k=>{const item=PAST_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join('')
+            :`<span class="tag none">${t('해당 없음','None')}</span>`}</div>
+        </div>
+        <div class="form-group">
+          <div class="form-label">${t('가족력','Family History')}</div>
+          <div class="tag-list">${fd.familyConditions.length
+            ?fd.familyConditions.map(k=>{const item=FAMILY_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join('')
+            :`<span class="tag none">${t('해당 없음','None')}</span>`}</div>
+        </div>
+      </div>
+      ${meds.length?`<div class="form-group" style="margin-top:14px">
+        <div class="form-label">${t('복용 약물','Current Medications')}</div>
+        <div class="tag-list">${meds.map(m=>`<span class="tag">${m.name}${m.dose?' · '+m.dose:''}</span>`).join('')}</div>
+      </div>`:''}
+      <div class="form-group" style="margin-top:14px">
+        <div class="form-label">${t('생활습관 요약','Lifestyle Summary')}</div>
+        <div class="tag-list">
+          <span class="tag">${t('흡연','Smoking')}: ${lsLabel('smoking',fd.smoking)}</span>
+          <span class="tag">${t('음주','Alcohol')}: ${lsLabel('alcohol',fd.alcohol)}</span>
+          <span class="tag">${t('운동','Exercise')}: ${lsLabel('exercise',fd.exercise)}</span>
+          <span class="tag">${t('수면','Sleep')}: ${lsLabel('sleep',fd.sleep)}</span>
+          <span class="tag">${t('식습관','Diet')}: ${lsLabel('diet',fd.diet)}</span>
+          <span class="tag">${t('스트레스','Stress')}: ${lsLabel('stress',fd.stress)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="rpt-section">
+      <div class="sec-title"><span>💊</span> ${t('종합 권장 사항','Recommendations')}</div>
+      <div class="rec-list">${buildRecs(sc)}</div>
+    </div>
+
+    <div class="disclaimer">
+      ${t(
+        '※ 본 리포트는 홍채 진단 및 문진 정보를 바탕으로 생성된 건강 스크리닝 참고 자료입니다. 의학적 진단이나 치료를 대체하지 않으며, 정확한 진단을 위해서는 반드시 전문 의료인과 상담하시기 바랍니다.',
+        '※ This report is a health screening reference generated from iris diagnosis and questionnaire data. It does not replace medical diagnosis or treatment. Please consult a qualified healthcare professional for accurate diagnosis.'
+      )} — LUDIA HEALTH Iris Diagnostic System
+    </div>
+    <div class="nav">
+      <button class="btn-outline" onclick="Object.assign(fd,getInitFd());step=0;renderStep()">${t('새 진단 시작','New Diagnosis')}</button>
+      <button class="btn-dark" onclick="window.print()">🖨️ ${t('리포트 출력','Print Report')}</button>
+    </div>
+  </div>`;
+
+  if(!fd.irisDrawing) setTimeout(()=>drawIrisCanvas(sc),80);
+}
+
+// ═══════════════════════════════════════════
+//  RECOMMENDATIONS
+// ═══════════════════════════════════════════
+function buildRecs(sc){
+  const recs=[];
+  const low=Object.entries(sc).filter(([,v])=>v<65).sort((a,b)=>a[1]-b[1]);
+  if(!low.length){
+    recs.push({icon:'🌿',cls:'green',
+      title:t('전반적으로 양호한 건강 상태','Overall Good Health Status'),
+      body:t('현재 건강 상태가 전반적으로 양호합니다. 건강한 생활습관을 유지하시고 정기적인 검진을 이어가세요.',
+             'Your overall health status is good. Maintain your healthy lifestyle and continue regular check-ups.')});
+  } else {
+    const nm={respiratory:t('호흡기계','Respiratory'),cardiovascular:t('심혈관계','Cardiovascular'),nervous:t('신경계','Nervous'),immune:t('면역계','Immune'),endocrine:t('내분비계','Endocrine'),urinary:t('비뇨기계','Urinary'),musculoskeletal:t('근골격계','Musculoskeletal'),digestive:t('소화기계','Digestive')};
+    const adv={
+      digestive:   [t('소화기계 관리 필요','Digestive Care Needed'),        t('규칙적인 식사와 충분한 수분 섭취를 권장합니다. 소화기과 상담을 받아보세요.','Recommend regular meals and adequate hydration. Consider a gastroenterology consultation.')],
+      cardiovascular:[t('심혈관계 주의','Cardiovascular Caution'),          t('혈압·혈당·콜레스테롤 수치를 정기적으로 확인하세요. 유산소 운동 및 저염식이 도움이 됩니다.','Regularly monitor blood pressure, blood sugar, and cholesterol. Aerobic exercise and a low-salt diet are beneficial.')],
+      nervous:     [t('신경계·정신 건강 관리','Nervous System Management'),  t('충분한 수면과 스트레스 관리가 중요합니다. 이완 요법을 시도해 보세요.','Adequate sleep and stress management are important. Try relaxation techniques.')],
+      immune:      [t('면역 기능 강화 필요','Immune Function Enhancement'),  t('규칙적인 운동과 균형 잡힌 영양 섭취로 면역력을 높이세요. 비타민 D·C 보충도 고려해 보세요.','Boost immunity with regular exercise and balanced nutrition. Consider vitamin D and C supplementation.')],
+      endocrine:   [t('내분비계 점검 권고','Endocrine System Check'),        t('갑상선 기능 및 혈당 검사를 정기적으로 받으세요. 내분비내과 전문의 상담을 권장합니다.','Get regular thyroid function and blood glucose tests. An endocrinologist consultation is recommended.')],
+      urinary:     [t('비뇨기계 관리 권고','Urinary Care Recommended'),      t('하루 1.5~2L의 수분 섭취를 유지하세요. 비뇨기과 상담을 받아보세요.','Maintain 1.5–2L daily fluid intake. Consider a urology consultation.')],
+      musculoskeletal:[t('근골격계 강화 필요','Musculoskeletal Strengthening'),t('규칙적인 스트레칭과 근력 운동을 권장합니다. 관절 통증이 지속될 경우 정형외과 상담을 받아보세요.','Regular stretching and strength training are recommended. Consult an orthopedic specialist if joint pain persists.')],
+      respiratory: [t('호흡기 건강 주의','Respiratory Health Caution'),      t('금연을 강력히 권장하며 공기 질 관리에 신경 써주세요. 폐 기능 검사를 권장합니다.','Smoking cessation is strongly recommended. Manage air quality and consider a pulmonary function test.')],
+    };
+    low.slice(0,3).forEach(([k,v])=>{
+      const a=adv[k];if(!a)return;
+      recs.push({icon:'⚠️',cls:'yellow',title:a[0],body:`${nm[k]} ${t('점수','score')}: ${v} — ${a[1]}`});
+    });
+  }
+  if(fd.smoking==='current') recs.push({icon:'🚭',cls:'red',title:t('금연 강력 권고','Smoking Cessation Strongly Advised'),body:t('흡연은 폐암, 심혈관질환 등 다양한 질환의 위험 요인입니다. 금연 클리닉 상담을 적극 권장합니다.','Smoking is a risk factor for lung cancer, cardiovascular disease, and more. A smoking cessation clinic is highly recommended.')});
+  if(fd.stress==='very_high') recs.push({icon:'🧘',cls:'blue',title:t('스트레스 관리','Stress Management'),body:t('만성 스트레스는 면역·심혈관 건강에 악영향을 줍니다. 전문 심리 상담 및 이완 요법을 고려해 보세요.','Chronic stress negatively affects immune and cardiovascular health. Consider professional counseling and relaxation techniques.')});
+  if(fd.exercise==='rarely') recs.push({icon:'🏃',cls:'blue',title:t('운동 습관 형성','Build Exercise Habits'),body:t('주 3회 이상 30분의 유산소 운동을 목표로 해보세요. 걷기, 수영 등 저강도 운동부터 시작하시길 권장합니다.','Aim for 30 minutes of aerobic exercise 3+ times/week. Start with low-intensity activities like walking or swimming.')});
+  recs.push({icon:'📅',cls:'blue',title:t('정기 건강검진 권고','Regular Health Screening'),body:t('연 1~2회 종합 건강검진을 통해 건강 상태를 지속적으로 모니터링하세요.','Monitor your health with comprehensive check-ups 1–2 times per year.')});
+  return recs.map(r=>`<div class="rec-item"><div class="rec-icon ${r.cls}">${r.icon}</div><div class="rec-body"><strong>${r.title}</strong><p>${r.body}</p></div></div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function toggleCheck(el,key){const v=el.value,arr=fd[key],idx=arr.indexOf(v);if(idx===-1)arr.push(v);else arr.splice(idx,1);}
+
+function getInitFd(){
+  return{
+    name:'',dob:'',gender:'',phone:'',email:'',occupation:'',
+    symptoms:[],symptomDuration:'none',painLevel:5,painDesc:'',
+    pastConditions:[],otherConditions:'',
+    hadSurgery:'no',surgeries:[''],
+    medications:[{name:'',dose:'',period:''}],
+    familyConditions:[],familyOther:'',
+    smoking:'none',alcohol:'none',exercise:'rarely',sleep:'lt6h',diet:'irregular',stress:'high',
+    irisAssessment:{
+      zones:{respiratory:{status:'normal',note:''},cardiovascular:{status:'normal',note:''},immune:{status:'normal',note:''},digestive:{status:'normal',note:''},urinary:{status:'normal',note:''},musculoskeletal:{status:'normal',note:''},endocrine:{status:'normal',note:''},nervous:{status:'normal',note:''}},
+      findings:[],pupilSize:'normal',pupilShape:'round',overallNote:''
+    },
+    irisDrawing:null,irisDrawingLayer:null,scores:null
+  };
+}
+
+// ═══════════════════════════════════════════
+//  IRIS CANVAS (computed fallback)
+// ═══════════════════════════════════════════
+function drawIrisCanvas(scores){
+  const canvas=document.getElementById('irisCanvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d'),cx=100,cy=100,W=200;
+  ctx.clearRect(0,0,W,W);
+  const sc=ctx.createRadialGradient(cx,cy,80,cx,cy,98);
+  sc.addColorStop(0,'#f5f5f5');sc.addColorStop(1,'#e0e0e0');
+  ctx.beginPath();ctx.arc(cx,cy,99,0,Math.PI*2);ctx.fillStyle=sc;ctx.fill();
+  ctx.beginPath();ctx.arc(cx,cy,99,0,Math.PI*2);ctx.strokeStyle='#ccc';ctx.lineWidth=1;ctx.stroke();
+  const order=['respiratory','cardiovascular','immune','digestive','urinary','musculoskeletal','endocrine','nervous'];
+  const nZ=order.length,start=-Math.PI/2;
+  function zColor(v){return v>=80?'#10B981':v>=65?'#F59E0B':v>=50?'#F97316':'#EF4444';}
+  for(let i=0;i<nZ;i++){
+    const a1=start+i*(Math.PI*2/nZ),a2=start+(i+1)*(Math.PI*2/nZ),v=scores[order[i]];
+    ctx.beginPath();ctx.moveTo(cx+60*Math.cos(a1),cy+60*Math.sin(a1));ctx.arc(cx,cy,88,a1,a2);ctx.arc(cx,cy,60,a2,a1,true);ctx.closePath();
+    ctx.fillStyle=zColor(v)+'CC';ctx.fill();ctx.strokeStyle='rgba(255,255,255,.6)';ctx.lineWidth=1;ctx.stroke();
+  }
+  for(let a=0;a<Math.PI*2;a+=Math.PI/20){ctx.beginPath();ctx.moveTo(cx+42*Math.cos(a),cy+42*Math.sin(a));ctx.lineTo(cx+88*Math.cos(a),cy+88*Math.sin(a));ctx.strokeStyle='rgba(0,0,0,.08)';ctx.lineWidth=.6;ctx.stroke();}
+  const ig=ctx.createRadialGradient(cx,cy,30,cx,cy,60);ig.addColorStop(0,'#1E3A5F');ig.addColorStop(1,'#0F2040');
+  ctx.beginPath();ctx.arc(cx,cy,60,0,Math.PI*2);ctx.fillStyle=ig;ctx.fill();
+  ctx.beginPath();ctx.arc(cx,cy,42,0,Math.PI*2);ctx.strokeStyle='rgba(91,155,213,.5)';ctx.lineWidth=1.5;ctx.stroke();
+  const pg=ctx.createRadialGradient(cx-4,cy-4,2,cx,cy,32);pg.addColorStop(0,'#1a1a2e');pg.addColorStop(1,'#050505');
+  ctx.beginPath();ctx.arc(cx,cy,32,0,Math.PI*2);ctx.fillStyle=pg;ctx.fill();
+  ctx.beginPath();ctx.arc(cx-10,cy-10,7,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.55)';ctx.fill();
+  ctx.beginPath();ctx.arc(cx+8,cy+7,3,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.2)';ctx.fill();
+}
+
+// ═══════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════
+init();
+
+</script>
+</body>
+</html>

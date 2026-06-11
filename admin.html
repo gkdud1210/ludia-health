@@ -16,8 +16,8 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--off-white);color:var(--text-dark);min-height:100vh;}
 .header{background:var(--navy-dark);height:66px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.35);}
 .logo{display:flex;align-items:center;gap:12px;text-decoration:none;}
-.logo-eye{width:38px;height:38px;background:linear-gradient(135deg,var(--blue-primary),var(--navy-light));border-radius:10px;display:flex;align-items:center;justify-content:center;}
-.logo-eye svg{width:22px;height:22px;fill:none;stroke:white;stroke-width:1.8;}
+.logo-eye{width:40px;height:40px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#8B1A52;}
+.logo-eye img{width:40px;height:40px;display:block;object-fit:contain;object-position:center;}
 .logo-name{font-size:18px;font-weight:800;color:white;letter-spacing:3px;}
 .logo-tagline{font-size:10px;color:var(--blue-pale);letter-spacing:1.5px;margin-top:-1px;}
 .header-badge{padding:5px 12px;border:1px solid rgba(255,255,255,.2);border-radius:20px;font-size:11px;color:rgba(255,255,255,.7);letter-spacing:.5px;}
@@ -195,7 +195,7 @@ tbody tr:last-child td{border-bottom:none;}
 
 <header class="header">
   <a class="logo" href="index.html">
-    <div class="logo-eye"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3" fill="white" stroke="none"/><circle cx="10.8" cy="10.8" r="1" fill="rgba(0,0,0,.3)" stroke="none"/></svg></div>
+    <div class="logo-eye"><img src="ludia-logo.png" alt="LUDIA"></div>
     <div class="logo-info">
       <div class="logo-name">LUDIA HEALTH</div>
       <div class="logo-tagline">ADMIN PANEL</div>
@@ -212,8 +212,8 @@ tbody tr:last-child td{border-bottom:none;}
 <div id="loginOverlay" style="position:fixed;inset:0;background:rgba(10,22,40,.92);z-index:200;display:flex;align-items:center;justify-content:center;">
   <div style="background:white;border-radius:18px;padding:44px;width:360px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.4)">
     <div style="text-align:center;margin-bottom:28px">
-      <div style="width:62px;height:62px;background:linear-gradient(135deg,#2E6DB4,#1E3A5F);border-radius:16px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3.5" fill="white" stroke="none"/></svg>
+      <div style="width:62px;height:62px;border-radius:16px;margin:0 auto 14px;overflow:hidden;background:#8B1A52">
+        <img src="ludia-logo.png" style="width:62px;height:62px;display:block;object-fit:contain">
       </div>
       <div style="font-size:18px;font-weight:800;color:#0A1628;margin-bottom:4px">관리자 로그인</div>
       <div style="font-size:12px;color:#6B7280">LUDIA HEALTH Admin Panel</div>
@@ -754,8 +754,8 @@ function renderReportView() {
       <div style="background:linear-gradient(135deg,#0A1628 0%,#1E3A5F 100%);padding:22px 32px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
         <div>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-            <div style="width:34px;height:34px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3" fill="white" stroke="none"/><circle cx="10.8" cy="10.8" r="1" fill="rgba(0,0,0,.35)" stroke="none"/></svg>
+            <div style="width:34px;height:34px;border-radius:9px;overflow:hidden;flex-shrink:0;background:#8B1A52">
+              <img src="ludia-logo.png" style="width:34px;height:34px;display:block;object-fit:contain">
             </div>
             <div>
               <div style="font-size:13px;font-weight:900;color:white;letter-spacing:3px;line-height:1">LUDIA HEALTH</div>

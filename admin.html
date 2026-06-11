@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUDIA HEALTH — 관리자</title>
+<style>
+:root{
+  --navy-dark:#0A1628;--navy-mid:#1E3A5F;--navy-light:#2E5C8A;
+  --blue-primary:#2E6DB4;--blue-light:#5B9BD5;--blue-pale:#B8D4F0;--blue-bg:#EBF4FF;
+  --white:#FFFFFF;--off-white:#F0F4F8;--gray-light:#E2EAF2;
+  --text-dark:#0A1628;--text-mid:#374151;--text-light:#6B7280;
+  --success:#10B981;--warning:#F59E0B;--orange:#F97316;--danger:#EF4444;--border:#D1DCE8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--off-white);color:var(--text-dark);min-height:100vh;}
+.header{background:var(--navy-dark);height:66px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.35);}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;}
+.logo-eye{width:38px;height:38px;background:linear-gradient(135deg,var(--blue-primary),var(--navy-light));border-radius:10px;display:flex;align-items:center;justify-content:center;}
+.logo-eye svg{width:22px;height:22px;fill:none;stroke:white;stroke-width:1.8;}
+.logo-name{font-size:18px;font-weight:800;color:white;letter-spacing:3px;}
+.logo-tagline{font-size:10px;color:var(--blue-pale);letter-spacing:1.5px;margin-top:-1px;}
+.header-badge{padding:5px 12px;border:1px solid rgba(255,255,255,.2);border-radius:20px;font-size:11px;color:rgba(255,255,255,.7);letter-spacing:.5px;}
+.hdr-back{padding:5px 14px;border:1px solid rgba(255,255,255,.25);border-radius:8px;color:rgba(255,255,255,.7);font-size:12px;font-weight:600;text-decoration:none;transition:all .18s;}
+.hdr-back:hover{background:rgba(255,255,255,.1);color:white;}
+.mob-menu-btn{display:none;padding:6px 8px;border:none;background:none;color:white;cursor:pointer;font-size:20px;line-height:1;}
+@media(max-width:768px){.mob-menu-btn{display:block;}}
+/* Layout */
+.admin-wrap{display:flex;min-height:calc(100vh - 66px);}
+.sidebar{width:240px;flex-shrink:0;background:#0D1E38;padding:16px 0;position:sticky;top:66px;height:calc(100vh - 66px);overflow-y:auto;transition:left .3s;}
+@media(max-width:768px){.sidebar{position:fixed;left:-240px;top:66px;height:calc(100vh - 66px);z-index:90;}.sidebar.mob-open{left:0;}}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:89;top:66px;}
+.mob-overlay.show{display:block;}
+.sb-label{font-size:10px;color:rgba(255,255,255,.3);letter-spacing:1.5px;text-transform:uppercase;padding:8px 20px 4px;}
+.sb-link{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:2px 8px;border-radius:9px;color:rgba(255,255,255,.6);font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;user-select:none;}
+.sb-link:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9);}
+.sb-link.active{background:var(--blue-primary);color:white;}
+.sb-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
+.sb-div{height:1px;background:rgba(255,255,255,.07);margin:10px 20px;}
+.main-content{flex:1;padding:28px 32px;min-width:0;}
+@media(max-width:768px){.main-content{padding:16px;}}
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+@media(max-width:900px){.stats-row{grid-template-columns:1fr 1fr;}}
+@media(max-width:480px){.stats-row{grid-template-columns:1fr;}}
+.stat-card{background:white;border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.stat-lbl{font-size:11px;color:var(--text-light);margin-bottom:6px;}
+.stat-num{font-size:28px;font-weight:800;color:var(--navy-dark);line-height:1.1;}
+.stat-sub{font-size:11px;color:var(--text-light);margin-top:4px;}
+.stat-blue{border-top:3px solid var(--blue-primary);}
+.stat-green{border-top:3px solid var(--success);}
+.stat-orange{border-top:3px solid var(--orange);}
+.stat-navy{border-top:3px solid var(--navy-mid);}
+/* Table */
+.tbl-card{background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.tbl-hdr{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.tbl-card-title{font-size:15px;font-weight:700;color:var(--navy-dark);}
+.srch{padding:7px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;width:210px;transition:border-color .2s;}
+.srch:focus{border-color:var(--blue-primary);}
+@media(max-width:560px){.srch{width:130px;}}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:10px 14px;font-size:10px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;text-align:left;background:var(--off-white);border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr{cursor:pointer;transition:background .12s;}
+tbody tr:hover{background:#F0F7FF;}
+tbody td{padding:11px 14px;font-size:13px;color:var(--text-dark);border-bottom:1px solid var(--gray-light);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+.scr-badge{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;font-size:12px;font-weight:800;}
+.scr-g{background:#F0FDF4;color:var(--success);}
+.scr-w{background:#FFFBEB;color:var(--warning);}
+.scr-o{background:#FFF7ED;color:var(--orange);}
+.scr-r{background:#FEF2F2;color:var(--danger);}
+.trend-up{color:var(--success);font-weight:700;}
+.trend-dn{color:var(--danger);font-weight:700;}
+.trend-fl{color:var(--text-light);}
+.act-btn{padding:5px 11px;border:1.5px solid var(--blue-primary);border-radius:7px;background:none;color:var(--blue-primary);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;}
+.act-btn:hover{background:var(--blue-bg);}
+.act-btn-danger{padding:5px 11px;border:1.5px solid #FCA5A5;border-radius:7px;background:none;color:var(--danger);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
+.act-btn-danger:hover{background:#FEF2F2;}
+/* Patient hero */
+.pt-hero{background:linear-gradient(135deg,var(--navy-dark),var(--navy-mid));border-radius:14px;padding:22px 28px;color:white;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+.pt-name{font-size:21px;font-weight:800;letter-spacing:.5px;margin-bottom:4px;}
+.pt-meta{font-size:12px;opacity:.65;line-height:1.9;}
+.vcb{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:12px 20px;text-align:center;flex-shrink:0;}
+.vcb-num{font-size:26px;font-weight:800;}
+.vcb-lbl{font-size:10px;opacity:.6;margin-top:2px;}
+/* Chart */
+.chart-card{background:white;border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;}
+.chart-title{font-size:13px;font-weight:700;color:var(--navy-mid);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+/* Visit cards */
+.visits-list{display:flex;flex-direction:column;gap:12px;}
+.vc{background:white;border:1.5px solid var(--border);border-radius:12px;padding:16px 20px;display:grid;grid-template-columns:68px 1fr auto;gap:14px;align-items:center;transition:border-color .2s;}
+.vc:hover{border-color:var(--blue-light);}
+.vc-date-col{text-align:center;}
+.vc-day{font-size:22px;font-weight:800;color:var(--navy-dark);}
+.vc-ym{font-size:10px;color:var(--text-light);}
+.vc-score-row{display:flex;align-items:baseline;gap:6px;margin-bottom:5px;}
+.vc-score{font-size:28px;font-weight:800;}
+.vc-change{font-size:12px;font-weight:700;}
+.vc-eyes{display:flex;gap:5px;margin-bottom:6px;}
+.eye-th{width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid var(--border);}
+.eye-th-empty{width:42px;height:42px;border-radius:50%;background:var(--off-white);border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--border);}
+.vc-tags{display:flex;gap:5px;flex-wrap:wrap;}
+.vc-tag{padding:2px 7px;background:var(--blue-bg);border:1px solid var(--blue-pale);border-radius:10px;font-size:10px;color:var(--blue-primary);}
+.vc-actions{display:flex;flex-direction:column;gap:5px;align-items:flex-end;}
+.cmp-check{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-light);cursor:pointer;}
+.cmp-check input{accent-color:var(--blue-primary);cursor:pointer;}
+@media(max-width:560px){.vc{grid-template-columns:56px 1fr;}.vc-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;justify-content:flex-end;}}
+/* Breadcrumb */
+.bc{display:flex;align-items:center;gap:6px;margin-bottom:14px;font-size:12px;color:var(--text-light);}
+.bc a{color:var(--blue-primary);cursor:pointer;font-weight:600;text-decoration:none;}
+.bc a:hover{text-decoration:underline;}
+/* Report */
+.rpt-card{background:white;border:1px solid var(--border);border-radius:14px;padding:28px;}
+.rpt-hero{background:linear-gradient(135deg,var(--navy-dark),var(--navy-mid));border-radius:12px;padding:20px 26px;color:white;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.rpt-name-txt{font-size:17px;font-weight:800;margin-bottom:3px;}
+.rpt-meta-txt{font-size:11px;opacity:.65;line-height:1.8;}
+.rpt-score-ring{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.1);border:3px solid rgba(255,255,255,.25);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+.rpt-score-num{font-size:22px;font-weight:800;}
+.rpt-score-lbl{font-size:9px;opacity:.6;margin-top:-2px;}
+.rpt-sec{margin-bottom:20px;}
+.sec-title{font-size:13px;font-weight:800;color:var(--navy-mid);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--blue-pale);display:flex;align-items:center;gap:6px;}
+.sec-title span{font-size:16px;}
+.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+@media(max-width:480px){.info-grid{grid-template-columns:1fr 1fr;}}
+.info-card{background:var(--off-white);border:1px solid var(--border);border-radius:8px;padding:9px 12px;}
+.info-lbl{font-size:10px;color:var(--text-light);margin-bottom:2px;}
+.info-val{font-size:13px;font-weight:700;color:var(--navy-dark);}
+.eye-photos-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:14px;max-width:420px;}
+.eye-photo-box{text-align:center;}
+.eye-photo-lbl{font-size:11px;font-weight:700;color:var(--navy-mid);margin-bottom:7px;}
+.eye-photo-wrap{position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.18);}
+.eye-photo-wrap img{width:150px;height:150px;object-fit:cover;display:block;}
+.eye-photo-ann{position:absolute;top:0;left:0;width:150px;height:150px;pointer-events:none;}
+.zone-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.zone-card{padding:9px 11px;border-radius:8px;border-left:3px solid;}
+.zone-card.g{background:#F0FDF4;border-left-color:var(--success);}
+.zone-card.w{background:#FFFBEB;border-left-color:var(--warning);}
+.zone-card.o{background:#FFF7ED;border-left-color:var(--orange);}
+.zone-card.r{background:#FEF2F2;border-left-color:var(--danger);}
+.zn-name{font-size:10px;font-weight:700;color:var(--navy-mid);margin-bottom:2px;}
+.zn-status{font-size:11px;font-weight:700;}
+.zn-note{font-size:10px;color:var(--text-light);margin-top:2px;line-height:1.4;}
+.tag-list{display:flex;flex-wrap:wrap;gap:5px;}
+.tag{padding:3px 8px;background:var(--blue-bg);border:1px solid var(--blue-pale);border-radius:10px;font-size:11px;color:var(--blue-primary);font-weight:600;}
+.tag-none{padding:3px 8px;background:var(--gray-light);border:1px solid var(--border);border-radius:10px;font-size:11px;color:var(--text-light);}
+/* Notes */
+.notes-box{background:var(--blue-bg);border:1.5px solid var(--blue-pale);border-radius:10px;padding:14px;margin-top:16px;}
+.notes-lbl{font-size:11px;font-weight:700;color:var(--navy-mid);margin-bottom:7px;}
+.notes-ta{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-dark);background:white;outline:none;font-family:inherit;resize:vertical;min-height:80px;line-height:1.6;transition:border-color .2s;}
+.notes-ta:focus{border-color:var(--blue-primary);}
+/* Comparison */
+.cmp-header-row{display:grid;grid-template-columns:120px 1fr 40px 1fr;gap:0;align-items:center;margin-bottom:8px;}
+.cmp-col-hdr{background:var(--navy-dark);color:white;border-radius:10px;padding:12px 14px;text-align:center;}
+.cmp-col-date{font-size:10px;opacity:.65;margin-bottom:3px;}
+.cmp-col-score{font-size:26px;font-weight:800;}
+.cmp-zone-block{display:grid;grid-template-columns:120px 1fr 40px 1fr;gap:0;margin-bottom:5px;align-items:center;}
+.cmp-zone-name{font-size:11px;font-weight:700;color:var(--navy-mid);padding-right:8px;}
+.cmp-cell{padding:8px 10px;text-align:center;border-radius:7px;font-size:14px;font-weight:800;}
+.cmp-arrow-cell{display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;padding:0 4px;}
+/* Compare fab */
+.cmp-fab{position:fixed;bottom:28px;right:28px;padding:12px 22px;border:none;border-radius:28px;background:var(--blue-primary);color:white;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 22px rgba(46,109,180,.45);z-index:50;font-family:inherit;display:flex;align-items:center;gap:8px;transition:all .2s;}
+.cmp-fab:hover{background:var(--navy-light);transform:translateY(-2px);}
+/* Buttons */
+.btn-prim{padding:9px 18px;border:none;border-radius:8px;background:var(--blue-primary);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;}
+.btn-prim:hover{background:var(--navy-light);}
+.btn-sec{padding:9px 18px;border:1.5px solid var(--border);border-radius:8px;background:white;color:var(--text-mid);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;}
+.btn-sec:hover{border-color:var(--navy-mid);}
+.btn-danger{padding:9px 18px;border:none;border-radius:8px;background:var(--danger);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;}
+.btn-green{padding:9px 18px;border:none;border-radius:8px;background:var(--success);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;}
+/* Empty */
+.empty{text-align:center;padding:56px 20px;}
+.empty-ico{font-size:52px;margin-bottom:14px;}
+.empty-tit{font-size:16px;font-weight:700;color:var(--navy-mid);margin-bottom:6px;}
+.empty-dsc{font-size:13px;color:var(--text-light);line-height:1.7;}
+.divider{height:1px;background:var(--border);margin:16px 0;}
+/* Settings */
+.settings-card{background:white;border:1px solid var(--border);border-radius:14px;padding:24px;max-width:420px;}
+/* Pagination */
+.pg-title{font-size:21px;font-weight:800;color:var(--navy-dark);margin-bottom:3px;}
+.pg-desc{font-size:13px;color:var(--text-light);margin-bottom:20px;}
+/* Print */
+@media print{
+  @page{size:A4 portrait;margin:8mm 10mm;}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  .sidebar,.hdr-back,.header-badge,.vc-actions,.bc,.cmp-fab,.mob-menu-btn,.mob-overlay,button{display:none!important;}
+  .admin-wrap{display:block!important;}
+  .main-content{padding:0!important;}
+  #adminNotesArea{display:none!important;}
+  .notes-ta{display:none!important;}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a class="logo" href="index.html">
+    <div class="logo-eye"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3" fill="white" stroke="none"/><circle cx="10.8" cy="10.8" r="1" fill="rgba(0,0,0,.3)" stroke="none"/></svg></div>
+    <div class="logo-info">
+      <div class="logo-name">LUDIA HEALTH</div>
+      <div class="logo-tagline">ADMIN PANEL</div>
+    </div>
+  </a>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
+    <a href="index.html" class="hdr-back">← 진단 시스템</a>
+    <div class="header-badge">관리자</div>
+  </div>
+</header>
+
+<!-- Login overlay -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:rgba(10,22,40,.92);z-index:200;display:flex;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:18px;padding:44px;width:360px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="width:62px;height:62px;background:linear-gradient(135deg,#2E6DB4,#1E3A5F);border-radius:16px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3.5" fill="white" stroke="none"/></svg>
+      </div>
+      <div style="font-size:18px;font-weight:800;color:#0A1628;margin-bottom:4px">관리자 로그인</div>
+      <div style="font-size:12px;color:#6B7280">LUDIA HEALTH Admin Panel</div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:12px;font-weight:700;color:#1E3A5F;margin-bottom:6px">비밀번호</label>
+      <input id="loginPass" type="password" style="width:100%;padding:10px 13px;border:1.5px solid #D1DCE8;border-radius:9px;font-size:14px;outline:none;font-family:inherit;transition:border-color .2s" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()" onfocus="this.style.borderColor='#2E6DB4'" onblur="this.style.borderColor='#D1DCE8'">
+      <div id="loginErr" style="font-size:11px;color:#EF4444;margin-top:6px;display:none">비밀번호가 올바르지 않습니다.</div>
+    </div>
+    <button onclick="doLogin()" style="width:100%;padding:12px;border:none;border-radius:9px;background:linear-gradient(135deg,#2E6DB4,#1E3A5F);color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">로그인</button>
+    <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:12px">기본 비밀번호: ludia2024</div>
+  </div>
+</div>
+
+<div id="mobOverlay" class="mob-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Admin layout -->
+<div id="adminLayout" style="display:none">
+  <div class="admin-wrap">
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-label">메인 메뉴</div>
+      <div class="sb-link" id="sb-dashboard" onclick="navigate('dashboard')"><span class="sb-icon">📊</span> 대시보드</div>
+      <div class="sb-link" id="sb-patients" onclick="navigate('patients')"><span class="sb-icon">👥</span> 환자 목록</div>
+      <div class="sb-div"></div>
+      <div class="sb-label">시스템</div>
+      <div class="sb-link" id="sb-settings" onclick="navigate('settings')"><span class="sb-icon">⚙️</span> 설정</div>
+      <div class="sb-link" onclick="doLogout()" style="margin-top:4px"><span class="sb-icon">🔓</span> 로그아웃</div>
+    </aside>
+    <main class="main-content" id="content"></main>
+  </div>
+</div>
+
+<div id="cmpFab" class="cmp-fab" style="display:none" onclick="doCompare()">
+  <span>⚖️</span> <span id="cmpFabTxt">비교하기 (0/2)</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  CONFIG & STATE
+// ═══════════════════════════════════════
+const DEFAULT_PASS = 'ludia2024';
+let curPage = 'dashboard';
+let curPatientId = null;
+let curVisitId = null;
+let cmpSel = []; // compare selection [{patientId, visitId}]
+let searchQ = '';
+
+const ZONE_INFO = [
+  {key:'respiratory',    ko:'호흡기계', icon:'🫁'},
+  {key:'cardiovascular', ko:'심혈관계', icon:'❤️'},
+  {key:'immune',         ko:'면역계',   icon:'🛡️'},
+  {key:'digestive',      ko:'소화기계', icon:'🫙'},
+  {key:'urinary',        ko:'비뇨기계', icon:'💧'},
+  {key:'musculoskeletal',ko:'근골격계', icon:'🦴'},
+  {key:'endocrine',      ko:'내분비계', icon:'⚡'},
+  {key:'nervous',        ko:'신경계',   icon:'🧠'},
+];
+const STATUS_KO = {normal:'정상',good:'양호',caution:'주의',needs_care:'관리필요',intensive:'집중관리'};
+const STATUS_COLORS = {normal:'#10B981',good:'#3B82F6',caution:'#F59E0B',needs_care:'#F97316',intensive:'#EF4444'};
+const SYMPTOM_KO = {headache:'두통/어지러움',eye:'눈 이상',ent:'귀·코·목',chest:'흉통/호흡곤란',abdominal:'복통/소화불량',joint:'관절/근육통',fatigue:'피로/무기력',sleep:'수면장애',weight:'체중변화',skin:'피부이상',urinary:'비뇨기',psych:'심리증상'};
+const GENDER_KO = {male:'남성',female:'여성',other:'기타'};
+
+// ═══════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════
+function checkAuth() { return sessionStorage.getItem('ludia_auth') === '1'; }
+
+function doLogin() {
+  const pass = document.getElementById('loginPass').value;
+  const stored = localStorage.getItem('ludia_admin_pass') || DEFAULT_PASS;
+  if (pass === stored) {
+    sessionStorage.setItem('ludia_auth', '1');
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('adminLayout').style.display = 'block';
+    navigate('dashboard');
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+    document.getElementById('loginPass').style.borderColor = '#EF4444';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('ludia_auth');
+  document.getElementById('adminLayout').style.display = 'none';
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+}
+
+// ═══════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════
+function getRecords() { try { return JSON.parse(localStorage.getItem('ludia_records') || '[]'); } catch(e) { return []; } }
+function saveRecordsData(r) { localStorage.setItem('ludia_records', JSON.stringify(r)); }
+function getPatient(id) { return getRecords().find(p => p.id === id); }
+function getVisit(pid, vid) { const p = getPatient(pid); return p?.visits?.find(v => v.id === vid); }
+
+function saveAdminNote(pid, vid, note) {
+  const records = getRecords();
+  const p = records.find(r => r.id === pid);
+  if (!p) return;
+  const v = p.visits.find(v => v.id === vid);
+  if (!v) return;
+  v.adminNotes = note;
+  saveRecordsData(records);
+}
+
+function deleteVisit(pid, vid) {
+  if (!confirm('이 방문 기록을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.')) return;
+  const records = getRecords();
+  const p = records.find(r => r.id === pid);
+  if (!p) return;
+  p.visits = p.visits.filter(v => v.id !== vid);
+  if (p.visits.length === 0) {
+    if (confirm('방문 기록이 없습니다. 환자 정보도 함께 삭제하시겠습니까?')) {
+      const idx = records.findIndex(r => r.id === pid);
+      if (idx >= 0) records.splice(idx, 1);
+      saveRecordsData(records);
+      navigate('patients');
+      return;
+    }
+  }
+  saveRecordsData(records);
+  navigate('patient', pid);
+}
+
+function deletePatient(pid) {
+  if (!confirm('이 환자의 모든 기록을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.')) return;
+  const records = getRecords().filter(r => r.id !== pid);
+  saveRecordsData(records);
+  navigate('patients');
+}
+
+// ═══════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════
+function navigate(page, patientId, visitId) {
+  curPage = page;
+  curPatientId = patientId || null;
+  curVisitId = visitId || null;
+  if (page !== 'patient') { cmpSel = []; updateCmpFab(); }
+  updateSidebar();
+  renderContent();
+  closeSidebar();
+  window.scrollTo(0, 0);
+}
+
+function updateSidebar() {
+  ['dashboard','patients','settings'].forEach(p => {
+    const el = document.getElementById('sb-' + p);
+    if (el) el.classList.toggle('active', curPage === p || (p === 'patients' && (curPage === 'patient' || curPage === 'report' || curPage === 'compare')));
+  });
+}
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('mobOverlay');
+  sb.classList.toggle('mob-open');
+  ov.classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('mob-open');
+  document.getElementById('mobOverlay').classList.remove('show');
+}
+
+// ═══════════════════════════════════════
+//  COMPARE
+// ═══════════════════════════════════════
+function toggleCmp(pid, vid, cb) {
+  const key = pid + '|' + vid;
+  const idx = cmpSel.findIndex(x => x.key === key);
+  if (cb.checked) {
+    if (cmpSel.length >= 2) { cb.checked = false; alert('최대 2개까지 선택할 수 있습니다.'); return; }
+    cmpSel.push({key, pid, vid});
+  } else {
+    if (idx >= 0) cmpSel.splice(idx, 1);
+  }
+  updateCmpFab();
+}
+
+function updateCmpFab() {
+  const fab = document.getElementById('cmpFab');
+  fab.style.display = cmpSel.length > 0 ? 'flex' : 'none';
+  document.getElementById('cmpFabTxt').textContent = `비교하기 (${cmpSel.length}/2)`;
+}
+
+function doCompare() {
+  if (cmpSel.length < 2) { alert('2개의 방문 기록을 선택해주세요.'); return; }
+  navigate('compare', curPatientId);
+}
+
+// ═══════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════
+function sClass(v) { return v>=80?'g':v>=65?'w':v>=50?'o':'r'; }
+function sColor(v) { return v>=80?'var(--success)':v>=65?'var(--warning)':v>=50?'var(--orange)':'var(--danger)'; }
+function calcAge(dob) { if (!dob) return '–'; return Math.floor((new Date() - new Date(dob)) / 31557600000); }
+function fmtDate(d) { if (!d) return '–'; return new Date(d).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'}); }
+function fmtDateShort(d) { if (!d) return '–'; return d.slice(0,10); }
+
+function getOverall(visit) {
+  if (visit.overallScore) return visit.overallScore;
+  if (visit.scores) return Math.round(Object.values(visit.scores).reduce((a,b)=>a+b,0)/8);
+  return 0;
+}
+
+function getThisMonthCount(records) {
+  const now = new Date(), ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  let count = 0;
+  records.forEach(p => p.visits?.forEach(v => { if ((v.date||'').startsWith(ym)) count++; }));
+  return count;
+}
+
+function getRecentVisits(records, n = 5) {
+  const all = [];
+  records.forEach(p => p.visits?.forEach(v => all.push({...v, patientName: p.name, patientId: p.id})));
+  return all.sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0, n);
+}
+
+// ═══════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════
+function renderContent() {
+  const el = document.getElementById('content');
+  if (!el) return;
+  switch (curPage) {
+    case 'dashboard': el.innerHTML = renderDashboard(); break;
+    case 'patients':  el.innerHTML = renderPatients();  break;
+    case 'patient':   el.innerHTML = renderPatientDetail(); break;
+    case 'report':    el.innerHTML = renderReportView(); break;
+    case 'compare':   el.innerHTML = renderComparison(); break;
+    case 'settings':  el.innerHTML = renderSettings(); break;
+    default: el.innerHTML = renderDashboard();
+  }
+  if (curPage === 'patients') {
+    setTimeout(() => {
+      const si = document.getElementById('searchInput');
+      if (si) si.addEventListener('input', e => { searchQ = e.target.value; renderPatientsTable(); });
+      renderPatientsTable();
+    }, 0);
+  }
+}
+
+// ═══════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════
+function renderDashboard() {
+  const records = getRecords();
+  const totalPatients = records.length;
+  const thisMonth = getThisMonthCount(records);
+  const allVisits = records.flatMap(p => p.visits || []);
+  const totalVisits = allVisits.length;
+  const avgScore = totalVisits > 0 ? Math.round(allVisits.reduce((s, v) => s + getOverall(v), 0) / totalVisits) : 0;
+  const recent = getRecentVisits(records, 5);
+
+  return `
+    <div class="pg-title">대시보드</div>
+    <div class="pg-desc">${new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'})}</div>
+    <div class="stats-row">
+      <div class="stat-card stat-blue">
+        <div class="stat-lbl">총 환자 수</div>
+        <div class="stat-num">${totalPatients}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 명</span></div>
+        <div class="stat-sub">등록된 환자</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="stat-lbl">이번 달 방문</div>
+        <div class="stat-num">${thisMonth}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 회</span></div>
+        <div class="stat-sub">이번 달 진단</div>
+      </div>
+      <div class="stat-card stat-orange">
+        <div class="stat-lbl">전체 방문 횟수</div>
+        <div class="stat-num">${totalVisits}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 회</span></div>
+        <div class="stat-sub">누적 진단 횟수</div>
+      </div>
+      <div class="stat-card stat-navy">
+        <div class="stat-lbl">평균 건강 점수</div>
+        <div class="stat-num" style="color:${sColor(avgScore)}">${avgScore || '–'}</div>
+        <div class="stat-sub">전체 평균</div>
+      </div>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-hdr">
+        <div class="tbl-card-title">최근 방문 기록</div>
+        <button class="act-btn" onclick="navigate('patients')">전체 보기 →</button>
+      </div>
+      ${recent.length === 0 ? `
+        <div class="empty"><div class="empty-ico">📋</div>
+        <div class="empty-tit">방문 기록 없음</div>
+        <div class="empty-dsc">진단 시스템에서 환자 기록을 저장하면<br>여기에 표시됩니다.</div>
+        <div style="margin-top:18px"><a href="index.html" class="btn-prim" style="text-decoration:none;padding:10px 22px">→ 진단 시작하기</a></div></div>
+      ` : `
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th>환자명</th><th>방문일</th><th>점수</th><th>주요 증상</th><th>작업</th>
+        </tr></thead>
+        <tbody>
+          ${recent.map(v => {
+            const sc = getOverall(v);
+            const syms = (v.symptoms || []).slice(0,2).map(s => SYMPTOM_KO[s] || s).join(', ');
+            return `<tr onclick="navigate('report','${v.patientId}','${v.id}')">
+              <td><strong>${v.patientName || '–'}</strong></td>
+              <td>${fmtDateShort(v.date)}</td>
+              <td><span class="scr-badge scr-${sClass(sc)}">${sc}</span></td>
+              <td style="color:var(--text-light);font-size:12px">${syms || '–'}</td>
+              <td><button class="act-btn" onclick="event.stopPropagation();navigate('report','${v.patientId}','${v.id}')">리포트</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>`}
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+//  PATIENTS LIST
+// ═══════════════════════════════════════
+function renderPatients() {
+  return `
+    <div class="pg-title">환자 목록</div>
+    <div class="pg-desc">등록된 모든 환자 기록을 확인하고 관리합니다.</div>
+    <div class="tbl-card">
+      <div class="tbl-hdr">
+        <div class="tbl-card-title" id="ptCount">환자 ${getRecords().length}명</div>
+        <input class="srch" id="searchInput" placeholder="이름 또는 연락처 검색..." value="${searchQ}">
+      </div>
+      <div id="patientsTable"></div>
+    </div>`;
+}
+
+function renderPatientsTable() {
+  const records = getRecords();
+  const q = searchQ.toLowerCase();
+  const filtered = q ? records.filter(p => (p.name||'').toLowerCase().includes(q) || (p.phone||'').includes(q)) : records;
+
+  const el = document.getElementById('patientsTable');
+  const countEl = document.getElementById('ptCount');
+  if (countEl) countEl.textContent = `환자 ${filtered.length}명`;
+
+  if (!el) return;
+  if (filtered.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">${q ? '🔍' : '👥'}</div>
+      <div class="empty-tit">${q ? '검색 결과 없음' : '등록된 환자 없음'}</div>
+      <div class="empty-dsc">${q ? `'${searchQ}'에 해당하는 환자가 없습니다.` : '진단 시스템에서 기록을 저장하면 여기에 표시됩니다.'}</div></div>`;
+    return;
+  }
+
+  const rows = filtered.sort((a,b) => {
+    const la = a.visits?.[a.visits.length-1]?.date || '';
+    const lb = b.visits?.[b.visits.length-1]?.date || '';
+    return lb.localeCompare(la);
+  }).map(p => {
+    const visits = p.visits || [];
+    const last = visits[visits.length - 1];
+    const prev = visits[visits.length - 2];
+    const lastScore = last ? getOverall(last) : null;
+    const prevScore = prev ? getOverall(prev) : null;
+    const diff = lastScore != null && prevScore != null ? lastScore - prevScore : null;
+    const trendHtml = diff == null ? '<span class="trend-fl">–</span>'
+      : diff > 0 ? `<span class="trend-up">↑ +${diff}</span>`
+      : diff < 0 ? `<span class="trend-dn">↓ ${diff}</span>`
+      : '<span class="trend-fl">→ 0</span>';
+    return `<tr onclick="navigate('patient','${p.id}')">
+      <td><strong>${p.name || '–'}</strong></td>
+      <td>${p.dob || '–'}</td>
+      <td>${calcAge(p.dob)}세</td>
+      <td>${GENDER_KO[p.gender] || '–'}</td>
+      <td>${last ? fmtDateShort(last.date) : '–'}</td>
+      <td>${lastScore != null ? `<span class="scr-badge scr-${sClass(lastScore)}">${lastScore}</span>` : '–'}</td>
+      <td>${trendHtml}</td>
+      <td>${visits.length}회</td>
+      <td><button class="act-btn" onclick="event.stopPropagation();navigate('patient','${p.id}')">상세 보기</button></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>이름</th><th>생년월일</th><th>나이</th><th>성별</th><th>마지막 방문</th><th>최근 점수</th><th>추세</th><th>방문</th><th>작업</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+// ═══════════════════════════════════════
+//  PATIENT DETAIL
+// ═══════════════════════════════════════
+function renderPatientDetail() {
+  const p = getPatient(curPatientId);
+  if (!p) return `<div class="empty"><div class="empty-ico">❌</div><div class="empty-tit">환자를 찾을 수 없습니다</div><button class="btn-sec" onclick="navigate('patients')" style="margin-top:14px">← 목록으로</button></div>`;
+
+  const visits = (p.visits || []).slice().reverse();
+  const scores = visits.map(v => getOverall(v));
+
+  return `
+    <div class="bc">
+      <a onclick="navigate('patients')">환자 목록</a>
+      <span>›</span>
+      <span>${p.name}</span>
+    </div>
+    <div class="pt-hero">
+      <div>
+        <div class="pt-name">${p.name}</div>
+        <div class="pt-meta">
+          생년월일: ${p.dob || '–'} · 나이: ${calcAge(p.dob)}세 · ${GENDER_KO[p.gender] || '–'}<br>
+          연락처: ${p.phone || '–'} · 이메일: ${p.email || '–'}<br>
+          직업: ${p.occupation || '–'} · 등록일: ${p.createdAt || '–'}
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <div class="vcb">
+          <div class="vcb-num">${visits.length}</div>
+          <div class="vcb-lbl">총 방문</div>
+        </div>
+        <button class="btn-danger" onclick="deletePatient('${p.id}')">삭제</button>
+      </div>
+    </div>
+
+    ${visits.length >= 2 ? `
+    <div class="chart-card">
+      <div class="chart-title">📈 건강 점수 추이</div>
+      ${renderScoreChart(visits.slice().reverse())}
+    </div>` : ''}
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark)">방문 기록 <span style="color:var(--text-light);font-weight:400">(${visits.length}회)</span></div>
+      ${visits.length >= 2 ? '<div style="font-size:12px;color:var(--text-light)">최대 2개 선택 → 비교하기</div>' : ''}
+    </div>
+
+    ${visits.length === 0 ? `<div class="empty"><div class="empty-ico">📋</div><div class="empty-tit">방문 기록 없음</div></div>` : `
+    <div class="visits-list">
+      ${visits.map((v, idx) => {
+        const sc = getOverall(v);
+        const nextV = visits[idx + 1];
+        const prevSc = nextV ? getOverall(nextV) : null;
+        const diff = prevSc != null ? sc - prevSc : null;
+        const diffHtml = diff == null ? '' : diff > 0 ? `<span class="vc-change trend-up">↑ +${diff}</span>` : diff < 0 ? `<span class="vc-change trend-dn">↓ ${diff}</span>` : `<span class="vc-change trend-fl">→</span>`;
+        const dateParts = (v.date || '').split('-');
+        const syms = (v.symptoms || []).slice(0,3).map(s => SYMPTOM_KO[s] || s);
+        const isInCmp = cmpSel.some(x => x.vid === v.id);
+        return `<div class="vc">
+          <div class="vc-date-col">
+            <div class="vc-day">${dateParts[2] || '–'}</div>
+            <div class="vc-ym">${dateParts[0] || ''}/${dateParts[1] || ''}</div>
+            <div style="font-size:9px;color:var(--text-light);margin-top:3px">방문 ${visits.length - idx}회</div>
+          </div>
+          <div>
+            <div class="vc-score-row">
+              <span class="vc-score" style="color:${sColor(sc)}">${sc}</span>
+              ${diffHtml}
+            </div>
+            <div class="vc-eyes">
+              ${v.leftEyePhoto ? `<img class="eye-th" src="${v.leftEyePhoto}" title="좌안">` : `<div class="eye-th-empty" title="좌안 없음">👁</div>`}
+              ${v.rightEyePhoto ? `<img class="eye-th" src="${v.rightEyePhoto}" title="우안">` : `<div class="eye-th-empty" title="우안 없음">👁</div>`}
+            </div>
+            <div class="vc-tags">
+              ${syms.map(s => `<span class="vc-tag">${s}</span>`).join('')}
+            </div>
+          </div>
+          <div class="vc-actions">
+            <button class="act-btn" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>
+            <button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true','_blank')">✏️ 수정</button>
+            <button class="act-btn-danger" onclick="deleteVisit('${p.id}','${v.id}')">삭제</button>
+            ${visits.length >= 2 ? `<label class="cmp-check"><input type="checkbox" ${isInCmp?'checked':''} onchange="toggleCmp('${p.id}','${v.id}',this)"> 비교 선택</label>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`}`;
+}
+
+// ═══════════════════════════════════════
+//  SCORE CHART (SVG)
+// ═══════════════════════════════════════
+function renderScoreChart(visits) {
+  const W = 600, H = 180, pL = 40, pR = 16, pT = 24, pB = 32;
+  const cW = W - pL - pR, cH = H - pT - pB;
+  const scores = visits.map(v => getOverall(v));
+  const minS = Math.max(0, Math.min(...scores) - 10);
+  const maxS = Math.min(100, Math.max(...scores) + 10);
+  const xStep = visits.length > 1 ? cW / (visits.length - 1) : cW / 2;
+  const yScale = cH / (maxS - minS || 1);
+  const pts = visits.map((v, i) => ({ x: pL + i * xStep, y: pT + cH - (getOverall(v) - minS) * yScale, score: getOverall(v), date: v.date }));
+  const pathD = pts.map((p, i) => `${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaD = pts.map((p, i) => `${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ` L${pts[pts.length-1].x.toFixed(1)},${(pT+cH).toFixed(1)} L${pL},${(pT+cH).toFixed(1)} Z`;
+  let grids = '';
+  for (let y = Math.ceil(minS/20)*20; y <= maxS; y += 20) {
+    const gy = (pT + cH - (y - minS) * yScale).toFixed(1);
+    grids += `<line x1="${pL}" y1="${gy}" x2="${pL+cW}" y2="${gy}" stroke="#E2EAF2" stroke-width="1"/>
+      <text x="${pL-6}" y="${parseFloat(gy)+4}" text-anchor="end" font-size="10" fill="#9CA3AF">${y}</text>`;
+  }
+  const xLabels = pts.map(p => `<text x="${p.x.toFixed(1)}" y="${(pT+cH+18).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9CA3AF">${(p.date||'').slice(5)}</text>`).join('');
+  const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="${sColor(p.score)}" stroke="white" stroke-width="2"/>
+    <text x="${p.x.toFixed(1)}" y="${(p.y-10).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="${sColor(p.score)}">${p.score}</text>`).join('');
+  return `<div style="overflow-x:auto"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="max-width:100%">
+    <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2E6DB4" stop-opacity="0.25"/><stop offset="100%" stop-color="#2E6DB4" stop-opacity="0.03"/></linearGradient></defs>
+    ${grids}
+    <path d="${areaD}" fill="url(#sg)"/>
+    <path d="${pathD}" fill="none" stroke="#2E6DB4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}${xLabels}
+  </svg></div>`;
+}
+
+// ═══════════════════════════════════════
+//  REPORT VIEW
+// ═══════════════════════════════════════
+function renderReportView() {
+  const p = getPatient(curPatientId);
+  const v = getVisit(curPatientId, curVisitId);
+  if (!p || !v) return `<div class="empty"><div class="empty-ico">❌</div><div class="empty-tit">리포트를 찾을 수 없습니다</div><button class="btn-sec" onclick="navigate('patient','${curPatientId}')" style="margin-top:14px">← 돌아가기</button></div>`;
+
+  const sc = v.scores || {};
+  const overall = getOverall(v);
+  const ia = v.irisAssessment || {};
+  const zones = ia.zones || {};
+  const meds = (v.medications || []).filter(m => m.name?.trim());
+  const age = calcAge(p.dob);
+
+  function zoneStatusColor(key) { const z = zones[key]; return z ? (STATUS_COLORS[z.status] || 'var(--navy-mid)') : 'var(--text-light)'; }
+  function zoneStatusKo(key) { const z = zones[key]; return z ? (STATUS_KO[z.status] || z.status || '–') : '–'; }
+  function zoneNote(key) { return zones[key]?.note || ''; }
+  function zoneScore(key) { return sc[key] || 80; }
+
+  function scoreLabel(s) { return s>=80?'양호':s>=65?'주의 권고':s>=50?'관리 필요':'집중 관리'; }
+
+  return `
+    <div class="bc">
+      <a onclick="navigate('patients')">환자 목록</a>
+      <span>›</span>
+      <a onclick="navigate('patient','${p.id}')">${p.name}</a>
+      <span>›</span>
+      <span>리포트 — ${fmtDateShort(v.date)}</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+      <button class="btn-sec" onclick="navigate('patient','${p.id}')">← 돌아가기</button>
+      <button class="btn-prim" onclick="window.print()">🖨️ 출력</button>
+      <button class="btn-danger" onclick="deleteVisit('${p.id}','${v.id}')">이 기록 삭제</button>
+    </div>
+
+    <!-- ══ MEDICAL REPORT ══ -->
+    <div style="background:white;border-radius:18px;overflow:hidden;box-shadow:0 8px 40px rgba(10,22,40,.13);border:1px solid var(--border);margin-bottom:20px">
+
+      <!-- LETTERHEAD -->
+      <div style="background:linear-gradient(135deg,#0A1628 0%,#1E3A5F 100%);padding:22px 32px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="width:34px;height:34px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3" fill="white" stroke="none"/><circle cx="10.8" cy="10.8" r="1" fill="rgba(0,0,0,.35)" stroke="none"/></svg>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:900;color:white;letter-spacing:3px;line-height:1">LUDIA HEALTH</div>
+              <div style="font-size:8px;color:#B8D4F0;letter-spacing:2.5px;margin-top:2px">IRIS DIAGNOSTIC SYSTEM</div>
+            </div>
+          </div>
+          <div style="width:36px;height:2px;background:#2E6DB4;border-radius:1px;margin-bottom:8px"></div>
+          <div style="font-size:16px;font-weight:800;color:white;letter-spacing:.5px">홍채 건강 진단 리포트</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.8px;text-transform:uppercase;margin-bottom:3px">진단일</div>
+          <div style="font-size:13px;color:white;font-weight:600;margin-bottom:10px">${fmtDate(v.date)}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.8px;text-transform:uppercase;margin-bottom:3px">리포트 번호</div>
+          <div style="font-size:11px;color:#B8D4F0;font-family:monospace;letter-spacing:.5px">${v.reportId || '–'}</div>
+        </div>
+      </div>
+
+      <!-- PATIENT STRIP -->
+      <div style="background:#F8FAFC;border-bottom:2px solid var(--border);padding:16px 32px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px 28px">
+        ${[
+          ['환자명', p.name || '–'],
+          ['생년월일', p.dob || '–'],
+          ['성별 / 나이', `${GENDER_KO[p.gender] || '–'} / ${age}세`],
+          ['연락처', p.phone || '–'],
+          ['이메일', p.email || '–'],
+          ['직업', p.occupation || '–'],
+        ].map(([lbl, val]) => `<div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-light);margin-bottom:3px">${lbl}</div>
+          <div style="font-size:14px;font-weight:700;color:var(--navy-dark)">${val}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- BODY -->
+      <div style="padding:32px">
+
+        <!-- OVERALL SCORE BANNER -->
+        <div style="display:flex;align-items:center;gap:28px;background:linear-gradient(135deg,#f0f7ff 0%,#f8fafc 100%);border:1px solid var(--border);border-radius:14px;padding:24px 28px;margin-bottom:32px">
+          <div style="width:96px;height:96px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:3px solid ${sColor(overall)};background:${sColor(overall)}14;flex-shrink:0;box-shadow:0 4px 20px ${sColor(overall)}30">
+            <div style="font-size:36px;font-weight:900;color:${sColor(overall)};line-height:1">${overall}</div>
+            <div style="font-size:11px;font-weight:700;color:${sColor(overall)};opacity:.8;margin-top:3px">종합</div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:17px;font-weight:800;color:${sColor(overall)};margin-bottom:3px">${scoreLabel(overall)}</div>
+            <div style="font-size:12px;color:var(--text-light);margin-bottom:14px">8개 기관계 홍채 진단 종합 결과</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 28px">
+              ${ZONE_INFO.map(z => { const zv = zoneScore(z.key); return `<div style="display:flex;align-items:center;gap:7px">
+                <span style="font-size:11px;color:var(--text-mid);width:58px;flex-shrink:0;font-weight:600">${z.ko}</span>
+                <div style="flex:1;height:6px;background:var(--gray-light);border-radius:3px;overflow:hidden">
+                  <div style="width:${zv}%;height:100%;background:${sColor(zv)};border-radius:3px"></div>
+                </div>
+                <span style="font-size:11px;font-weight:800;color:${sColor(zv)};width:26px;text-align:right">${zv}</span>
+              </div>`; }).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- IRIS DIAGNOSIS -->
+        <div style="margin-bottom:32px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid var(--blue-pale)">
+            <div style="width:4px;height:18px;background:var(--blue-primary);border-radius:2px;flex-shrink:0"></div>
+            <div style="font-size:14px;font-weight:800;color:var(--navy-dark)">👁️ 홍채 진단 소견</div>
+          </div>
+
+          ${(v.leftEyePhoto || v.rightEyePhoto) ? `
+          <div style="display:flex;gap:48px;justify-content:center;flex-wrap:wrap;margin-bottom:28px">
+            ${v.leftEyePhoto ? `<div style="text-align:center">
+              <div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:10px">좌안 (Left Eye)</div>
+              <div style="position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 8px 32px rgba(10,22,40,.2);border:3px solid rgba(46,109,180,.2)">
+                <img src="${v.leftEyePhoto}" style="width:190px;height:190px;object-fit:cover;display:block">
+                ${v.leftEyeAnnotation ? `<img src="${v.leftEyeAnnotation}" style="position:absolute;top:0;left:0;width:190px;height:190px;pointer-events:none">` : ''}
+              </div>
+            </div>` : ''}
+            ${v.rightEyePhoto ? `<div style="text-align:center">
+              <div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:10px">우안 (Right Eye)</div>
+              <div style="position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 8px 32px rgba(10,22,40,.2);border:3px solid rgba(46,109,180,.2)">
+                <img src="${v.rightEyePhoto}" style="width:190px;height:190px;object-fit:cover;display:block">
+                ${v.rightEyeAnnotation ? `<img src="${v.rightEyeAnnotation}" style="position:absolute;top:0;left:0;width:190px;height:190px;pointer-events:none">` : ''}
+              </div>
+            </div>` : ''}
+          </div>` : ''}
+
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;border-radius:10px;overflow:hidden">
+            <thead>
+              <tr style="background:var(--navy-dark)">
+                <th style="padding:11px 16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.75);text-align:left;width:22%">기관계</th>
+                <th style="padding:11px 16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.75);text-align:center;width:18%">상태</th>
+                <th style="padding:11px 16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.75);text-align:center;width:10%">점수</th>
+                <th style="padding:11px 16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.75);text-align:left">소견</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ZONE_INFO.map((z, i) => {
+                const zv = zoneScore(z.key), stColor = zoneStatusColor(z.key), stko = zoneStatusKo(z.key), note = zoneNote(z.key);
+                return `<tr style="background:${i%2===0?'white':'#F8FAFC'}">
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--gray-light);font-size:13px;font-weight:700;color:var(--navy-dark)">${z.icon} ${z.ko}</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--gray-light);text-align:center">
+                    <span style="display:inline-block;padding:4px 12px;border-radius:10px;background:${stColor}18;color:${stColor};font-size:11px;font-weight:700">${stko}</span>
+                  </td>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--gray-light);text-align:center">
+                    <span style="font-size:16px;font-weight:900;color:${sColor(zv)}">${zv}</span>
+                  </td>
+                  <td style="padding:12px 16px;border-bottom:1px solid var(--gray-light);font-size:12px;line-height:1.5;color:${note?'var(--text-mid)':'var(--text-light)'};font-style:${note?'normal':'italic'}">${note||'–'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+
+          ${ia.findings?.length ? `
+          <div style="margin-bottom:16px">
+            <div style="font-size:12px;font-weight:700;color:var(--navy-mid);margin-bottom:8px">특이 홍채 소견</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${ia.findings.map(k => `<span style="padding:5px 13px;background:#FFF7ED;border:1px solid #FDBA74;border-radius:12px;font-size:12px;color:#C2410C;font-weight:600">${k}</span>`).join('')}
+            </div>
+          </div>` : ''}
+
+          ${ia.overallNote ? `
+          <div style="background:var(--blue-bg);border:1px solid var(--blue-pale);border-left:4px solid var(--blue-primary);border-radius:9px;padding:16px 18px">
+            <div style="font-size:12px;font-weight:700;color:var(--navy-mid);margin-bottom:8px">종합 홍채 소견</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.8">${ia.overallNote}</div>
+          </div>` : ''}
+        </div>
+
+        <!-- QUESTIONNAIRE SUMMARY -->
+        <div style="margin-bottom:28px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid var(--blue-pale)">
+            <div style="width:4px;height:18px;background:var(--blue-primary);border-radius:2px;flex-shrink:0"></div>
+            <div style="font-size:14px;font-weight:800;color:var(--navy-dark)">📋 문진 요약</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+            <div style="background:var(--off-white);border:1px solid var(--border);border-radius:10px;padding:16px 18px">
+              <div style="font-size:12px;font-weight:700;color:var(--navy-mid);margin-bottom:10px">주요 증상</div>
+              <div class="tag-list">
+                ${(v.symptoms||[]).length ? v.symptoms.map(s=>`<span class="tag">${SYMPTOM_KO[s]||s}</span>`).join('') : '<span class="tag-none">해당 없음</span>'}
+              </div>
+            </div>
+            <div style="background:var(--off-white);border:1px solid var(--border);border-radius:10px;padding:16px 18px">
+              <div style="font-size:12px;font-weight:700;color:var(--navy-mid);margin-bottom:10px">복용 약물</div>
+              <div class="tag-list">
+                ${meds.length ? meds.map(m=>`<span class="tag">${m.name}${m.dose?' · '+m.dose:''}</span>`).join('') : '<span class="tag-none">해당 없음</span>'}
+              </div>
+            </div>
+            <div style="background:var(--off-white);border:1px solid var(--border);border-radius:10px;padding:16px 18px">
+              <div style="font-size:12px;font-weight:700;color:var(--navy-mid);margin-bottom:10px">생활습관</div>
+              <div class="tag-list">
+                <span class="tag">수면: ${v.sleep||'–'}</span>
+                <span class="tag">운동: ${v.exercise||'–'}</span>
+                <span class="tag">스트레스: ${v.stress||'–'}</span>
+                <span class="tag">흡연: ${v.smoking||'–'}</span>
+              </div>
+            </div>
+          </div>
+          <div style="background:var(--blue-bg);border:1.5px solid var(--blue-pale);border-radius:10px;padding:16px 18px">
+            <div style="font-size:12px;font-weight:700;color:var(--navy-mid);margin-bottom:10px">🗒️ 관리자 메모</div>
+            <textarea class="notes-ta" id="adminNotesArea" placeholder="이 방문에 대한 메모를 입력하세요..." style="margin-bottom:10px">${v.adminNotes || ''}</textarea>
+            <button class="btn-prim" onclick="saveNote()">메모 저장</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div style="background:var(--navy-dark);padding:16px 32px;display:flex;justify-content:space-between;align-items:center;gap:16px">
+        <div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.7;max-width:540px">
+          ※ 본 리포트는 홍채 진단 및 문진 정보를 바탕으로 생성된 건강 스크리닝 참고 자료이며, 의학적 진단이나 치료를 대체하지 않습니다.
+        </div>
+        <div style="font-size:11px;font-weight:900;color:rgba(255,255,255,.3);letter-spacing:2.5px;flex-shrink:0">LUDIA HEALTH</div>
+      </div>
+    </div>`;
+}
+
+function saveNote() {
+  const note = document.getElementById('adminNotesArea')?.value || '';
+  saveAdminNote(curPatientId, curVisitId, note);
+  const btn = event.target;
+  btn.textContent = '✓ 저장됨';
+  setTimeout(() => { btn.textContent = '메모 저장'; }, 1500);
+}
+
+// ═══════════════════════════════════════
+//  COMPARISON
+// ═══════════════════════════════════════
+function renderComparison() {
+  if (cmpSel.length < 2) return `<div class="empty"><div class="empty-ico">⚖️</div><div class="empty-tit">비교할 기록을 선택하세요</div><button class="btn-sec" onclick="navigate('patient','${curPatientId}')" style="margin-top:14px">← 돌아가기</button></div>`;
+
+  const p = getPatient(curPatientId);
+  const v1 = getVisit(cmpSel[0].pid || curPatientId, cmpSel[0].vid);
+  const v2 = getVisit(cmpSel[1].pid || curPatientId, cmpSel[1].vid);
+  if (!v1 || !v2) return `<div class="empty"><div class="empty-ico">❌</div><div class="empty-tit">기록을 찾을 수 없습니다</div><button class="btn-sec" onclick="navigate('patient','${curPatientId}')" style="margin-top:14px">← 돌아가기</button></div>`;
+
+  const sc1 = v1.scores || {}, sc2 = v2.scores || {};
+  const overall1 = getOverall(v1), overall2 = getOverall(v2);
+  const overallDiff = overall2 - overall1;
+
+  return `
+    <div class="bc">
+      <a onclick="navigate('patients')">환자 목록</a>
+      <span>›</span>
+      <a onclick="navigate('patient','${p?.id}')">${p?.name || '환자'}</a>
+      <span>›</span>
+      <span>방문 비교</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:18px">
+      <button class="btn-sec" onclick="navigate('patient','${p?.id}')">← 돌아가기</button>
+      <button class="btn-prim" onclick="window.print()">🖨️ 출력</button>
+    </div>
+
+    <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:24px">
+      <div style="font-size:16px;font-weight:800;color:var(--navy-dark);margin-bottom:6px">방문 기록 비교 — ${p?.name || '환자'}</div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:20px">${fmtDate(v1.date)} vs ${fmtDate(v2.date)}</div>
+
+      <!-- Overall -->
+      <div style="display:grid;grid-template-columns:1fr 80px 1fr;gap:0;margin-bottom:20px;align-items:center">
+        <div class="cmp-col-hdr">
+          <div class="cmp-col-date">${fmtDateShort(v1.date)}</div>
+          <div class="cmp-col-score" style="color:${sColor(overall1)}">${overall1}</div>
+          <div style="font-size:10px;opacity:.6">종합 점수</div>
+        </div>
+        <div style="text-align:center;padding:0 8px">
+          <div style="font-size:22px;font-weight:800;color:${overallDiff>0?'var(--success)':overallDiff<0?'var(--danger)':'var(--text-light)'}">${overallDiff>0?'↑ +'+overallDiff:overallDiff<0?'↓ '+overallDiff:'→'}</div>
+        </div>
+        <div class="cmp-col-hdr">
+          <div class="cmp-col-date">${fmtDateShort(v2.date)}</div>
+          <div class="cmp-col-score" style="color:${sColor(overall2)}">${overall2}</div>
+          <div style="font-size:10px;opacity:.6">종합 점수</div>
+        </div>
+      </div>
+
+      <!-- Eye photos comparison -->
+      ${(v1.leftEyePhoto || v1.rightEyePhoto || v2.leftEyePhoto || v2.rightEyePhoto) ? `
+      <div style="margin-bottom:20px">
+        <div class="sec-title"><span>📷</span> 홍채 사진 비교</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:8px">${fmtDateShort(v1.date)}</div>
+            <div style="display:flex;gap:12px">
+              ${v1.leftEyePhoto ? `<div style="text-align:center"><div style="font-size:10px;color:var(--text-light);margin-bottom:4px">좌안</div>
+                <div style="position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 3px 12px rgba(0,0,0,.15)">
+                  <img src="${v1.leftEyePhoto}" style="width:110px;height:110px;object-fit:cover">
+                  ${v1.leftEyeAnnotation?`<img src="${v1.leftEyeAnnotation}" style="position:absolute;top:0;left:0;width:110px;height:110px">` : ''}</div></div>` : ''}
+              ${v1.rightEyePhoto ? `<div style="text-align:center"><div style="font-size:10px;color:var(--text-light);margin-bottom:4px">우안</div>
+                <div style="position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 3px 12px rgba(0,0,0,.15)">
+                  <img src="${v1.rightEyePhoto}" style="width:110px;height:110px;object-fit:cover">
+                  ${v1.rightEyeAnnotation?`<img src="${v1.rightEyeAnnotation}" style="position:absolute;top:0;left:0;width:110px;height:110px">` : ''}</div></div>` : ''}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:8px">${fmtDateShort(v2.date)}</div>
+            <div style="display:flex;gap:12px">
+              ${v2.leftEyePhoto ? `<div style="text-align:center"><div style="font-size:10px;color:var(--text-light);margin-bottom:4px">좌안</div>
+                <div style="position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 3px 12px rgba(0,0,0,.15)">
+                  <img src="${v2.leftEyePhoto}" style="width:110px;height:110px;object-fit:cover">
+                  ${v2.leftEyeAnnotation?`<img src="${v2.leftEyeAnnotation}" style="position:absolute;top:0;left:0;width:110px;height:110px">` : ''}</div></div>` : ''}
+              ${v2.rightEyePhoto ? `<div style="text-align:center"><div style="font-size:10px;color:var(--text-light);margin-bottom:4px">우안</div>
+                <div style="position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 3px 12px rgba(0,0,0,.15)">
+                  <img src="${v2.rightEyePhoto}" style="width:110px;height:110px;object-fit:cover">
+                  ${v2.rightEyeAnnotation?`<img src="${v2.rightEyeAnnotation}" style="position:absolute;top:0;left:0;width:110px;height:110px">` : ''}</div></div>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>` : ''}
+
+      <!-- Zone comparison -->
+      <div class="sec-title"><span>👁️</span> 기관계별 비교</div>
+      <div style="overflow-x:auto">
+        <div style="min-width:360px">
+          <!-- Header row -->
+          <div style="display:grid;grid-template-columns:100px 1fr 36px 1fr;gap:4px;margin-bottom:6px;align-items:center">
+            <div></div>
+            <div style="text-align:center;font-size:11px;font-weight:700;color:var(--text-light);padding:6px;background:var(--off-white);border-radius:7px">${fmtDateShort(v1.date)}</div>
+            <div></div>
+            <div style="text-align:center;font-size:11px;font-weight:700;color:var(--text-light);padding:6px;background:var(--off-white);border-radius:7px">${fmtDateShort(v2.date)}</div>
+          </div>
+          ${ZONE_INFO.map(z => {
+            const s1 = sc1[z.key] || 80, s2 = sc2[z.key] || 80;
+            const diff = s2 - s1;
+            const arrow = diff > 5 ? '↑' : diff < -5 ? '↓' : '→';
+            const arrowColor = diff > 5 ? 'var(--success)' : diff < -5 ? 'var(--danger)' : 'var(--text-light)';
+            return `<div style="display:grid;grid-template-columns:100px 1fr 36px 1fr;gap:4px;margin-bottom:4px;align-items:center">
+              <div style="font-size:11px;font-weight:700;color:var(--navy-mid)">${z.icon} ${z.ko}</div>
+              <div class="cmp-cell ${sClass(s1)}" style="background:${sColor(s1)}18;color:${sColor(s1)}">${s1}</div>
+              <div style="text-align:center;font-size:18px;font-weight:800;color:${arrowColor}">${arrow}</div>
+              <div class="cmp-cell ${sClass(s2)}" style="background:${sColor(s2)}18;color:${sColor(s2)}">${s2}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Symptom comparison -->
+      <div class="sec-title" style="margin-top:16px"><span>📋</span> 증상 비교</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:7px">${fmtDateShort(v1.date)}</div>
+          <div class="tag-list">${(v1.symptoms||[]).length ? v1.symptoms.map(s=>`<span class="tag">${SYMPTOM_KO[s]||s}</span>`).join('') : '<span class="tag-none">없음</span>'}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:7px">${fmtDateShort(v2.date)}</div>
+          <div class="tag-list">${(v2.symptoms||[]).length ? v2.symptoms.map(s=>`<span class="tag">${SYMPTOM_KO[s]||s}</span>`).join('') : '<span class="tag-none">없음</span>'}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════
+function renderSettings() {
+  const records = getRecords();
+  const allVisits = records.flatMap(p => p.visits || []);
+  const hasPhotos = allVisits.some(v => v.leftEyePhoto || v.rightEyePhoto);
+  const storageUsed = (() => { try { return (JSON.stringify(localStorage).length / 1024).toFixed(0); } catch(e) { return '?'; } })();
+
+  return `
+    <div class="pg-title">설정</div>
+    <div class="pg-desc">시스템 설정을 관리합니다.</div>
+    <div class="settings-card" style="margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:14px">🔐 비밀번호 변경</div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--navy-mid);margin-bottom:5px">현재 비밀번호</label>
+        <input id="curPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit" placeholder="현재 비밀번호">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--navy-mid);margin-bottom:5px">새 비밀번호</label>
+        <input id="newPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit" placeholder="새 비밀번호">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--navy-mid);margin-bottom:5px">새 비밀번호 확인</label>
+        <input id="cfmPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit" placeholder="새 비밀번호 재입력">
+      </div>
+      <div id="passMsg" style="font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn-prim" onclick="changePassword()">비밀번호 변경</button>
+    </div>
+    <div class="settings-card" style="margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:10px">📦 저장소 현황</div>
+      <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px">사용 중: 약 ${storageUsed} KB</div>
+      <div style="font-size:12px;color:var(--text-light)">환자 수: ${records.length}명 · 방문 기록: ${allVisits.length}건 · 사진 포함: ${allVisits.filter(v=>v.leftEyePhoto||v.rightEyePhoto).length}건</div>
+    </div>
+    <div class="settings-card" style="border:1px solid #FCA5A5">
+      <div style="font-size:14px;font-weight:700;color:var(--danger);margin-bottom:8px">⚠️ 위험 구역</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:14px;line-height:1.7">모든 환자 데이터를 삭제합니다. 이 작업은 되돌릴 수 없습니다.</div>
+      <button class="btn-danger" onclick="clearAllData()">전체 데이터 삭제</button>
+    </div>`;
+}
+
+function changePassword() {
+  const cur = document.getElementById('curPass').value;
+  const nw = document.getElementById('newPass').value;
+  const cfm = document.getElementById('cfmPass').value;
+  const stored = localStorage.getItem('ludia_admin_pass') || DEFAULT_PASS;
+  const msg = document.getElementById('passMsg');
+  msg.style.display = 'block';
+  if (cur !== stored) { msg.style.color = 'var(--danger)'; msg.textContent = '현재 비밀번호가 올바르지 않습니다.'; return; }
+  if (nw.length < 4) { msg.style.color = 'var(--danger)'; msg.textContent = '새 비밀번호는 4자 이상이어야 합니다.'; return; }
+  if (nw !== cfm) { msg.style.color = 'var(--danger)'; msg.textContent = '새 비밀번호가 일치하지 않습니다.'; return; }
+  localStorage.setItem('ludia_admin_pass', nw);
+  msg.style.color = 'var(--success)'; msg.textContent = '✓ 비밀번호가 변경되었습니다.';
+  ['curPass','newPass','cfmPass'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+}
+
+function clearAllData() {
+  if (!confirm('정말로 모든 환자 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+  if (!confirm('마지막 확인: 모든 데이터가 영구 삭제됩니다. 계속하시겠습니까?')) return;
+  localStorage.removeItem('ludia_records');
+  navigate('dashboard');
+  alert('모든 데이터가 삭제되었습니다.');
+}
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+function init() {
+  if (checkAuth()) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('adminLayout').style.display = 'block';
+    navigate('dashboard');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

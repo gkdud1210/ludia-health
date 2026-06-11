@@ -31,8 +31,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 /* ── HEADER ── */
 .header{background:var(--navy-dark);height:66px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.35);}
 .logo{display:flex;align-items:center;gap:12px;text-decoration:none;}
-.logo-eye{width:38px;height:38px;background:linear-gradient(135deg,var(--blue-primary),var(--navy-light));border-radius:10px;display:flex;align-items:center;justify-content:center;}
-.logo-eye svg{width:22px;height:22px;fill:none;stroke:white;stroke-width:1.8;}
+.logo-eye{width:40px;height:40px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#8B1A52;}
+.logo-eye img{width:40px;height:40px;display:block;object-fit:contain;object-position:center;}
 .logo-info{}
 .logo-name{font-size:18px;font-weight:800;color:white;letter-spacing:3px;}
 .logo-tagline{font-size:10px;color:var(--blue-pale);letter-spacing:1.5px;margin-top:-1px;}
@@ -52,6 +52,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .step-dot{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:rgba(255,255,255,.4);transition:all .35s;flex-shrink:0;}
 .step-dot.active{background:var(--blue-primary);border-color:var(--blue-primary);color:white;box-shadow:0 0 14px rgba(46,109,180,.7);}
 .step-dot.done{background:var(--success);border-color:var(--success);color:white;}
+.step-dot[style*="pointer"]:hover{transform:scale(1.18);box-shadow:0 0 12px rgba(46,109,180,.5);}
 .step-line{flex:1;height:2px;background:rgba(255,255,255,.15);transition:background .35s;margin:0 4px;}
 .step-line.done{background:var(--success);}
 .progress-label{display:flex;justify-content:space-between;margin-top:8px;padding:0 2px;}
@@ -207,6 +208,7 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
 .tag-list{display:flex;flex-wrap:wrap;gap:7px;}
 .tag{padding:4px 10px;background:var(--blue-bg);border:1px solid var(--blue-pale);border-radius:20px;font-size:12px;color:var(--blue-primary);font-weight:600;}
 .tag.none{background:var(--gray-light);border-color:var(--border);color:var(--text-light);}
+#rpt-q-section .tag{font-size:10.5px;padding:2px 8px;border-radius:3px;font-weight:600;}
 .rec-list{display:flex;flex-direction:column;gap:10px;}
 .rec-item{display:flex;gap:12px;padding:13px 15px;background:var(--off-white);border:1px solid var(--border);border-radius:10px;}
 .rec-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
@@ -220,8 +222,8 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
 
 /* ── WELCOME ── */
 .welcome{text-align:center;padding:50px 36px;}
-.wlc-icon{width:84px;height:84px;background:linear-gradient(135deg,var(--blue-primary),var(--navy-mid));border-radius:22px;margin:0 auto 22px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(46,109,180,.35);}
-.wlc-icon svg{width:44px;height:44px;fill:none;stroke:white;stroke-width:1.6;}
+.wlc-icon{width:84px;height:84px;border-radius:22px;margin:0 auto 22px;overflow:hidden;box-shadow:0 8px 24px rgba(139,26,82,.35);background:#8B1A52;}
+.wlc-icon img{width:84px;height:84px;display:block;object-fit:contain;object-position:center;}
 .wlc-title{font-size:28px;font-weight:800;color:var(--navy-dark);margin-bottom:8px;}
 .wlc-desc{font-size:15px;color:var(--text-mid);max-width:460px;margin:0 auto 32px;line-height:1.75;}
 .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:34px;text-align:left;}
@@ -272,34 +274,114 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
 .dl-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-mid);margin-bottom:5px;line-height:1.3;}
 .dl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 
+/* ── EYE PHOTO UPLOAD & ANNOTATION ── */
+.eye-photo-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+@media(max-width:560px){.eye-photo-row{grid-template-columns:1fr;}}
+.eye-photo-col{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.eye-photo-lbl{font-size:13px;font-weight:700;color:var(--navy-mid);}
+.eye-annotate-wrap{position:relative;width:200px;height:200px;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.2);flex-shrink:0;}
+.eye-annotate-wrap img{width:200px;height:200px;object-fit:cover;display:block;}
+.eye-annotate-wrap canvas{position:absolute;top:0;left:0;width:200px!important;height:200px!important;cursor:crosshair;touch-action:none;}
+.eye-mini-toolbar{display:flex;gap:5px;justify-content:center;align-items:center;flex-wrap:wrap;padding:7px 10px;background:var(--off-white);border:1px solid var(--border);border-radius:9px;width:200px;}
+.ecd{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform .15s,box-shadow .15s;flex-shrink:0;}
+.ecd:hover{transform:scale(1.12);}
+.ecd.ecd-on{box-shadow:0 0 0 2px white,0 0 0 4px var(--navy-dark);}
+.emb{padding:3px 7px;border:1px solid var(--border);border-radius:5px;background:white;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text-mid);transition:all .15s;white-space:nowrap;}
+.emb:hover{border-color:var(--blue-light);}
+/* ── SAVE RECORD BUTTON ── */
+.btn-save-rec{padding:11px 22px;border:none;border-radius:10px;background:var(--success);color:white;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(16,185,129,.3);font-family:inherit;letter-spacing:.3px;}
+.btn-save-rec:hover{background:#059669;transform:translateY(-1px);}
+/* ── ADMIN LINK ── */
+.admin-link{padding:5px 12px;border:1px solid rgba(255,255,255,.22);border-radius:8px;color:rgba(255,255,255,.65);font-size:11px;font-weight:600;text-decoration:none;transition:all .18s;letter-spacing:.3px;}
+.admin-link:hover{background:rgba(255,255,255,.1);color:white;}
 /* ── A4 PRINT ── */
 @media print{
-  @page{size:A4 portrait;margin:12mm 15mm;}
-  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
-  body{background:white!important;font-size:10.5pt!important;}
-  .header,#progressBar,.nav{display:none!important;}
+  @page{size:A4 portrait;margin:8mm 10mm;}
+
+  /* ── color preservation ── */
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box!important;}
+  /* letterhead logo: clip-path is the only reliable way to get rounded corners in PDF */
+  .rpt-letterhead-logo{border-radius:10px!important;clip-path:inset(0 round 10px)!important;}
+
+  /* ── prevent ALL overflow clipping ── */
+  body,#app,#app *{overflow:visible!important;}
+  /* clip-path:circle() replaces overflow:hidden for circular crop — PDF-safe, no grey box */
+  #app .rpt-eye-circle{overflow:visible!important;border-radius:0!important;clip-path:circle(50%)!important;box-shadow:none!important;}
+  /* remove backgrounds from eye card containers to prevent grey box in PDF */
+  #app .rpt-eye-card{overflow:visible!important;border-radius:4px!important;background:transparent!important;}
+  #app .rpt-eye-card>div{background:transparent!important;}
+
+  /* ── layout reset ── */
+  body{background:white!important;margin:0!important;padding:0!important;}
+  .header,#progressBar,.nav,.step-nav{display:none!important;}
   .main{margin:0!important;padding:0!important;max-width:100%!important;}
-  .card{box-shadow:none!important;border:none!important;padding:0!important;border-radius:0!important;}
-  .rpt-hero{border-radius:8px!important;padding:16px 22px!important;margin-bottom:14px!important;background:#0A1628!important;}
-  .rpt-score-ring{width:68px!important;height:68px!important;}
-  .rpt-score-num{font-size:22px!important;}
-  .rpt-section{margin-bottom:12px!important;page-break-inside:avoid;}
-  .rec-item,zone-card{page-break-inside:avoid;}
-  .divider{margin:8px 0!important;}
-  .sec-title{font-size:12pt!important;margin-bottom:7px!important;padding-bottom:5px!important;}
-  .info-grid{gap:6px!important;}
-  .info-card{padding:8px 10px!important;}
-  .iris-rpt-grid{grid-template-columns:190px 1fr!important;gap:14px!important;}
-  .zone-grid{gap:6px!important;}
-  .zone-card{padding:8px 10px!important;}
-  .rec-list{gap:6px!important;}
-  .rec-item{padding:9px 12px!important;}
-  .overall-note-box{padding:10px 14px!important;}
-  .disclaimer{font-size:8.5pt!important;padding:8px 12px!important;margin-top:8px!important;}
-  .tag{font-size:9pt!important;padding:2px 7px!important;}
-  .pupil-row{margin-top:8px!important;}
-  .pupil-card{padding:7px 12px!important;}
-  .iris-canvas-box img,.iris-canvas-box canvas{width:180px!important;height:180px!important;}
+  .card{box-shadow:none!important;border:none!important;padding:0!important;border-radius:0!important;background:transparent!important;}
+
+  /* ── iris chart maps: scale down for print ── */
+  .rpt-eyes-section{gap:14px!important;margin-bottom:12px!important;}
+  .rpt-iris-map{width:130px!important;height:140px!important;background-size:200% auto!important;}
+  .rpt-eye-circle img{width:140px!important;height:140px!important;}
+  .rpt-eye-circle{width:140px!important;height:140px!important;overflow:hidden!important;}
+
+  /* ── report wrapper: remove decorative chrome ── */
+  #app>div:first-child{
+    box-shadow:none!important;border-radius:0!important;
+    border:none!important;overflow:visible!important;
+  }
+
+  /* ── page-break rules ── */
+  table{page-break-inside:auto;width:100%!important;border-radius:0!important;overflow:visible!important;}
+  tr{page-break-inside:avoid!important;}
+  td,th{page-break-inside:avoid!important;}
+
+  /* PAGE 2 = everything from #rpt-page2 onward */
+  #rpt-page2{page-break-before:always!important;margin-top:0!important;padding-top:4px!important;}
+  #rpt-rec-section{page-break-before:avoid!important;margin-top:0!important;}
+  #rpt-q-section{page-break-before:avoid!important;margin-top:0!important;padding-top:0!important;}
+  .rpt-q-pagebreak{page-break-before:avoid!important;}
+  #rpt-q-section>div{page-break-inside:avoid!important;}
+
+  /* ── letterhead & patient strip: tighten ── */
+  #rpt-body{padding:8px 14px!important;}
+  /* section header navy background — needs background graphics on */
+  #rpt-body [style*="background:var(--navy-dark)"][style*="border-radius:4px"]{background:#0A1628!important;}
+  /* eye photo panel background */
+  .rpt-eyes-section+div,div:has(>.rpt-eyes-section){background:#F1F5F9!important;}
+
+  /* ── iris table ── */
+  th,td{padding:5px 9px!important;font-size:8.5pt!important;}
+  th{font-size:7.5pt!important;letter-spacing:.5px!important;}
+
+  /* wellness text: show BOTH base + pattern to fill page 1 */
+  .rpt-well-pat{display:block!important;font-size:7pt!important;line-height:1.4!important;margin-top:2px!important;color:#374151!important;}
+  .rpt-well-base{font-size:7.5pt!important;line-height:1.45!important;}
+  .rpt-well-note{font-size:7pt!important;margin-top:2px!important;font-style:italic!important;}
+
+  /* ── status tags inside table ── */
+  .tag{font-size:7pt!important;padding:2px 6px!important;}
+
+  /* ── health rec cards (3-col grid) ── */
+  #rpt-rec-section{margin-bottom:8px!important;}
+  .rpt-rec-card{padding:4px 6px!important;gap:1px!important;page-break-inside:avoid!important;}
+  .rpt-rec-name{font-size:7.5pt!important;line-height:1.2!important;}
+  .rpt-rec-desc{font-size:6.5pt!important;line-height:1.3!important;}
+  .rpt-rec-food{font-size:6pt!important;line-height:1.25!important;}
+
+  /* questionnaire summary table */
+  #rpt-q-section{margin-top:8px!important;}
+  #rpt-q-section td{padding:4px 8px!important;font-size:8pt!important;}
+  #rpt-q-section .tag{font-size:7pt!important;padding:1px 5px!important;line-height:1.5!important;}
+
+  /* ── footer: fixed at bottom of every printed page ── */
+  .rpt-footer{
+    position:fixed!important;
+    bottom:0!important;left:0!important;right:0!important;
+    padding:7px 14px!important;
+    z-index:9999!important;
+  }
+  .rpt-footer *{font-size:7pt!important;}
+  /* prevent last-page content from sliding under the fixed footer */
+  #rpt-page2{padding-bottom:44px!important;}
 }
 </style>
 </head>
@@ -309,14 +391,15 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
 <header class="header">
   <a class="logo" href="#">
     <div class="logo-eye">
-      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3" fill="white" stroke="none"/><circle cx="10.8" cy="10.8" r="1" fill="rgba(0,0,0,.3)" stroke="none"/></svg>
+      <img src="ludia-logo.png" alt="LUDIA">
     </div>
     <div class="logo-info">
       <div class="logo-name">LUDIA HEALTH</div>
       <div class="logo-tagline">IRIS DIAGNOSTIC SYSTEM</div>
     </div>
   </a>
-  <div style="display:flex;align-items:center;gap:12px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <a href="admin.html" class="admin-link">관리자</a>
     <div class="lang-switch">
       <button class="lang-btn active" data-lang="ko" onclick="switchLang('ko')">한국어</button>
       <div class="lang-sep"></div>
@@ -354,6 +437,7 @@ function switchLang(l) {
 }
 
 let step = 0;
+let rptEditMode = false;
 
 const fd = {
   name:'', dob:'', gender:'', phone:'', email:'', occupation:'',
@@ -365,14 +449,20 @@ const fd = {
   smoking:'none', alcohol:'none', exercise:'rarely', sleep:'lt6h', diet:'irregular', stress:'high',
   irisAssessment:{
     zones:{
-      respiratory:{status:'normal',note:''}, cardiovascular:{status:'normal',note:''},
-      immune:{status:'normal',note:''}, digestive:{status:'normal',note:''},
-      urinary:{status:'normal',note:''}, musculoskeletal:{status:'normal',note:''},
-      endocrine:{status:'normal',note:''}, nervous:{status:'normal',note:''}
+      respiratory:{status:'normal',note:'',patterns:[]}, cardiovascular:{status:'normal',note:'',patterns:[]},
+      immune:{status:'normal',note:'',patterns:[]}, digestive:{status:'normal',note:'',patterns:[]},
+      urinary:{status:'normal',note:'',patterns:[]}, musculoskeletal:{status:'normal',note:'',patterns:[]},
+      endocrine:{status:'normal',note:'',patterns:[]}, nervous:{status:'normal',note:'',patterns:[]}
     },
     findings:[], pupilSize:'normal', pupilShape:'round', overallNote:''
   },
-  irisDrawing:null, irisDrawingLayer:null, scores:null
+  irisDrawing:null, irisDrawingLayer:null, scores:null,
+  leftEyePhoto:null, rightEyePhoto:null,
+  leftEyeAnnotation:null, rightEyeAnnotation:null,
+  healthRecs:[],
+  reportId:null,
+  editingVisitId:null,
+  editingPatientId:null
 };
 
 // ═══════════════════════════════════════════
@@ -455,6 +545,80 @@ const STATUSES_BI = [
 ];
 const STATUS_COLORS = {normal:'#10B981',good:'#3B82F6',caution:'#F59E0B',needs_care:'#F97316',intensive:'#EF4444'};
 
+// ─── Iris pattern catalogue ──────────────────────────────────────────────────
+const IRIS_PATTERNS = [
+  {id:'lacuna_open',   ko:'열린 라쿠나',  en:'Open Lacuna'},
+  {id:'lacuna_closed', ko:'닫힌 라쿠나',  en:'Closed Lacuna'},
+  {id:'pigment',       ko:'색소 침착',    en:'Pigment Deposit'},
+  {id:'radial_fiber',  ko:'방사상 섬유',  en:'Radial Fibers'},
+  {id:'crypt',         ko:'크립트',       en:'Crypt'},
+  {id:'contraction',   ko:'수축환',       en:'Contraction Ring'},
+  {id:'nerve_ring',    ko:'신경환',       en:'Nerve Ring'},
+  {id:'fiber_loose',   ko:'섬유 이완',    en:'Fiber Loosening'},
+  {id:'toxic_cloud',   ko:'독소 구름',    en:'Toxic Cloud'},
+  {id:'lymph_rosary',  ko:'림프 염주',    en:'Lymph Rosary'},
+];
+
+// ─── Wellness text generator ─────────────────────────────────────────────────
+function genZoneWellness(zoneKey, status, patterns) {
+  const ZN = {
+    ko:{respiratory:'호흡기계',cardiovascular:'심혈관계',immune:'면역계',digestive:'소화기계',
+        urinary:'비뇨기계',musculoskeletal:'근골격계',endocrine:'내분비계',nervous:'신경계'},
+    en:{respiratory:'Respiratory System',cardiovascular:'Cardiovascular System',immune:'Immune System',
+        digestive:'Digestive System',urinary:'Urinary System',musculoskeletal:'Musculoskeletal System',
+        endocrine:'Endocrine System',nervous:'Nervous System'},
+  };
+  const zn = ZN[lang][zoneKey] || zoneKey;
+  const BASE = {
+    ko:{
+      normal:    `${zn}의 홍채 섬유 배열이 고르고 에너지 흐름이 원활합니다. 현재의 건강 습관을 유지하시길 권장합니다.`,
+      good:      `${zn}은 대체로 안정적인 상태입니다. 지속적인 관리를 통해 균형 있는 기능을 이어가시길 권장합니다.`,
+      caution:   `${zn}에서 기능 저하 가능성이 관찰됩니다. 생활습관 개선과 충분한 영양 공급으로 활력 회복을 지원하시길 권장합니다.`,
+      needs_care:`${zn}의 균형 회복을 위한 적극적인 관리가 필요합니다. 전문적인 케어와 생활습관 개선을 권장합니다.`,
+      intensive: `${zn}에서 기능 지원이 시급합니다. 전문 의료인과의 상담을 통해 집중적인 케어 계획을 세우시길 강력히 권장합니다.`,
+    },
+    en:{
+      normal:    `Iris fiber arrangement in the ${zn} zone appears even with good energy flow. We recommend maintaining your current healthy habits.`,
+      good:      `The ${zn} zone appears generally stable. Ongoing care is recommended to maintain balanced function.`,
+      caution:   `Possible functional decline is observed in the ${zn} zone. Lifestyle improvements and proper nutrition are recommended to support vitality recovery.`,
+      needs_care:`Active management is needed to restore balance in the ${zn} zone. Professional care and lifestyle changes are strongly recommended.`,
+      intensive: `Urgent functional support is needed in the ${zn} zone. We strongly recommend consulting a healthcare professional for an intensive care plan.`,
+    },
+  };
+  const PFRAGS = {
+    ko:{
+      lacuna_open:   '열린 라쿠나 패턴이 관찰되어 조직 활력 저하가 시사됩니다. 충분한 휴식과 영양 보충이 도움이 됩니다.',
+      lacuna_closed: '닫힌 라쿠나가 확인되어 만성적 긴장 경향이 시사됩니다. 규칙적인 이완 요법을 권장합니다.',
+      pigment:       '색소 침착이 관찰됩니다. 항산화 식이와 해독 기능 지원이 도움이 됩니다.',
+      radial_fiber:  '방사상 섬유 패턴이 나타나 신경성 긴장이 해당 기관에 영향을 줄 수 있습니다. 마음챙김과 심호흡 연습이 효과적입니다.',
+      crypt:         '크립트 패턴이 확인됩니다. 집중적인 영양 공급과 조직 기능 활성화 케어를 권장합니다.',
+      contraction:   '수축환이 관찰되어 스트레스 반응이 신체 긴장으로 나타나고 있습니다. 스트레스 관리와 이완이 중요합니다.',
+      nerve_ring:    '신경환이 확인됩니다. 자율신경계 균형을 위해 이완 요법과 규칙적인 수면이 필요합니다.',
+      fiber_loose:   '섬유 이완 패턴이 나타나 조직 탄력 저하가 시사됩니다. 단백질·미네랄 보충이 도움이 됩니다.',
+      toxic_cloud:   '독소 구름 패턴이 관찰됩니다. 간 해독 지원과 적극적인 항산화 섭취를 권장합니다.',
+      lymph_rosary:  '림프 염주 패턴이 나타납니다. 림프 순환 활성화를 위한 가벼운 운동과 수분 섭취를 권장합니다.',
+    },
+    en:{
+      lacuna_open:   'Open lacunae suggest possible tissue vitality decline. Adequate rest and nutritional support are recommended.',
+      lacuna_closed: 'Closed lacunae indicate a tendency toward chronic tension. Regular relaxation therapy is recommended.',
+      pigment:       'Pigment deposits are observed. Antioxidant-rich diet and detox support are recommended.',
+      radial_fiber:  'Radial fiber patterns indicate nervous tension may affect this organ. Mindfulness and breathing exercises are effective.',
+      crypt:         'Crypt patterns are identified. Intensive nutritional support and functional activation care are recommended.',
+      contraction:   'Contraction rings indicate stress responses manifesting as physical tension. Stress management and relaxation are important.',
+      nerve_ring:    'Nerve rings are identified. Relaxation therapy and regular sleep for autonomic balance are needed.',
+      fiber_loose:   'Fiber loosening suggests reduced tissue elasticity. Protein and mineral supplementation are beneficial.',
+      toxic_cloud:   'Toxic cloud patterns are observed. Liver detox support and increased antioxidant intake are recommended.',
+      lymph_rosary:  'Lymph rosary patterns are present. Light exercise and adequate hydration to activate lymphatic circulation are recommended.',
+    },
+  };
+  let txt = (BASE[lang][status] || BASE[lang].normal);
+  (patterns||[]).forEach(pid => {
+    const f = PFRAGS[lang][pid];
+    if (f) txt += ' ' + f;
+  });
+  return txt;
+}
+
 const IRIS_FINDINGS_BI = [
   ['lacunae',            '함몰 (Lacunae)',                    'Lacunae'],
   ['pigment_spots',      '색소 반점 (Pigment spots)',          'Pigment Spots'],
@@ -498,15 +662,217 @@ const DRAW_COLORS = [
 ];
 
 const STEP_LABELS = {
-  ko:['기본정보','현재증상','과거병력','수술력','복용약','가족력','생활습관','홍채진단'],
-  en:['Basic Info','Symptoms','Med Hx','Surgery','Meds','Family Hx','Lifestyle','Iris Dx'],
+  ko:['기본정보','현재증상','과거병력','수술력','복용약','가족력','생활습관','홍채진단','권장사항'],
+  en:['Basic Info','Symptoms','Med Hx','Surgery','Meds','Family Hx','Lifestyle','Iris Dx','Recs'],
 };
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
+
+// ─── Health recommendation catalogue ────────────────────────────────────────
+const HEALTH_RECS = [
+  // ── 영양제 (supplements) ──────────────────────────────────────
+  {id:'vit_d',   type:'supplement', icon:'☀️', ko:'비타민 D',         en:'Vitamin D',
+   dko:'면역 강화 · 뼈 건강',            den:'Immunity & bone health',
+   eko:'연어, 달걀노른자, 표고버섯',      een:'Salmon, egg yolk, shiitake'},
+  {id:'vit_c',   type:'supplement', icon:'🍊', ko:'비타민 C',         en:'Vitamin C',
+   dko:'항산화 · 면역 강화 · 콜라겐 합성',den:'Antioxidant, immunity, collagen synthesis',
+   eko:'키위, 파프리카, 브로콜리',        een:'Kiwi, bell pepper, broccoli'},
+  {id:'vit_b',   type:'supplement', icon:'🌟', ko:'비타민 B 복합체',  en:'Vitamin B Complex',
+   dko:'에너지 대사 · 신경 기능 지원',    den:'Energy metabolism & nerve function',
+   eko:'통곡물, 달걀, 육류, 견과류',      een:'Whole grains, eggs, meat, nuts'},
+  {id:'vit_e',   type:'supplement', icon:'🌿', ko:'비타민 E',         en:'Vitamin E',
+   dko:'항산화 · 세포막 보호',            den:'Antioxidant & cell membrane protection',
+   eko:'아몬드, 해바라기씨, 아보카도',    een:'Almonds, sunflower seeds, avocado'},
+  {id:'vit_k2',  type:'supplement', icon:'🦴', ko:'비타민 K2',        en:'Vitamin K2',
+   dko:'칼슘 대사 · 혈관 석회화 예방',    den:'Calcium metabolism, vascular health',
+   eko:'낫토, 치즈, 발효식품',            een:'Natto, cheese, fermented foods'},
+  {id:'folate',  type:'supplement', icon:'🍃', ko:'엽산',             en:'Folate (B9)',
+   dko:'세포 분열 · DNA 합성 · 빈혈 예방',den:'Cell division, DNA synthesis, anemia prevention',
+   eko:'시금치, 아스파라거스, 콩류',      een:'Spinach, asparagus, legumes'},
+  {id:'omega3',  type:'supplement', icon:'🐟', ko:'오메가-3',          en:'Omega-3',
+   dko:'심혈관 보호 · 염증 억제 · 뇌 기능',den:'Cardiovascular, anti-inflammatory, brain',
+   eko:'고등어, 정어리, 아마씨',          een:'Mackerel, sardine, flaxseed'},
+  {id:'probio',  type:'supplement', icon:'🦠', ko:'프로바이오틱스',    en:'Probiotics',
+   dko:'장내 세균 균형 · 소화 · 면역 강화',den:'Gut flora balance, digestion & immunity',
+   eko:'요거트, 된장, 김치',              een:'Yogurt, fermented soy, kimchi'},
+  {id:'prebiotic',type:'supplement',icon:'🌱', ko:'프리바이오틱스',   en:'Prebiotics',
+   dko:'유익균 먹이 · 장 환경 개선',      den:'Feed beneficial bacteria, improve gut environment',
+   eko:'마늘, 양파, 바나나, 귀리',        een:'Garlic, onion, banana, oats'},
+  {id:'magnesium',type:'supplement',icon:'⚡', ko:'마그네슘',          en:'Magnesium',
+   dko:'신경 이완 · 근육 회복 · 수면 개선',den:'Nerve relaxation, muscle recovery, sleep',
+   eko:'견과류, 바나나, 시금치',          een:'Nuts, banana, spinach'},
+  {id:'zinc',    type:'supplement', icon:'🔩', ko:'아연',              en:'Zinc',
+   dko:'면역 기능 · 상처 치유 · 호르몬 균형',den:'Immunity, wound healing, hormone balance',
+   eko:'굴, 호박씨, 소고기',              een:'Oyster, pumpkin seeds, beef'},
+  {id:'iron',    type:'supplement', icon:'🩸', ko:'철분',              en:'Iron',
+   dko:'빈혈 예방 · 산소 운반 · 에너지',  den:'Anemia prevention, oxygen transport, energy',
+   eko:'붉은 육류, 렌틸콩, 두부, 시금치', een:'Red meat, lentils, tofu, spinach'},
+  {id:'calcium', type:'supplement', icon:'🥛', ko:'칼슘',              en:'Calcium',
+   dko:'뼈·치아 강화 · 신경 전달 지원',   den:'Bone & dental health, nerve conduction',
+   eko:'유제품, 멸치, 두부, 브로콜리',    een:'Dairy, anchovy, tofu, broccoli'},
+  {id:'coq10',   type:'supplement', icon:'💊', ko:'코엔자임 Q10',     en:'Coenzyme Q10',
+   dko:'세포 에너지 생성 · 심장 건강',    den:'Cellular energy, heart health',
+   eko:'소고기, 정어리, 브로콜리',        een:'Beef, sardines, broccoli'},
+  {id:'collagen',type:'supplement', icon:'✨', ko:'콜라겐',            en:'Collagen',
+   dko:'관절 · 피부 · 장 점막 보호',      den:'Joint, skin & gut lining support',
+   eko:'닭 껍질, 뼈 육수, 달걀흰자',     een:'Chicken skin, bone broth, egg white'},
+  {id:'lutein',  type:'supplement', icon:'👁️', ko:'루테인',            en:'Lutein',
+   dko:'눈 건강 · 황반 보호 · 청색광 차단',den:'Eye health, macular protection',
+   eko:'케일, 시금치, 옥수수, 달걀',      een:'Kale, spinach, corn, eggs'},
+  {id:'curcumin',type:'supplement', icon:'🟡', ko:'커큐민 (강황)',     en:'Curcumin (Turmeric)',
+   dko:'강력한 항염 · 항산화 · 해독',     den:'Potent anti-inflammatory & antioxidant',
+   eko:'강황, 카레',                       een:'Turmeric, curry'},
+  {id:'red_ginseng',type:'supplement',icon:'🌿',ko:'홍삼',            en:'Red Ginseng',
+   dko:'면역 강화 · 피로 회복 · 혈행 개선',den:'Immunity, fatigue recovery, circulation',
+   eko:'홍삼 추출물, 삼계탕',             een:'Red ginseng extract, ginseng chicken soup'},
+  {id:'ala',     type:'supplement', icon:'🔬', ko:'알파리포산 (ALA)', en:'Alpha-Lipoic Acid',
+   dko:'강력한 항산화 · 혈당 조절 지원',  den:'Potent antioxidant, blood sugar support',
+   eko:'시금치, 브로콜리, 소고기',        een:'Spinach, broccoli, beef'},
+  {id:'selenium',type:'supplement', icon:'🛡️', ko:'셀레늄',            en:'Selenium',
+   dko:'항산화 · 갑상선 기능 · 면역',    den:'Antioxidant, thyroid function & immunity',
+   eko:'브라질 너트, 참치, 달걀',         een:'Brazil nuts, tuna, eggs'},
+  {id:'nac',     type:'supplement', icon:'💨', ko:'NAC (N-아세틸시스테인)',en:'NAC',
+   dko:'글루타치온 전구체 · 호흡기·간 해독',den:'Glutathione precursor, respiratory & liver detox',
+   eko:'닭고기, 달걀, 유제품',            een:'Chicken, eggs, dairy'},
+  {id:'melatonin',type:'supplement',icon:'🌙', ko:'멜라토닌',          en:'Melatonin',
+   dko:'수면 리듬 조절 · 항산화',         den:'Sleep rhythm regulation & antioxidant',
+   eko:'체리, 포도, 호두',                een:'Tart cherry, grapes, walnuts'},
+
+  // ── 권장 식품 (food_rec) ──────────────────────────────────────
+  {id:'green_veg',  type:'food_rec', icon:'🥦', ko:'녹색 채소류',       en:'Green Vegetables',
+   dko:'항산화 · 해독 · 미네랄 공급',     den:'Antioxidant, detox & minerals',
+   eko:'브로콜리, 케일, 시금치, 아스파라거스',een:'Broccoli, kale, spinach, asparagus'},
+  {id:'cruciferous',type:'food_rec', icon:'🌿', ko:'십자화과 채소',     en:'Cruciferous Vegetables',
+   dko:'간 해독 효소 활성화 · 항암',       den:'Liver detox enzyme activation, anti-cancer',
+   eko:'양배추, 콜리플라워, 방울양배추',   een:'Cabbage, cauliflower, Brussels sprouts'},
+  {id:'colorful_veg',type:'food_rec',icon:'🌈', ko:'컬러풀 채소 & 과일',en:'Colorful Produce',
+   dko:'다양한 파이토케미컬 · 항산화',     den:'Diverse phytochemicals & antioxidants',
+   eko:'당근, 토마토, 비트, 블루베리',     een:'Carrot, tomato, beet, blueberry'},
+  {id:'berries',    type:'food_rec', icon:'🫐', ko:'베리류',             en:'Berries',
+   dko:'폴리페놀 · 뇌 건강 · 항염',       den:'Polyphenols, brain health & anti-inflammation',
+   eko:'블루베리, 아사이, 딸기, 라즈베리', een:'Blueberry, acai, strawberry, raspberry'},
+  {id:'fermented',  type:'food_rec', icon:'🥢', ko:'발효식품',          en:'Fermented Foods',
+   dko:'장 건강 · 면역 강화 · 유익균',    den:'Gut health, immunity & beneficial bacteria',
+   eko:'김치, 된장, 청국장, 요거트',       een:'Kimchi, doenjang, cheonggukjang, yogurt'},
+  {id:'oily_fish',  type:'food_rec', icon:'🐠', ko:'등푸른 생선',       en:'Oily Fish',
+   dko:'오메가-3 · 심혈관 · 뇌 기능',     den:'Omega-3, cardiovascular & brain function',
+   eko:'고등어, 연어, 정어리, 꽁치',       een:'Mackerel, salmon, sardine, saury'},
+  {id:'nuts_seeds', type:'food_rec', icon:'🥜', ko:'견과류 & 씨앗',     en:'Nuts & Seeds',
+   dko:'건강한 지방 · 미네랄 · 항산화',   den:'Healthy fats, minerals & antioxidants',
+   eko:'호두, 아몬드, 아마씨, 치아씨드',   een:'Walnuts, almonds, flaxseed, chia seeds'},
+  {id:'legumes',    type:'food_rec', icon:'🫘', ko:'두류 (콩류)',        en:'Legumes',
+   dko:'식물성 단백질 · 식이섬유 · 혈당 안정',den:'Plant protein, fiber & blood sugar stability',
+   eko:'검은콩, 렌틸콩, 병아리콩, 두부',  een:'Black bean, lentil, chickpea, tofu'},
+  {id:'whole_grain',type:'food_rec', icon:'🌾', ko:'통곡물',            en:'Whole Grains',
+   dko:'혈당 안정 · 식이섬유 · 비타민 B', den:'Blood sugar stability, fiber & B vitamins',
+   eko:'현미, 귀리, 퀴노아, 보리',        een:'Brown rice, oats, quinoa, barley'},
+  {id:'alkaline',   type:'food_rec', icon:'💧', ko:'알칼리성 식품',     en:'Alkaline Foods',
+   dko:'체내 pH 균형 · 염증 완화',        den:'Body pH balance & inflammation reduction',
+   eko:'레몬, 오이, 아보카도, 수박',       een:'Lemon, cucumber, avocado, watermelon'},
+  {id:'seaweed',    type:'food_rec', icon:'🌊', ko:'해조류',             en:'Seaweed',
+   dko:'요오드 · 미네랄 · 해독 작용',     den:'Iodine, minerals & detoxification',
+   eko:'미역, 다시마, 김, 파래',           een:'Wakame, kelp, seaweed paper, green laver'},
+  {id:'mushroom',   type:'food_rec', icon:'🍄', ko:'버섯류',             en:'Mushrooms',
+   dko:'면역 다당류 · 항산화 · 장 건강',  den:'Immune polysaccharides, antioxidant & gut health',
+   eko:'표고, 느타리, 영지, 새송이',       een:'Shiitake, oyster, reishi, king oyster'},
+  {id:'garlic_ginger',type:'food_rec',icon:'🧄',ko:'마늘 & 생강',       en:'Garlic & Ginger',
+   dko:'항균 · 항염 · 혈행 개선',         den:'Antimicrobial, anti-inflammatory & circulation',
+   eko:'생마늘, 생강차, 생강 요리',        een:'Raw garlic, ginger tea, ginger dishes'},
+  {id:'olive_oil',  type:'food_rec', icon:'🫒', ko:'올리브 오일',        en:'Olive Oil',
+   dko:'단일불포화지방 · 항염 · 심장 건강',den:'Monounsaturated fats, anti-inflammatory, heart',
+   eko:'엑스트라버진 올리브오일',          een:'Extra virgin olive oil'},
+
+  // ── 금기 식품 (food_avoid) ──────────────────────────────────
+  {id:'acid_food', type:'food_avoid',icon:'🥤', ko:'산성 식품',        en:'Acidic Foods',
+   dko:'체내 산성화 · 염증 유발',          den:'Acidification & inflammation',
+   eko:'탄산음료, 가공식품, 설탕',         een:'Soda, processed food, sugar'},
+  {id:'alcohol',   type:'food_avoid',icon:'🍺', ko:'알코올',           en:'Alcohol',
+   dko:'간 부담 · 신경계 자극 · 영양 고갈',den:'Liver stress, nerve stimulation, nutrient depletion',
+   eko:'주류 전반',                         een:'All alcoholic beverages'},
+  {id:'caffeine',  type:'food_avoid',icon:'☕', ko:'과다 카페인',      en:'Excess Caffeine',
+   dko:'부신 자극 · 수면 방해 · 미네랄 손실',den:'Adrenal stimulation, sleep disruption',
+   eko:'커피, 에너지드링크',               een:'Coffee, energy drinks'},
+  {id:'processed', type:'food_avoid',icon:'🍟', ko:'가공식품',         en:'Processed Foods',
+   dko:'트랜스지방 · 방부제 · 첨가물',     den:'Trans fats, preservatives & additives',
+   eko:'패스트푸드, 인스턴트, 과자',       een:'Fast food, instant noodles, chips'},
+  {id:'ref_sugar', type:'food_avoid',icon:'🍬', ko:'정제당류',         en:'Refined Sugar',
+   dko:'혈당 급등 · 면역 억제 · 장 유해균 증식',den:'Blood sugar spike & immune suppression',
+   eko:'사탕, 케이크, 단음료',             een:'Candy, cake, sweet drinks'},
+  {id:'red_meat_excess',type:'food_avoid',icon:'🥩',ko:'붉은 육류 과다',en:'Excess Red Meat',
+   dko:'포화지방 과다 · 장내 부패균 증가',  den:'Excess saturated fat, promotes gut putrefaction',
+   eko:'소고기, 돼지고기 과다 섭취',        een:'Excessive beef, pork consumption'},
+  {id:'trans_fat', type:'food_avoid',icon:'🧈', ko:'트랜스지방',       en:'Trans Fats',
+   dko:'심혈관 위험 · 세포막 손상',        den:'Cardiovascular risk & cell membrane damage',
+   eko:'마가린, 쇼트닝, 일부 과자·빵',     een:'Margarine, shortening, some snacks & bread'},
+  {id:'salt_excess',type:'food_avoid',icon:'🧂',ko:'과다 나트륨',      en:'Excess Sodium',
+   dko:'고혈압 · 부종 · 신장 부담',        den:'Hypertension, edema & kidney burden',
+   eko:'라면, 짠 국물, 가공 햄',           een:'Ramen, salty broth, processed ham'},
+
+  // ── 생활습관 (lifestyle) ─────────────────────────────────────
+  {id:'hydration', type:'lifestyle', icon:'🫗', ko:'충분한 수분',      en:'Adequate Hydration',
+   dko:'하루 1.5~2L 물 섭취 · 해독',      den:'1.5–2L water daily, supports detox',
+   eko:'물, 허브차, 보리차',               een:'Water, herbal tea, barley tea'},
+  {id:'sleep_imp', type:'lifestyle', icon:'🌙', ko:'수면 개선',        en:'Sleep Improvement',
+   dko:'7~8시간 규칙적 수면 · 회복력',    den:'7–8 hours of regular sleep & recovery',
+   eko:'취침 전 스마트폰 자제, 암막 커튼', een:'Limit screen time, blackout curtains'},
+  {id:'stress_mg', type:'lifestyle', icon:'🧘', ko:'스트레스 관리',    en:'Stress Management',
+   dko:'자율신경계 균형 회복',              den:'Autonomic nervous system balance',
+   eko:'명상, 호흡법, 산책',               een:'Meditation, breathing exercises, walks'},
+  {id:'exercise',  type:'lifestyle', icon:'🏃', ko:'규칙적 운동',      en:'Regular Exercise',
+   dko:'주 3회 이상 유산소 · 근력 운동',   den:'Aerobic & strength training 3+ times/week',
+   eko:'걷기, 수영, 자전거, 요가',         een:'Walking, swimming, cycling, yoga'},
+  {id:'sunlight',  type:'lifestyle', icon:'🌞', ko:'햇빛 노출',        en:'Sunlight Exposure',
+   dko:'비타민 D 합성 · 세로토닌 생성',    den:'Vitamin D synthesis & serotonin production',
+   eko:'아침 햇빛 20~30분',               een:'20–30 min morning sunlight'},
+  {id:'intermit_fast',type:'lifestyle',icon:'⏰',ko:'간헐적 단식',     en:'Intermittent Fasting',
+   dko:'세포 자가포식 · 혈당 안정',        den:'Cellular autophagy & blood sugar stability',
+   eko:'16:8 단식, 식사 시간 규칙화',      een:'16:8 fasting, regular meal timing'},
+  {id:'gut_care',  type:'lifestyle', icon:'🫁', ko:'장 건강 관리',     en:'Gut Health Care',
+   dko:'장-뇌 축 강화 · 면역 70% 위장',   den:'Gut-brain axis, 70% of immunity in gut',
+   eko:'식이섬유 충분 섭취, 과식 금지',    een:'Adequate fiber intake, avoid overeating'},
+];
+
 
 // ═══════════════════════════════════════════
 //  INIT & PROGRESS
 // ═══════════════════════════════════════════
-function init() { buildProgress(); renderStep(); }
+function init() {
+  buildProgress();
+  const params = new URLSearchParams(location.search);
+  const pId = params.get('record'), vId = params.get('visit');
+  const isEdit = params.get('edit') === 'true';
+  if (pId && vId) {
+    try {
+      const records = JSON.parse(localStorage.getItem('ludia_records') || '[]');
+      const patient = records.find(p => p.id === pId);
+      const visit = patient?.visits?.find(v => v.id === vId);
+      if (patient && visit) {
+        fd.name = patient.name||''; fd.dob = patient.dob||''; fd.gender = patient.gender||'';
+        fd.phone = patient.phone||''; fd.email = patient.email||''; fd.occupation = patient.occupation||'';
+        fd.symptoms = visit.symptoms||[]; fd.symptomDuration = visit.symptomDuration||'none';
+        fd.painLevel = visit.painLevel||5; fd.painDesc = visit.painDesc||'';
+        fd.pastConditions = visit.pastConditions||[]; fd.otherConditions = visit.otherConditions||'';
+        fd.hadSurgery = visit.hadSurgery||'no'; fd.surgeries = visit.surgeries||[''];
+        fd.medications = visit.medications||[{name:'',dose:'',period:''}];
+        fd.familyConditions = visit.familyConditions||[]; fd.familyOther = visit.familyOther||'';
+        fd.smoking = visit.smoking||'none'; fd.alcohol = visit.alcohol||'none';
+        fd.exercise = visit.exercise||'rarely'; fd.sleep = visit.sleep||'lt6h';
+        fd.diet = visit.diet||'irregular'; fd.stress = visit.stress||'high';
+        fd.irisAssessment = visit.irisAssessment||fd.irisAssessment;
+        fd.irisDrawing = visit.irisDrawing||null; fd.irisDrawingLayer = visit.irisDrawingLayer||null;
+        fd.scores = visit.scores||null;
+        fd.leftEyePhoto = visit.leftEyePhoto||null; fd.rightEyePhoto = visit.rightEyePhoto||null;
+        fd.leftEyeAnnotation = visit.leftEyeAnnotation||null; fd.rightEyeAnnotation = visit.rightEyeAnnotation||null;
+        fd.healthRecs = visit.healthRecs||[];
+        fd.reportId = visit.reportId||null;
+        fd.editingVisitId = vId;
+        fd.editingPatientId = pId;
+        if (!fd.scores) fd.scores = scoreFromAssessment();
+        step = isEdit ? 1 : 10;
+      }
+    } catch(e) {}
+  }
+  renderStep();
+}
 
 function buildProgress() {
   const steps = document.getElementById('progressSteps');
@@ -522,22 +888,35 @@ function buildProgress() {
 
 function updateProgress() {
   const pb=document.getElementById('progressBar');
-  if(step===0||step===9){pb.style.display='none';return;}
+  if(step===0||step===10){pb.style.display='none';return;}
   pb.style.display='block';
   const lbls=STEP_LABELS[lang];
+  const canJump = !!fd.editingVisitId; // edit mode: any step; normal: completed steps only
   for(let i=1;i<=TOTAL_STEPS;i++){
     const dot=document.getElementById(`sd${i}`);
-    dot.className='step-dot'+(i<step?' done':i===step?' active':'');
-    dot.textContent=i<step?'✓':i;
-    if(i<TOTAL_STEPS) document.getElementById(`sl${i}`).className='step-line'+(i<step?' done':'');
+    const done=i<step, active=i===step;
+    dot.className='step-dot'+(done?' done':active?' active':'');
+    dot.textContent=done?'✓':i;
+    // clickable if: in edit mode (any step) OR already completed (done)
+    const clickable = canJump || done;
+    if(clickable){
+      dot.style.cursor='pointer';
+      dot.onclick=((n)=>()=>{step=n;renderStep();})(i);
+      if(!active) dot.title=t(`${i}단계로 이동`,`Go to step ${i}`);
+    } else {
+      dot.style.cursor='default';
+      dot.onclick=null;
+      dot.title='';
+    }
+    if(i<TOTAL_STEPS) document.getElementById(`sl${i}`).className='step-line'+(done?' done':'');
     const lbl=document.getElementById(`sl_lbl${i}`);
-    if(lbl){lbl.textContent=lbls[i-1];lbl.className=i===step?'active':'';}
+    if(lbl){lbl.textContent=lbls[i-1];lbl.className=active?'active':'';}
   }
 }
 
 function renderStep() {
   updateProgress();
-  [r0,r1,r2,r3,r4,r5,r6,r7,r8,r9][step]();
+  [r0,r1,r2,r3,r4,r5,r6,r7,r8,rRecs,r9][step]();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -550,7 +929,7 @@ function r0(){
   document.getElementById('app').innerHTML=`
   <div class="card"><div class="welcome">
     <div class="wlc-icon">
-      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><circle cx="12" cy="12" r="3.5" fill="white" stroke="none"/><circle cx="10.5" cy="10.5" r="1.2" fill="rgba(30,58,95,.5)" stroke="none"/></svg>
+      <img src="ludia-logo.png" alt="LUDIA">
     </div>
     <div class="wlc-title">LUDIA HEALTH</div>
     <div style="font-size:13px;font-weight:700;color:var(--blue-primary);letter-spacing:2px;margin-bottom:12px;">IRIS DIAGNOSTIC SYSTEM</div>
@@ -889,6 +1268,11 @@ function r8(){
       <div class="step-desc">${t('홍채 모형에 직접 소견을 표기하고, 기관계별 상태와 특이 소견을 기록해 주세요.','Draw findings directly on the iris model, then record zone status and special findings.')}</div>
     </div>
 
+    <div class="form-label" style="margin-bottom:10px">${t('홍채 실제 사진 업로드 (선택)','Actual Iris Photos — Upload (Optional)')}
+      <span style="font-size:11px;font-weight:400;color:var(--text-light);margin-left:6px">${t('좌안·우안 사진을 업로드하면 리포트에 표시됩니다','Upload photos to display in report')}</span>
+    </div>
+    <div id="eyePhotoSection">${buildEyePhotoHTML()}</div>
+    <div class="divider"></div>
     <div class="form-label" style="margin-bottom:10px">${t('홍채 모형 직접 표기','Direct Iris Annotation')}
       <span style="font-size:11px;font-weight:400;color:var(--text-light);margin-left:6px">${t('마우스 또는 손가락으로 그릴 수 있습니다','Draw with mouse or finger')}</span>
     </div>
@@ -930,6 +1314,7 @@ function r8(){
     <div class="zone-assess-grid">
       ${ZONE_INFO.map(z=>{
         const zd=ia.zones[z.key];
+        const zPatterns = zd.patterns||[];
         return `<div class="zone-assess-card">
           <div class="za-header"><span class="za-icon">${z.icon}</span><span class="za-name">${z[lang]}</span></div>
           <div class="status-btns" id="sb_${z.key}">
@@ -937,7 +1322,18 @@ function r8(){
               style="${zd.status===st[0]?`background:${STATUS_COLORS[st[0]]};border-color:${STATUS_COLORS[st[0]]};color:white;`:''}"
               onclick="setZoneStatus('${z.key}','${st[0]}',this)">${tbi(st)}</button>`).join('')}
           </div>
-          <textarea class="form-input za-note" placeholder="${t('소견 메모 (선택)','Notes (optional)')}" rows="2"
+          <div style="margin-top:8px">
+            <div style="font-size:10px;font-weight:700;color:var(--text-light);letter-spacing:.5px;margin-bottom:5px">${t('홍채 패턴','Iris Patterns')}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              ${IRIS_PATTERNS.map(p=>{
+                const sel=zPatterns.includes(p.id);
+                return `<button onclick="toggleZonePattern('${z.key}','${p.id}',this)"
+                  style="font-size:10px;padding:2px 8px;border-radius:12px;border:1px solid ${sel?'var(--blue-primary)':'var(--border)'};background:${sel?'var(--blue-primary)':'transparent'};color:${sel?'white':'var(--text-mid)'};cursor:pointer;transition:all .15s;line-height:1.6">${t(p.ko,p.en)}</button>`;
+              }).join('')}
+            </div>
+          </div>
+          <textarea class="form-input za-note" placeholder="${t('추가 메모 (선택)','Additional notes (optional)')}" rows="2"
+            style="margin-top:8px"
             oninput="fd.irisAssessment.zones['${z.key}'].note=this.value">${zd.note}</textarea>
         </div>`;
       }).join('')}
@@ -977,10 +1373,10 @@ function r8(){
     </div>
     <div class="nav">
       <button class="btn-back" onclick="saveDrawLayer();step=7;renderStep()">← ${t('이전','Back')}</button>
-      <button class="btn-next" onclick="goToReport()">${t('리포트 생성','Generate Report')} →</button>
+      <button class="btn-next" onclick="goToReport()">${t('다음 단계','Next')} →</button>
     </div>
   </div>`;
-  setTimeout(initIrisDrawing,30);
+  setTimeout(()=>{initIrisDrawing();initEyeAnnotations();},30);
 }
 
 // ═══════════════════════════════════════════
@@ -1070,7 +1466,7 @@ function clearDrawing(){const draw=document.getElementById('irisDrawCanvas');if(
 function setDrawColor(color,el){DS.color=color;DS.tool='pen';document.querySelectorAll('.color-swatch').forEach(d=>d.classList.remove('active'));el.classList.add('active');document.getElementById('toolPen')?.classList.add('t-active');document.getElementById('toolEraser')?.classList.remove('t-active','e-active');}
 function setDrawSize(size,el){DS.size=size;document.querySelectorAll('.sz-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');}
 function setDrawTool(tool,el){DS.tool=tool;document.getElementById('toolPen')?.classList.toggle('t-active',tool==='pen');const er=document.getElementById('toolEraser');if(er){er.classList.toggle('t-active',false);er.classList.toggle('e-active',tool==='eraser');}}
-function saveDrawLayer(){const draw=document.getElementById('irisDrawCanvas');if(draw)fd.irisDrawingLayer=draw.toDataURL();}
+function saveDrawLayer(){const draw=document.getElementById('irisDrawCanvas');if(draw)fd.irisDrawingLayer=draw.toDataURL();saveEyeAnnotations();}
 function goToReport(){
   const tmpl=document.getElementById('irisTemplateCanvas'),draw=document.getElementById('irisDrawCanvas');
   if(tmpl&&draw){
@@ -1078,7 +1474,84 @@ function goToReport(){
     const mctx=merge.getContext('2d');mctx.drawImage(tmpl,0,0);mctx.drawImage(draw,0,0);
     fd.irisDrawing=merge.toDataURL('image/png');fd.irisDrawingLayer=draw.toDataURL();
   }
+  saveEyeAnnotations();
   fd.scores=scoreFromAssessment();step=9;renderStep();
+}
+
+// ═══════════════════════════════════════════
+//  STEP 9 — HEALTH RECOMMENDATIONS
+// ═══════════════════════════════════════════
+function toggleHealthRec(id) {
+  const arr = fd.healthRecs;
+  const idx = arr.indexOf(id);
+  if (idx === -1) arr.push(id); else arr.splice(idx, 1);
+  const card = document.getElementById('rc_' + id);
+  if (!card) return;
+  const rec = HEALTH_RECS.find(r => r.id === id);
+  const sel = arr.includes(id);
+  const isAvoid = rec.type === 'food_avoid';
+  const ac = isAvoid ? 'var(--danger)' : 'var(--success)';
+  card.style.borderColor = sel ? ac : 'var(--border)';
+  card.style.background = sel ? (isAvoid ? '#FEF2F2' : '#F0FDF4') : 'white';
+  const chk = card.querySelector('.rc-chk');
+  if (chk) {
+    chk.style.background = sel ? ac : 'transparent';
+    chk.style.borderColor = sel ? ac : '#CBD5E1';
+    chk.textContent = sel ? '✓' : '';
+    chk.style.color = 'white';
+  }
+}
+
+function rRecs() {
+  function recCard(rec) {
+    const sel = fd.healthRecs.includes(rec.id);
+    const isAvoid = rec.type === 'food_avoid';
+    const ac = isAvoid ? 'var(--danger)' : 'var(--success)';
+    const bg = sel ? (isAvoid ? '#FEF2F2' : '#F0FDF4') : 'white';
+    const bdr = sel ? ac : 'var(--border)';
+    const chkBg = sel ? ac : 'transparent';
+    const chkBdr = sel ? ac : '#CBD5E1';
+    const chkTxt = sel ? '✓' : '';
+    const txtColor = isAvoid ? 'var(--danger)' : 'var(--blue-primary)';
+    return '<div id="rc_' + rec.id + '" onclick="toggleHealthRec(\'' + rec.id + '\')" '
+      + 'style="cursor:pointer;border:1.5px solid ' + bdr + ';border-radius:10px;padding:10px 12px;background:' + bg + ';display:flex;align-items:flex-start;gap:10px;transition:all .15s">'
+      + '<span style="font-size:20px;flex-shrink:0;margin-top:1px">' + rec.icon + '</span>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">'
+      + '<span style="font-size:12px;font-weight:700;color:var(--navy-dark)">' + t(rec.ko, rec.en) + '</span>'
+      + '<div class="rc-chk" style="width:18px;height:18px;border-radius:4px;border:1.5px solid ' + chkBdr + ';background:' + chkBg + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;flex-shrink:0">' + chkTxt + '</div>'
+      + '</div>'
+      + '<div style="font-size:10.5px;color:var(--text-light);margin-top:2px">' + t(rec.dko, rec.den) + '</div>'
+      + '<div style="font-size:10px;color:' + txtColor + ';margin-top:3px;font-style:italic">' + t(rec.eko, rec.een) + '</div>'
+      + '</div></div>';
+  }
+  function recSection(type, labelKo, labelEn, ac) {
+    const items = HEALTH_RECS.filter(r => r.type === type);
+    return '<div style="margin-bottom:20px">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+      + '<div style="width:3px;height:16px;background:' + ac + ';border-radius:2px"></div>'
+      + '<span style="font-size:12px;font-weight:800;color:var(--navy-dark);letter-spacing:.6px">' + t(labelKo, labelEn) + '</span>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + items.map(recCard).join('') + '</div>'
+      + '</div>';
+  }
+
+  document.getElementById('app').innerHTML =
+    '<div class="card">'
+    + '<div class="step-header">'
+    + '<div class="step-badge">STEP 9 / 9 &nbsp;&middot;&nbsp; ' + t('건강 권장사항', 'Health Recs') + '</div>'
+    + '<div class="step-title">' + t('건강 권장사항 선택', 'Health Recommendations') + '</div>'
+    + '<div class="step-desc">' + t('환자에게 권장하거나 금기할 사항을 선택하세요. 선택된 항목은 리포트에 반영됩니다.', 'Select recommendations or restrictions for this patient. Selections appear in the report.') + '</div>'
+    + '</div>'
+    + recSection('supplement', '영양 보충제 권장', 'Supplements Recommended', 'var(--success)')
+    + recSection('food_rec', '권장 식품', 'Recommended Foods', 'var(--blue-primary)')
+    + recSection('food_avoid', '금기 식품', 'Foods to Avoid', 'var(--danger)')
+    + recSection('lifestyle', '생활 습관', 'Lifestyle', 'var(--warning)')
+    + '<div class="step-nav">'
+    + '<button class="btn-back" onclick="step=8;renderStep()">← ' + t('이전', 'Back') + '</button>'
+    + '<button class="btn-next" onclick="fd.scores=fd.scores||scoreFromAssessment();step=10;renderStep()">' + t('리포트 생성 →', 'Generate Report →') + '</button>'
+    + '</div>'
+    + '</div>';
 }
 
 // ═══════════════════════════════════════════
@@ -1088,6 +1561,13 @@ function setZoneStatus(zoneKey,status,btn){
   fd.irisAssessment.zones[zoneKey].status=status;
   btn.closest('.status-btns').querySelectorAll('.status-btn').forEach(b=>{b.classList.remove('sts-active');b.style.background='';b.style.borderColor='';b.style.color='';});
   btn.classList.add('sts-active');btn.style.background=STATUS_COLORS[status];btn.style.borderColor=STATUS_COLORS[status];btn.style.color='white';
+}
+function toggleZonePattern(zoneKey, pid, el) {
+  if (!fd.irisAssessment.zones[zoneKey].patterns) fd.irisAssessment.zones[zoneKey].patterns = [];
+  const arr = fd.irisAssessment.zones[zoneKey].patterns;
+  const idx = arr.indexOf(pid);
+  if (idx === -1) { arr.push(pid); el.style.background='var(--blue-primary)'; el.style.color='white'; el.style.borderColor='var(--blue-primary)'; }
+  else { arr.splice(idx,1); el.style.background=''; el.style.color='var(--text-mid)'; el.style.borderColor='var(--border)'; }
 }
 function toggleIrisFinding(el){const v=el.value,arr=fd.irisAssessment.findings,idx=arr.indexOf(v);if(idx===-1)arr.push(v);else arr.splice(idx,1);}
 function scoreFromAssessment(){
@@ -1102,7 +1582,8 @@ function r9(){
   const sc=fd.scores;
   const overall=Math.round(Object.values(sc).reduce((a,b)=>a+b,0)/8);
   const today=new Date().toLocaleDateString(lang==='ko'?'ko-KR':'en-US',{year:'numeric',month:'long',day:'numeric'});
-  const rid='LH-'+Date.now().toString(36).toUpperCase();
+  if(!fd.reportId) fd.reportId=generateReportId();
+  const rid=fd.reportId;
   const age=fd.dob?Math.floor((new Date()-new Date(fd.dob))/31557600000):'–';
   function cls(v){return v>=80?'g':v>=65?'w':v>=50?'o':'r';}
   function clsColor(v){return v>=80?'var(--success)':v>=65?'var(--warning)':v>=50?'var(--orange)':'var(--danger)';}
@@ -1111,159 +1592,294 @@ function r9(){
   const gLabel=biLabel(GENDER_BI,fd.gender)||'–';
 
   document.getElementById('app').innerHTML=`
-  <div class="card">
-    <div class="rpt-hero">
-      <div>
-        <div class="rpt-name">${fd.name||t('환자','Patient')} ${t('님의 건강 진단 리포트',"'s Health Diagnostic Report")}</div>
-        <div class="rpt-meta">
-          ${t('진단일','Date')}: ${today}<br>
-          ${t('리포트 번호','Report No.')}: ${rid}<br>
-          ${fd.occupation?`${t('직업','Occupation')}: ${fd.occupation}`:''}
+  <!-- ══ MEDICAL REPORT ══ -->
+  <div style="background:white;border-radius:6px;overflow:hidden;box-shadow:0 2px 12px rgba(10,22,40,.10);border:1px solid #CBD5E1">
+
+    <!-- LETTERHEAD -->
+    <div style="background:linear-gradient(135deg,#0A1628 0%,#1E3A5F 100%);padding:14px 28px;display:flex;justify-content:space-between;align-items:center;gap:16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="ludia-logo.png" alt="LUDIA" class="rpt-letterhead-logo" style="width:40px;height:40px;display:block;object-fit:contain;border-radius:10px;clip-path:inset(0 round 10px);flex-shrink:0">
+        <div>
+          <div style="font-size:12px;font-weight:900;color:white;letter-spacing:2.5px;line-height:1.1">LUDIA HEALTH</div>
+          <div style="font-size:7px;color:var(--blue-pale);letter-spacing:2px;margin-top:1px">IRIS DIAGNOSTIC SYSTEM</div>
         </div>
+        <div style="width:1px;height:26px;background:rgba(255,255,255,.2);margin:0 8px;flex-shrink:0"></div>
+        <div style="font-size:14px;font-weight:800;color:white;letter-spacing:.3px">${t('홍채 건강 진단 리포트','Iris Health Diagnostic Report')}</div>
       </div>
-      <div>
-        <div class="rpt-score-ring" style="border-color:${clsColor(overall)}50;background:${clsColor(overall)}15">
-          <div class="rpt-score-num" style="color:${clsColor(overall)}">${overall}</div>
-          <div class="rpt-score-lbl">${t('종합점수','Overall')}</div>
-        </div>
-        <div style="font-size:11px;color:rgba(255,255,255,.6);text-align:center;margin-top:6px">${scoreLabel(overall)}</div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.5px;margin-bottom:2px">${today}</div>
+        <div style="font-size:9px;color:var(--blue-pale);font-family:monospace;letter-spacing:.5px">${rid}</div>
       </div>
     </div>
 
-    <div class="rpt-section">
-      <div class="sec-title"><span>👤</span> ${t('환자 기본 정보','Patient Information')}</div>
-      <div class="info-grid">
-        <div class="info-card"><div class="info-lbl">${t('성명','Name')}</div><div class="info-val">${fd.name||'–'}</div></div>
-        <div class="info-card"><div class="info-lbl">${t('생년월일','Date of Birth')}</div><div class="info-val">${fd.dob||'–'}</div></div>
-        <div class="info-card"><div class="info-lbl">${t('성별 / 나이','Gender / Age')}</div><div class="info-val">${gLabel} / ${age}${t('세','yr')}</div></div>
-        <div class="info-card"><div class="info-lbl">${t('연락처','Phone')}</div><div class="info-val">${fd.phone||'–'}</div></div>
-        <div class="info-card"><div class="info-lbl">${t('이메일','Email')}</div><div class="info-val">${fd.email||'–'}</div></div>
-        <div class="info-card"><div class="info-lbl">${t('직업','Occupation')}</div><div class="info-val">${fd.occupation||'–'}</div></div>
+    <!-- PATIENT STRIP -->
+    <div style="background:#F8FAFC;border-bottom:2px solid var(--border);padding:14px 28px;display:flex;align-items:center;gap:0">
+      <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:11px 22px">
+        ${(()=>{
+          const eStyle='font-size:13px;font-weight:700;color:var(--navy-dark);border:1.5px solid var(--blue-pale);border-radius:6px;padding:5px 9px;width:100%;background:white;outline:none;font-family:inherit';
+          const fields=[
+            {lbl:t('환자명','Patient Name'),        val:fd.name||'',       type:'text',   eid:'re_name'},
+            {lbl:t('생년월일','Date of Birth'),      val:fd.dob||'',        type:'date',   eid:'re_dob'},
+            {lbl:t('성별 / 나이','Gender / Age'),    val:`${gLabel} / ${age}${t('세','yr')}`, type:'gender', eid:'re_gender'},
+            {lbl:t('연락처','Phone'),                val:fd.phone||'',      type:'text',   eid:'re_phone'},
+            {lbl:t('이메일','Email'),                val:fd.email||'',      type:'email',  eid:'re_email'},
+            {lbl:t('직업','Occupation'),             val:fd.occupation||'', type:'text',   eid:'re_occ'},
+          ];
+          return fields.map(({lbl,val,type,eid})=>`<div>
+            <div style="font-size:10px;font-weight:600;color:var(--text-light);margin-bottom:2px;letter-spacing:.2px">${lbl}</div>
+            ${rptEditMode
+              ? type==='gender'
+                ?`<select id="${eid}" style="${eStyle}">${GENDER_BI.map(g=>`<option value="${g[0]}"${fd.gender===g[0]?' selected':''}>${tbi(g)}</option>`).join('')}</select>`
+                :`<input id="${eid}" type="${type}" value="${val}" style="${eStyle}">`
+              :`<div style="font-size:13px;font-weight:700;color:var(--navy-dark)">${val||'–'}</div>`}
+          </div>`).join('');
+        })()}
+      </div>
+      <div style="width:1px;background:var(--border);align-self:stretch;margin:0 20px;flex-shrink:0"></div>
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div style="width:84px;height:84px;border-radius:50%;background:${clsColor(overall)}12;border:3px solid ${clsColor(overall)};display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-size:30px;font-weight:900;color:${clsColor(overall)};line-height:1">${overall}</div>
+          <div style="font-size:8px;font-weight:700;color:${clsColor(overall)};opacity:.8;margin-top:2px;letter-spacing:.3px">${t('종합점수','TOTAL')}</div>
+          <div style="font-size:8px;font-weight:600;color:${clsColor(overall)};margin-top:1px">${scoreLabel(overall)}</div>
+        </div>
       </div>
     </div>
 
-    <div class="divider"></div>
+    <!-- BODY -->
+    <div style="padding:20px 26px" id="rpt-body">
 
-    <div class="rpt-section">
-      <div class="sec-title"><span>👁️</span> ${t('홍채 진단 소견','Iris Diagnosis Findings')}</div>
-      <div class="iris-rpt-grid">
-        <div class="iris-canvas-box">
-          ${fd.irisDrawing
-            ?`<img src="${fd.irisDrawing}" style="width:200px;height:200px;border-radius:50%;box-shadow:0 6px 24px rgba(0,0,0,.18);display:block;margin:0 auto">`
-            :`<canvas id="irisCanvas" width="200" height="200"></canvas>`}
-          <div class="iris-legend">
-            ${fd.irisDrawing?`
-              <span style="color:#EF4444">●</span> ${t('이상 소견','Abnormal Finding')}<br>
-              <span style="color:#F97316">●</span> ${t('주의 요망','Caution')}<br>
-              <span style="color:#EAB308">●</span> ${t('경미한 이상','Mild Finding')}<br>
-              <span style="color:#3B82F6">●</span> ${t('일반 표시','General Mark')}`:`
-              <span style="color:var(--success)">●</span> ${t('정상 / 양호','Normal / Good')}<br>
-              <span style="color:var(--warning)">●</span> ${t('주의','Caution')}<br>
-              <span style="color:var(--orange)">●</span> ${t('관리필요','Needs Care')}<br>
-              <span style="color:var(--danger)">●</span> ${t('집중관리','Intensive Care')}`}
+      ${rptEditMode?`<div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#92400E;display:flex;align-items:center;gap:8px"><span>✏️</span> ${t('편집 모드 — 모든 항목을 수정할 수 있습니다. 완료 후 하단의 수정 완료를 클릭하세요.','Edit Mode — All fields are editable. Click "Save Changes" below when done.')}</div>`:''}
+
+      <!-- IRIS DIAGNOSIS SECTION -->
+      <div style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:7px 12px;background:var(--navy-dark);border-radius:4px">
+          <span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px;text-transform:uppercase">${t('홍채 진단 소견','IRIS DIAGNOSIS FINDINGS')}</span>
+        </div>
+
+        ${(fd.leftEyePhoto||fd.rightEyePhoto)?`
+        <div style="background:#F1F5F9;border-radius:8px;padding:14px 10px;margin-bottom:16px">
+        <div class="rpt-eyes-section" style="display:flex;gap:36px;justify-content:center;flex-wrap:wrap;margin-bottom:0;align-items:center">
+
+          ${fd.leftEyePhoto?`
+          <div class="rpt-eye-card" style="display:flex;align-items:stretch;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--off-white)">
+            <!-- Left Iris Chart = right half of iris-chart.png -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 10px;border-right:1px solid var(--border)">
+              <div style="font-size:9px;font-weight:700;color:var(--text-light);letter-spacing:.6px;text-transform:uppercase">${t('홍채 지도','Iris Map')}</div>
+              <div class="rpt-iris-map" style="width:185px;height:200px;background-image:url(iris-chart.png);background-size:200% auto;background-position:100% center;background-repeat:no-repeat;border-radius:8px;flex-shrink:0"></div>
+            </div>
+            <div style="text-align:center;padding:12px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:white">
+              <div style="font-size:11px;font-weight:600;color:var(--text-light)">${t('좌안 (Left Eye)','Left Eye')}</div>
+              <div class="rpt-eye-circle" style="position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 8px 32px rgba(10,22,40,.2);border:3px solid rgba(46,109,180,.2)">
+                <img src="${fd.leftEyePhoto}" style="width:200px;height:200px;object-fit:cover;display:block">
+                ${fd.leftEyeAnnotation?`<img src="${fd.leftEyeAnnotation}" style="position:absolute;top:0;left:0;width:200px;height:200px;pointer-events:none">`:''}
+              </div>
+            </div>
+          </div>`:''}
+
+          ${fd.rightEyePhoto?`
+          <div class="rpt-eye-card" style="display:flex;align-items:stretch;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--off-white)">
+            <div style="text-align:center;padding:12px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:white">
+              <div style="font-size:11px;font-weight:600;color:var(--text-light)">${t('우안 (Right Eye)','Right Eye')}</div>
+              <div class="rpt-eye-circle" style="position:relative;display:inline-block;border-radius:50%;overflow:hidden;box-shadow:0 8px 32px rgba(10,22,40,.2);border:3px solid rgba(46,109,180,.2)">
+                <img src="${fd.rightEyePhoto}" style="width:200px;height:200px;object-fit:cover;display:block">
+                ${fd.rightEyeAnnotation?`<img src="${fd.rightEyeAnnotation}" style="position:absolute;top:0;left:0;width:200px;height:200px;pointer-events:none">`:''}
+              </div>
+            </div>
+            <!-- Right Iris Chart = left half of iris-chart.png -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 10px;border-left:1px solid var(--border)">
+              <div style="font-size:9px;font-weight:700;color:var(--text-light);letter-spacing:.6px;text-transform:uppercase">${t('홍채 지도','Iris Map')}</div>
+              <div class="rpt-iris-map" style="width:185px;height:200px;background-image:url(iris-chart.png);background-size:200% auto;background-position:0% center;background-repeat:no-repeat;border-radius:8px;flex-shrink:0"></div>
+            </div>
+          </div>`:''}
+
+        </div></div>`:''}
+
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;border-radius:10px;overflow:hidden">
+          <thead>
+            <tr style="background:linear-gradient(90deg,#0A1628 0%,#1E3A5F 100%)">
+              <th style="padding:8px 12px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.65);text-align:left;letter-spacing:.9px;text-transform:uppercase;width:18%">${t('기관계','SYSTEM')}</th>
+              <th style="padding:8px 12px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.65);text-align:left;letter-spacing:.9px;text-transform:uppercase;width:30%">${t('진단 결과','RESULT')}</th>
+              <th style="padding:8px 12px;font-size:9.5px;font-weight:700;color:rgba(255,255,255,.65);text-align:left;letter-spacing:.9px;text-transform:uppercase">${t('홍채 소견','IRIS FINDINGS')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ZONE_INFO.map((z,i)=>{
+              const v=sc[z.key],ia=fd.irisAssessment.zones[z.key];
+              const stItem=STATUSES_BI.find(s=>s[0]===ia.status);
+              const stColor=STATUS_COLORS[ia.status]||'var(--navy-mid)';
+              const inputBase='border:1.5px solid var(--blue-pale);border-radius:6px;padding:4px 6px;background:white;outline:none;font-family:inherit';
+              return `<tr style="background:${i%2===0?'white':'#F8FAFC'}">
+                <td style="padding:7px 10px 7px 9px;border-bottom:1px solid var(--gray-light);border-left:3px solid ${stColor};font-size:11px;font-weight:700;color:var(--navy-dark);white-space:nowrap">${z.icon} ${z[lang]}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid var(--gray-light)">
+                  ${rptEditMode
+                    ?`<select id="re_st_${z.key}" style="font-size:11px;${inputBase}">
+                        ${STATUSES_BI.map(s=>`<option value="${s[0]}" ${s[0]===ia.status?'selected':''}>${tbi(s)}</option>`).join('')}
+                      </select>`
+                    :`<div style="display:flex;align-items:center;gap:7px">
+                        <div style="flex:1;height:4px;background:#E2E8F0;border-radius:2px;overflow:hidden;min-width:36px"><div style="width:${v}%;height:100%;background:${clsColor(v)};border-radius:2px"></div></div>
+                        <span style="font-size:12px;font-weight:800;color:${clsColor(v)};min-width:20px;flex-shrink:0;text-align:right">${v}</span>
+                        <span style="font-size:9.5px;font-weight:700;color:${stColor};padding:1px 6px;border:1px solid ${stColor}50;border-radius:3px;background:${stColor}0E;white-space:nowrap;flex-shrink:0">${stItem?tbi(stItem):ia.status}</span>
+                      </div>`}
+                </td>
+                <td style="padding:7px 10px;border-bottom:1px solid var(--gray-light)">
+                  ${rptEditMode
+                    ?`<textarea id="re_nt_${z.key}" rows="3" style="width:100%;font-size:10.5px;resize:vertical;${inputBase}">${ia.note||''}</textarea>`
+                    :(()=>{
+                        const baseTxt = genZoneWellness(z.key, ia.status, []);
+                        const patTxt  = genZoneWellness(z.key, ia.status, ia.patterns||[]).slice(baseTxt.length).trim();
+                        const hasNote = ia.note && ia.note.trim();
+                        return `<div class="rpt-well-base" style="font-size:10.5px;color:var(--text-mid);line-height:1.55">${baseTxt}</div>`
+                          + (patTxt  ? `<div class="rpt-well-pat" style="font-size:10px;color:#475569;margin-top:3px;line-height:1.5">${patTxt}</div>` : '')
+                          + (hasNote ? `<div class="rpt-well-note" style="font-size:10px;color:var(--blue-primary);margin-top:4px;padding-top:4px;border-top:1px solid var(--blue-pale);font-style:italic">${ia.note}</div>` : '');
+                      })()}
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ══ PAGE 2 START ══ -->
+      <div id="rpt-page2">
+
+        ${fd.irisAssessment.findings.length?`
+        <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+          <div style="font-size:9.5px;font-weight:700;color:var(--text-light);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:7px">${t('특이 홍채 소견','SPECIAL FINDINGS')}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            ${fd.irisAssessment.findings.map(k=>{const item=IRIS_FINDINGS_BI.find(x=>x[0]===k);return`<span style="display:inline-block;padding:3px 10px;background:white;border:1px solid #CBD5E1;border-radius:3px;font-size:11px;color:var(--navy-dark);font-weight:600">${item?tbi(item):k}</span>`;}).join('')}
           </div>
-        </div>
-        <div class="zone-grid">
-          ${ZONE_INFO.map(z=>{
-            const v=sc[z.key],c=cls(v),ia=fd.irisAssessment.zones[z.key];
-            const stItem=STATUSES_BI.find(s=>s[0]===ia.status);
-            const stColor=STATUS_COLORS[ia.status]||'var(--navy-mid)';
-            return `<div class="zone-card ${c}">
-              <div class="zone-name">${z.icon} ${z[lang]}</div>
-              <div class="rpt-zone-status" style="color:${stColor}">${stItem?tbi(stItem):ia.status}</div>
-              ${ia.note?`<div class="rpt-zone-note">${ia.note}</div>`:''}
+        </div>`:''}
+
+        ${(fd.irisAssessment.overallNote||rptEditMode)?`
+        <div style="border-left:3px solid var(--blue-primary);padding:10px 14px;margin-bottom:16px;background:white">
+          <div style="font-size:9.5px;font-weight:700;color:var(--text-light);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">${t('종합 홍채 소견','OVERALL FINDINGS')}</div>
+          ${rptEditMode
+            ?`<textarea id="re_overall" rows="4" style="width:100%;font-size:13px;line-height:1.75;border:1px solid var(--border);border-radius:4px;padding:8px;background:white;resize:vertical;outline:none;font-family:inherit">${fd.irisAssessment.overallNote||''}</textarea>`
+            :`<div style="font-size:12.5px;color:var(--navy-dark);line-height:1.8">${fd.irisAssessment.overallNote}</div>`}
+        </div>`:''}
+
+      <!-- HEALTH RECOMMENDATIONS -->
+      ${fd.healthRecs&&fd.healthRecs.length?(()=>{
+        const allItems=fd.healthRecs.map(id=>HEALTH_RECS.find(r=>r.id===id)).filter(Boolean);
+        const recs=allItems.filter(r=>r.type!=='food_avoid');
+        const avoids=allItems.filter(r=>r.type==='food_avoid');
+
+
+        // Split recs by type — each with distinct accent color
+        const byType=[
+          {type:'supplement', labelKo:'영양 보충제', labelEn:'SUPPLEMENTS',
+           bg:'#EFF6FF', border:'#BFDBFE', labelBg:'#1E3A5F', labelC:'white', cardBorder:'#BFDBFE', exC:'#2563EB',
+           items:recs.filter(r=>r.type==='supplement')},
+          {type:'food_rec',   labelKo:'권장 식품',   labelEn:'FOODS',
+           bg:'#F0FDF4', border:'#BBF7D0', labelBg:'#1E3A5F', labelC:'white', cardBorder:'#BBF7D0', exC:'#15803D',
+           items:recs.filter(r=>r.type==='food_rec')},
+          {type:'lifestyle',  labelKo:'생활 습관',   labelEn:'LIFESTYLE',
+           bg:'#FEFCE8', border:'#FDE68A', labelBg:'#1E3A5F', labelC:'white', cardBorder:'#FDE68A', exC:'#92400E',
+           items:recs.filter(r=>r.type==='lifestyle')},
+        ].filter(g=>g.items.length);
+
+        const avoidMeta={bg:'#FEF2F2', border:'#FECACA', labelBg:'#1E3A5F', labelC:'white', cardBorder:'#FECACA', exC:'#B91C1C'};
+
+        let out=`<div id="rpt-rec-section" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:7px 12px;background:var(--navy-dark);border-radius:4px">
+            <span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px;text-transform:uppercase">${t('건강 권장사항','HEALTH RECOMMENDATIONS')}</span>
+          </div>`;
+
+        if(byType.length){
+          byType.forEach(g=>{
+            const cardFn=(r)=>`<div class="rpt-rec-card" style="display:flex;flex-direction:column;gap:1px;padding:5px 7px;border:1px solid ${g.cardBorder};border-radius:3px;background:white">
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-size:12px;line-height:1;flex-shrink:0">${r.icon}</span>
+                <span class="rpt-rec-name" style="font-size:9.5px;font-weight:700;color:var(--navy-dark);line-height:1.2">${t(r.ko,r.en)}</span>
+              </div>
+              <div class="rpt-rec-desc" style="font-size:8px;color:var(--text-light);line-height:1.35;padding-left:18px">${t(r.dko,r.den)}</div>
+              <div class="rpt-rec-food" style="font-size:7.5px;color:${g.exC};font-style:italic;line-height:1.3;padding-left:18px">${t(r.eko,r.een)}</div>
             </div>`;
-          }).join('')}
+            out+=`<div style="margin-bottom:6px;background:${g.bg};border:1px solid ${g.border};border-radius:4px;overflow:hidden">
+              <div style="background:${g.labelBg};padding:4px 10px">
+                <span style="font-size:8px;font-weight:700;color:${g.labelC};letter-spacing:.9px;text-transform:uppercase">${t(g.labelKo,g.labelEn)}</span>
+              </div>
+              <div style="padding:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px">${g.items.map(cardFn).join('')}</div>
+            </div>`;
+          });
+        }
+        if(avoids.length){
+          const avoidCardFn=(r)=>`<div class="rpt-rec-card" style="display:flex;flex-direction:column;gap:1px;padding:5px 7px;border:1px solid ${avoidMeta.cardBorder};border-radius:3px;background:white">
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="font-size:12px;line-height:1;flex-shrink:0">${r.icon}</span>
+              <span class="rpt-rec-name" style="font-size:9.5px;font-weight:700;color:#991B1B;line-height:1.2">${t(r.ko,r.en)}</span>
+            </div>
+            <div class="rpt-rec-desc" style="font-size:8px;color:var(--text-light);line-height:1.35;padding-left:18px">${t(r.dko,r.den)}</div>
+            <div class="rpt-rec-food" style="font-size:7.5px;color:${avoidMeta.exC};font-style:italic;line-height:1.3;padding-left:18px">${t(r.eko,r.een)}</div>
+          </div>`;
+          out+=`<div style="margin-bottom:6px;background:${avoidMeta.bg};border:1px solid ${avoidMeta.border};border-radius:4px;overflow:hidden">
+            <div style="background:${avoidMeta.labelBg};padding:4px 10px">
+              <span style="font-size:8px;font-weight:700;color:${avoidMeta.labelC};letter-spacing:.9px;text-transform:uppercase">✕ ${t('금기 · 제한','AVOID / RESTRICT')}</span>
+            </div>
+            <div style="padding:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px">${avoids.map(avoidCardFn).join('')}</div>
+          </div>`;
+        }
+        out+='</div>';
+        return out;
+      })():''}
+
+      <!-- QUESTIONNAIRE SUMMARY -->
+      <div style="margin-bottom:16px" id="rpt-q-section" class="${fd.healthRecs&&fd.healthRecs.length?'':'rpt-q-pagebreak'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:7px 12px;background:var(--navy-dark);border-radius:4px">
+          <span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px;text-transform:uppercase">${t('문진 요약','QUESTIONNAIRE SUMMARY')}</span>
         </div>
+        <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;font-size:10.5px">
+          <tbody>
+            <tr style="border-bottom:1px solid #EAECF0">
+              <td style="padding:5px 10px;font-size:9px;font-weight:700;color:var(--text-light);letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;width:14%;border-right:1px solid #EAECF0;background:#F8FAFC;vertical-align:top">${t('주요 증상','Symptoms')}</td>
+              <td style="padding:5px 10px;width:36%;vertical-align:top;border-right:1px solid #EAECF0"><div style="display:flex;flex-wrap:wrap;gap:3px">${fd.symptoms.length?fd.symptoms.map(k=>{const item=SYMPTOMS_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join(''):`<span class="tag none">${t('없음','None')}</span>`}</div></td>
+              <td style="padding:5px 10px;font-size:9px;font-weight:700;color:var(--text-light);letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;width:14%;border-right:1px solid #EAECF0;background:#F8FAFC;vertical-align:top">${t('과거 병력','Hx')}</td>
+              <td style="padding:5px 10px;vertical-align:top"><div style="display:flex;flex-wrap:wrap;gap:3px">${fd.pastConditions.length?fd.pastConditions.map(k=>{const item=PAST_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join(''):`<span class="tag none">${t('없음','None')}</span>`}</div></td>
+            </tr>
+            <tr>
+              <td style="padding:5px 10px;font-size:9px;font-weight:700;color:var(--text-light);letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;border-right:1px solid #EAECF0;background:#F8FAFC;vertical-align:top">${t('가족력','Family')}</td>
+              <td style="padding:5px 10px;vertical-align:top;border-right:1px solid #EAECF0"><div style="display:flex;flex-wrap:wrap;gap:3px">${fd.familyConditions.length?fd.familyConditions.map(k=>{const item=FAMILY_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join(''):`<span class="tag none">${t('없음','None')}</span>`}</div></td>
+              <td style="padding:5px 10px;font-size:9px;font-weight:700;color:var(--text-light);letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;border-right:1px solid #EAECF0;background:#F8FAFC;vertical-align:top">${t('생활 · 복용약','Lifestyle')}</td>
+              <td style="padding:5px 10px;vertical-align:top"><div style="display:flex;flex-wrap:wrap;gap:3px">
+                ${meds.map(m=>`<span class="tag" style="background:#FFF7ED;border-color:#FDBA74;color:#C2410C">${m.name}${m.dose?' · '+m.dose:''}</span>`).join('')}
+                <span class="tag">${t('수면','Sleep')}: ${lsLabel('sleep',fd.sleep)}</span>
+                <span class="tag">${t('운동','Ex')}: ${lsLabel('exercise',fd.exercise)}</span>
+                <span class="tag">${t('스트레스','Stress')}: ${lsLabel('stress',fd.stress)}</span>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      ${fd.irisAssessment.findings.length?`
-      <div style="margin-top:16px">
-        <div class="form-label" style="margin-bottom:8px;font-size:12px">${t('특이 홍채 소견','Special Iris Findings')}</div>
-        <div class="tag-list">${fd.irisAssessment.findings.map(k=>{
-          const item=IRIS_FINDINGS_BI.find(x=>x[0]===k);
-          return `<span class="tag" style="background:#FFF7ED;border-color:#FDBA74;color:#C2410C">${item?tbi(item):k}</span>`;
-        }).join('')}</div>
-      </div>`:''}
+      </div><!-- /#rpt-page2 -->
 
-      <div class="pupil-row">
-        <div class="pupil-card">
-          <div class="info-lbl">${t('동공 크기','Pupil Size')}</div>
-          <div class="info-val">${biLabel(PUPIL_SIZE_BI,fd.irisAssessment.pupilSize)}</div>
-        </div>
-        <div class="pupil-card">
-          <div class="info-lbl">${t('동공 형태','Pupil Shape')}</div>
-          <div class="info-val">${biLabel(PUPIL_SHAPE_BI,fd.irisAssessment.pupilShape)}</div>
-        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="rpt-footer" style="background:var(--navy-dark);padding:16px 32px;display:flex;justify-content:space-between;align-items:center;gap:16px">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.7;max-width:540px">
+        ${t(
+          '※ 본 리포트는 홍채 진단 및 문진 정보를 바탕으로 생성된 건강 스크리닝 참고 자료이며, 의학적 진단이나 치료를 대체하지 않습니다. 정확한 진단을 위해 전문 의료인과 상담하시기 바랍니다.',
+          '※ This report is for health screening reference only and does not replace medical diagnosis or treatment. Consult a qualified healthcare professional for accurate diagnosis.'
+        )}
       </div>
-      ${fd.irisAssessment.overallNote?`
-      <div class="overall-note-box">
-        <div class="overall-note-label">${t('종합 홍채 소견','Overall Iris Findings')}</div>
-        <div class="overall-note-text">${fd.irisAssessment.overallNote}</div>
-      </div>`:''}
+      <div style="font-size:11px;font-weight:900;color:rgba(255,255,255,.3);letter-spacing:2.5px;flex-shrink:0">LUDIA HEALTH</div>
     </div>
+  </div>
 
-    <div class="divider"></div>
-
-    <div class="rpt-section">
-      <div class="sec-title"><span>📋</span> ${t('문진 요약','Questionnaire Summary')}</div>
-      <div class="form-group">
-        <div class="form-label">${t('주요 증상','Main Symptoms')}</div>
-        <div class="tag-list">${fd.symptoms.length
-          ?fd.symptoms.map(k=>{const item=SYMPTOMS_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join('')
-          :`<span class="tag none">${t('해당 없음','None')}</span>`}</div>
-      </div>
-      <div class="form-row" style="margin-top:14px">
-        <div class="form-group">
-          <div class="form-label">${t('과거 병력','Past Medical History')}</div>
-          <div class="tag-list">${fd.pastConditions.length
-            ?fd.pastConditions.map(k=>{const item=PAST_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join('')
-            :`<span class="tag none">${t('해당 없음','None')}</span>`}</div>
-        </div>
-        <div class="form-group">
-          <div class="form-label">${t('가족력','Family History')}</div>
-          <div class="tag-list">${fd.familyConditions.length
-            ?fd.familyConditions.map(k=>{const item=FAMILY_BI.find(x=>x[0]===k);return`<span class="tag">${item?tbi(item):k}</span>`;}).join('')
-            :`<span class="tag none">${t('해당 없음','None')}</span>`}</div>
-        </div>
-      </div>
-      ${meds.length?`<div class="form-group" style="margin-top:14px">
-        <div class="form-label">${t('복용 약물','Current Medications')}</div>
-        <div class="tag-list">${meds.map(m=>`<span class="tag">${m.name}${m.dose?' · '+m.dose:''}</span>`).join('')}</div>
-      </div>`:''}
-      <div class="form-group" style="margin-top:14px">
-        <div class="form-label">${t('생활습관 요약','Lifestyle Summary')}</div>
-        <div class="tag-list">
-          <span class="tag">${t('흡연','Smoking')}: ${lsLabel('smoking',fd.smoking)}</span>
-          <span class="tag">${t('음주','Alcohol')}: ${lsLabel('alcohol',fd.alcohol)}</span>
-          <span class="tag">${t('운동','Exercise')}: ${lsLabel('exercise',fd.exercise)}</span>
-          <span class="tag">${t('수면','Sleep')}: ${lsLabel('sleep',fd.sleep)}</span>
-          <span class="tag">${t('식습관','Diet')}: ${lsLabel('diet',fd.diet)}</span>
-          <span class="tag">${t('스트레스','Stress')}: ${lsLabel('stress',fd.stress)}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="rpt-section">
-      <div class="sec-title"><span>💊</span> ${t('종합 권장 사항','Recommendations')}</div>
-      <div class="rec-list">${buildRecs(sc)}</div>
-    </div>
-
-    <div class="disclaimer">
-      ${t(
-        '※ 본 리포트는 홍채 진단 및 문진 정보를 바탕으로 생성된 건강 스크리닝 참고 자료입니다. 의학적 진단이나 치료를 대체하지 않으며, 정확한 진단을 위해서는 반드시 전문 의료인과 상담하시기 바랍니다.',
-        '※ This report is a health screening reference generated from iris diagnosis and questionnaire data. It does not replace medical diagnosis or treatment. Please consult a qualified healthcare professional for accurate diagnosis.'
-      )} — LUDIA HEALTH Iris Diagnostic System
-    </div>
-    <div class="nav">
-      <button class="btn-outline" onclick="Object.assign(fd,getInitFd());step=0;renderStep()">${t('새 진단 시작','New Diagnosis')}</button>
-      <button class="btn-dark" onclick="window.print()">🖨️ ${t('리포트 출력','Print Report')}</button>
-    </div>
+  <div class="nav" style="flex-wrap:wrap;gap:10px;margin-top:22px">
+    ${rptEditMode
+      ?`<button class="btn-back" onclick="rptEditMode=false;r9()">✕ ${t('취소','Cancel')}</button>
+        <button class="btn-next" onclick="saveReportEdits()">✓ ${t('수정 완료','Save Changes')}</button>`
+      :`<button class="btn-outline" onclick="Object.assign(fd,getInitFd());step=0;renderStep()">${t('새 진단 시작','New Diagnosis')}</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-outline" onclick="startFullEdit()">📝 ${t('전체 수정','Edit All')}</button>
+          <button class="btn-outline" onclick="rptEditMode=true;r9()">✏️ ${t('간편 수정','Quick Edit')}</button>
+          <button class="btn-save-rec" onclick="saveRecord()">💾 ${t('기록 저장','Save Record')}</button>
+          <button class="btn-dark" onclick="window.print()">🖨️ ${t('리포트 출력','Print Report')}</button>
+        </div>`}
   </div>`;
 
-  if(!fd.irisDrawing) setTimeout(()=>drawIrisCanvas(sc),80);
 }
 
 // ═══════════════════════════════════════════
@@ -1316,10 +1932,16 @@ function getInitFd(){
     familyConditions:[],familyOther:'',
     smoking:'none',alcohol:'none',exercise:'rarely',sleep:'lt6h',diet:'irregular',stress:'high',
     irisAssessment:{
-      zones:{respiratory:{status:'normal',note:''},cardiovascular:{status:'normal',note:''},immune:{status:'normal',note:''},digestive:{status:'normal',note:''},urinary:{status:'normal',note:''},musculoskeletal:{status:'normal',note:''},endocrine:{status:'normal',note:''},nervous:{status:'normal',note:''}},
+      zones:{respiratory:{status:'normal',note:'',patterns:[]},cardiovascular:{status:'normal',note:'',patterns:[]},immune:{status:'normal',note:'',patterns:[]},digestive:{status:'normal',note:'',patterns:[]},urinary:{status:'normal',note:'',patterns:[]},musculoskeletal:{status:'normal',note:'',patterns:[]},endocrine:{status:'normal',note:'',patterns:[]},nervous:{status:'normal',note:'',patterns:[]}},
       findings:[],pupilSize:'normal',pupilShape:'round',overallNote:''
     },
-    irisDrawing:null,irisDrawingLayer:null,scores:null
+    irisDrawing:null,irisDrawingLayer:null,scores:null,
+    leftEyePhoto:null,rightEyePhoto:null,
+    leftEyeAnnotation:null,rightEyeAnnotation:null,
+    healthRecs:[],
+    reportId:null,
+    editingVisitId:null,
+    editingPatientId:null
   };
 }
 
@@ -1350,6 +1972,400 @@ function drawIrisCanvas(scores){
   ctx.beginPath();ctx.arc(cx,cy,32,0,Math.PI*2);ctx.fillStyle=pg;ctx.fill();
   ctx.beginPath();ctx.arc(cx-10,cy-10,7,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.55)';ctx.fill();
   ctx.beginPath();ctx.arc(cx+8,cy+7,3,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.2)';ctx.fill();
+}
+
+// ═══════════════════════════════════════════
+//  EYE PHOTO UPLOAD & ANNOTATION
+// ═══════════════════════════════════════════
+const EDS = {
+  left:  {active:false,tool:'pen',color:'#EF4444',size:3,lx:0,ly:0,history:[]},
+  right: {active:false,tool:'pen',color:'#EF4444',size:3,lx:0,ly:0,history:[]}
+};
+const EYE_COLORS = ['#EF4444','#F97316','#EAB308','#3B82F6','#10B981','#1E3A5F'];
+const CROP = {
+  left:  {active:false,src:null,imgW:0,imgH:0,scale:1,ox:0,oy:0,drag:false,sx:0,sy:0},
+  right: {active:false,src:null,imgW:0,imgH:0,scale:1,ox:0,oy:0,drag:false,sx:0,sy:0}
+};
+
+function buildEyePhotoHTML() {
+  function sideHtml(side) {
+    const photo = fd[side+'EyePhoto'];
+    const c = CROP[side];
+    const sideLabel = side==='left' ? t('좌안 (Left Eye)','Left Eye') : t('우안 (Right Eye)','Right Eye');
+    const ds = EDS[side];
+
+    if (c.active) {
+      return `<div class="eye-photo-col">
+        <div class="eye-photo-lbl">${sideLabel}</div>
+        <div id="${side}CropCircle"
+          style="width:220px;height:220px;border-radius:50%;overflow:hidden;position:relative;cursor:grab;border:3px solid var(--blue-primary);box-shadow:0 0 0 5px rgba(59,130,246,.12);flex-shrink:0"
+          onmousedown="cropDragStart('${side}',event)"
+          onmousemove="cropDragMove('${side}',event)"
+          onmouseup="cropDragEnd('${side}')"
+          onmouseleave="cropDragEnd('${side}')"
+          onwheel="cropWheel('${side}',event)"
+          ontouchstart="cropTouchStart('${side}',event)"
+          ontouchmove="cropTouchMove('${side}',event)"
+          ontouchend="cropDragEnd('${side}')">
+          <img id="${side}CropImg" src="${c.src}"
+            style="position:absolute;top:50%;left:50%;width:${c.imgW*c.scale}px;height:${c.imgH*c.scale}px;transform:translate(calc(-50% + ${c.ox}px),calc(-50% + ${c.oy}px));pointer-events:none;user-select:none"
+            draggable="false">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:10px;width:220px">
+          <button class="emb" style="font-size:18px;line-height:1;padding:2px 10px" onclick="cropZoom('${side}',-0.15)">−</button>
+          <input type="range" min="0.5" max="4" step="0.05" value="${c.scale}"
+            oninput="CROP['${side}'].scale=+this.value;updateCropImg('${side}')"
+            style="flex:1;accent-color:var(--blue-primary)">
+          <button class="emb" style="font-size:18px;line-height:1;padding:2px 10px" onclick="cropZoom('${side}',0.15)">+</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-light);text-align:center;margin:4px 0 8px">${t('드래그: 위치 조정 · 스크롤/슬라이더: 확대/축소','Drag to pan · Scroll or slider to zoom')}</div>
+        <div style="display:flex;gap:8px;width:220px">
+          <button class="btn-add" style="flex:1;justify-content:center;background:var(--blue-bg);border-color:var(--blue-primary);color:var(--blue-primary)" onclick="applyCrop('${side}')">✓ ${t('적용','Apply')}</button>
+          <button class="btn-add" style="flex:1;justify-content:center;border-color:#FCA5A5;color:var(--danger)" onclick="cancelCrop('${side}')">✕ ${t('취소','Cancel')}</button>
+        </div>
+      </div>`;
+    }
+
+    if (!photo) {
+      return `<div class="eye-photo-col">
+        <div class="eye-photo-lbl">${sideLabel}</div>
+        <div class="iris-upload" style="width:200px;padding:24px 16px;text-align:center;position:relative;cursor:pointer" id="${side}UploadBox">
+          <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="loadEyePhoto('${side}',this)">
+          <div style="font-size:38px;margin-bottom:8px">👁️</div>
+          <div style="font-size:13px;font-weight:700;color:var(--navy-mid);margin-bottom:3px">${sideLabel}</div>
+          <div style="font-size:11px;color:var(--text-light)">${t('클릭하여 업로드','Click to upload')}</div>
+        </div>
+      </div>`;
+    }
+    return `<div class="eye-photo-col">
+      <div class="eye-photo-lbl">${sideLabel}</div>
+      <div class="eye-annotate-wrap" id="${side}AnnotateWrap">
+        <img src="${photo}" id="${side}EyeImg" alt="${sideLabel}">
+        <canvas id="${side}DrawCanvas" width="200" height="200"></canvas>
+      </div>
+      <div class="eye-mini-toolbar" id="${side}EyeToolbar">
+        ${EYE_COLORS.map((col,i)=>`<div class="ecd${i===0?' ecd-on':''}" style="background:${col}" onclick="setEyeColor('${side}','${col}',this)"></div>`).join('')}
+        <button class="emb" onclick="setEyeTool('${side}','eraser',this)">⬜</button>
+        <button class="emb" onclick="setEyeTool('${side}','pen',this)">✏️</button>
+        <button class="emb" onclick="undoEyeDraw('${side}')">↩</button>
+        <button class="emb" onclick="clearEyeDraw('${side}')" style="color:var(--danger)">🗑</button>
+      </div>
+      <button class="btn-add" onclick="removeEyePhoto('${side}')" style="font-size:11px;border-color:#FCA5A5;color:var(--danger)">${t('사진 제거','Remove Photo')}</button>
+    </div>`;
+  }
+  return `<div class="eye-photo-row">${sideHtml('left')}${sideHtml('right')}</div>`;
+}
+
+function loadEyePhoto(side, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const minDim = Math.min(img.naturalWidth, img.naturalHeight);
+      const initFill = 220 / minDim;
+      const c = CROP[side];
+      c.active = true;
+      c.src    = e.target.result;
+      c.imgW   = img.naturalWidth  * initFill;
+      c.imgH   = img.naturalHeight * initFill;
+      c.scale  = 1;
+      c.ox     = 0;
+      c.oy     = 0;
+      refreshEyeSection();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeEyePhoto(side) {
+  fd[side+'EyePhoto'] = null;
+  fd[side+'EyeAnnotation'] = null;
+  EDS[side].history = ['empty'];
+  refreshEyeSection();
+}
+
+// ── Crop editor helpers ──────────────────────────────────────────────────────
+function cropDragStart(side, e) {
+  e.preventDefault();
+  const c = CROP[side];
+  c.drag = true;
+  c.sx = e.clientX - c.ox;
+  c.sy = e.clientY - c.oy;
+  const el = document.getElementById(side+'CropCircle');
+  if (el) el.style.cursor = 'grabbing';
+}
+function cropDragMove(side, e) {
+  const c = CROP[side];
+  if (!c.drag) return;
+  c.ox = e.clientX - c.sx;
+  c.oy = e.clientY - c.sy;
+  updateCropImg(side);
+}
+function cropDragEnd(side) {
+  const c = CROP[side];
+  c.drag = false;
+  const el = document.getElementById(side+'CropCircle');
+  if (el) el.style.cursor = 'grab';
+}
+function cropTouchStart(side, e) {
+  e.preventDefault();
+  const c = CROP[side];
+  c.drag = true;
+  c.sx = e.touches[0].clientX - c.ox;
+  c.sy = e.touches[0].clientY - c.oy;
+}
+function cropTouchMove(side, e) {
+  e.preventDefault();
+  const c = CROP[side];
+  if (!c.drag) return;
+  c.ox = e.touches[0].clientX - c.sx;
+  c.oy = e.touches[0].clientY - c.sy;
+  updateCropImg(side);
+}
+function cropWheel(side, e) {
+  e.preventDefault();
+  cropZoom(side, e.deltaY < 0 ? 0.1 : -0.1);
+}
+function cropZoom(side, delta) {
+  const c = CROP[side];
+  c.scale = Math.min(4, Math.max(0.5, +(c.scale + delta).toFixed(2)));
+  updateCropImg(side);
+  const circle = document.getElementById(side+'CropCircle');
+  if (circle) {
+    const sl = circle.parentElement.querySelector('input[type=range]');
+    if (sl) sl.value = c.scale;
+  }
+}
+function updateCropImg(side) {
+  const c = CROP[side];
+  const img = document.getElementById(side+'CropImg');
+  if (!img) return;
+  img.style.width  = (c.imgW * c.scale) + 'px';
+  img.style.height = (c.imgH * c.scale) + 'px';
+  img.style.transform = `translate(calc(-50% + ${c.ox}px), calc(-50% + ${c.oy}px))`;
+}
+function applyCrop(side) {
+  const c = CROP[side];
+  if (!c.src) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 300; canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    const ratio = 300 / 220;
+    const drawW = c.imgW * c.scale * ratio;
+    const drawH = c.imgH * c.scale * ratio;
+    ctx.drawImage(img,
+      150 + c.ox * ratio - drawW / 2,
+      150 + c.oy * ratio - drawH / 2,
+      drawW, drawH
+    );
+    fd[side+'EyePhoto'] = canvas.toDataURL('image/jpeg', 0.78);
+    fd[side+'EyeAnnotation'] = null;
+    EDS[side].history = ['empty'];
+    c.active = false; c.src = null;
+    refreshEyeSection();
+  };
+  img.src = c.src;
+}
+function cancelCrop(side) {
+  const c = CROP[side];
+  c.active = false; c.src = null;
+  refreshEyeSection();
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function refreshEyeSection() {
+  const el = document.getElementById('eyePhotoSection');
+  if (el) { el.innerHTML = buildEyePhotoHTML(); setTimeout(initEyeAnnotations, 30); }
+}
+
+function initEyeAnnotations() {
+  ['left','right'].forEach(side => {
+    const canvas = document.getElementById(side+'DrawCanvas');
+    const ds = EDS[side];
+    if (!canvas) return;
+    if (fd[side+'EyeAnnotation']) {
+      const img = new Image();
+      img.onload = () => { canvas.getContext('2d').drawImage(img,0,0); ds.history = [canvas.toDataURL()]; };
+      img.src = fd[side+'EyeAnnotation'];
+    } else { ds.history = ['empty']; }
+    canvas.onmousedown  = e => { ds.active=true; const p=cvPos(canvas,e); ds.lx=p.x; ds.ly=p.y; };
+    canvas.onmousemove  = e => { if(ds.active) eyeDraw(canvas.getContext('2d'),cvPos(canvas,e),ds); };
+    canvas.onmouseup    = () => { if(ds.active){ds.active=false;pushEyeHist(canvas,ds);} };
+    canvas.onmouseleave = () => { if(ds.active){ds.active=false;pushEyeHist(canvas,ds);} };
+    canvas.ontouchstart = e => { e.preventDefault(); ds.active=true; const p=cvPos(canvas,e.touches[0]); ds.lx=p.x; ds.ly=p.y; };
+    canvas.ontouchmove  = e => { e.preventDefault(); if(ds.active) eyeDraw(canvas.getContext('2d'),cvPos(canvas,e.touches[0]),ds); };
+    canvas.ontouchend   = () => { ds.active=false; pushEyeHist(canvas,ds); };
+  });
+}
+
+function eyeDraw(ctx, pos, ds) {
+  ctx.beginPath(); ctx.moveTo(ds.lx,ds.ly); ctx.lineTo(pos.x,pos.y);
+  if(ds.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';ctx.lineWidth=ds.size*5;}
+  else{ctx.globalCompositeOperation='source-over';ctx.strokeStyle=ds.color;ctx.lineWidth=ds.size;}
+  ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();
+  ctx.globalCompositeOperation='source-over';
+  ds.lx=pos.x;ds.ly=pos.y;
+}
+function pushEyeHist(canvas,ds){const url=canvas.toDataURL();if(ds.history.length>=20)ds.history.shift();ds.history.push(url);}
+function setEyeColor(side,color,el){EDS[side].color=color;EDS[side].tool='pen';document.querySelectorAll(`#${side}EyeToolbar .ecd`).forEach(d=>d.classList.remove('ecd-on'));el.classList.add('ecd-on');}
+function setEyeTool(side,tool){EDS[side].tool=tool;}
+function undoEyeDraw(side){
+  const ds=EDS[side];const canvas=document.getElementById(side+'DrawCanvas');
+  if(!canvas||ds.history.length<=1)return;
+  ds.history.pop();const ctx=canvas.getContext('2d');ctx.clearRect(0,0,200,200);
+  const prev=ds.history[ds.history.length-1];
+  if(prev!=='empty'){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0);img.src=prev;}
+}
+function clearEyeDraw(side){
+  const canvas=document.getElementById(side+'DrawCanvas');
+  if(!canvas)return;canvas.getContext('2d').clearRect(0,0,200,200);EDS[side].history=['empty'];
+}
+function saveEyeAnnotations(){
+  ['left','right'].forEach(side=>{
+    const canvas=document.getElementById(side+'DrawCanvas');
+    if(canvas) fd[side+'EyeAnnotation']=canvas.toDataURL();
+  });
+}
+
+// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+//  REPORT EDIT MODE
+// ═══════════════════════════════════════════
+function saveReportEdits() {
+  const v = id => { const el = document.getElementById(id); return el ? el.value : null; };
+  const n = id => { const el = document.getElementById(id); return el ? Math.min(100,Math.max(0,+el.value)) : null; };
+
+  if(v('re_name')!==null)   fd.name       = v('re_name');
+  if(v('re_dob')!==null)    fd.dob        = v('re_dob');
+  if(v('re_gender')!==null) fd.gender     = v('re_gender');
+  if(v('re_phone')!==null)  fd.phone      = v('re_phone');
+  if(v('re_email')!==null)  fd.email      = v('re_email');
+  if(v('re_occ')!==null)    fd.occupation = v('re_occ');
+
+  ZONE_INFO.forEach(z => {
+    const sc = n('re_sc_'+z.key); if(sc!==null) fd.scores[z.key] = sc;
+    const st = v('re_st_'+z.key); if(st!==null) fd.irisAssessment.zones[z.key].status = st;
+    const nt = v('re_nt_'+z.key); if(nt!==null) fd.irisAssessment.zones[z.key].note = nt;
+  });
+
+  const on = v('re_overall'); if(on!==null) fd.irisAssessment.overallNote = on;
+
+  rptEditMode = false;
+  r9();
+}
+
+// ═══════════════════════════════════════════
+//  REPORT ID GENERATOR
+// ═══════════════════════════════════════════
+function generateReportId() {
+  const now = new Date();
+  const Y  = now.getFullYear();
+  const Mo = String(now.getMonth()+1).padStart(2,'0');
+  const D  = String(now.getDate()).padStart(2,'0');
+  const h  = String(now.getHours()).padStart(2,'0');
+  const mi = String(now.getMinutes()).padStart(2,'0');
+  const s  = String(now.getSeconds()).padStart(2,'0');
+  const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4).padEnd(4,'0');
+  return `LH-${Y}${Mo}${D}-${h}${mi}${s}-${rand}`;
+}
+
+// ═══════════════════════════════════════════
+//  SAVE RECORD TO localStorage
+// ═══════════════════════════════════════════
+function startFullEdit() {
+  // Go back to step 1 with all data already loaded — user can navigate through all steps
+  rptEditMode = false;
+  step = 1;
+  renderStep();
+}
+
+function buildVisitData() {
+  const overall = fd.scores ? Math.round(Object.values(fd.scores).reduce((a,b)=>a+b,0)/8) : 0;
+  return {
+    overallScore: overall, scores: fd.scores,
+    reportId: fd.reportId || generateReportId(),
+    date: new Date().toISOString().slice(0,10),
+    symptoms: fd.symptoms, symptomDuration: fd.symptomDuration,
+    painLevel: fd.painLevel, painDesc: fd.painDesc,
+    pastConditions: fd.pastConditions, otherConditions: fd.otherConditions,
+    hadSurgery: fd.hadSurgery, surgeries: fd.surgeries,
+    medications: fd.medications,
+    familyConditions: fd.familyConditions, familyOther: fd.familyOther,
+    smoking: fd.smoking, alcohol: fd.alcohol, exercise: fd.exercise,
+    sleep: fd.sleep, diet: fd.diet, stress: fd.stress,
+    irisAssessment: fd.irisAssessment,
+    healthRecs: fd.healthRecs||[],
+    leftEyePhoto: fd.leftEyePhoto, rightEyePhoto: fd.rightEyePhoto,
+    leftEyeAnnotation: fd.leftEyeAnnotation, rightEyeAnnotation: fd.rightEyeAnnotation,
+    irisDrawing: fd.irisDrawing, adminNotes: ''
+  };
+}
+
+function saveRecord() {
+  if (!fd.name || !fd.dob) {
+    alert(t('이름과 생년월일을 입력한 환자만 저장할 수 있습니다.','Patient name and date of birth are required to save a record.'));
+    return;
+  }
+  let records;
+  try { records = JSON.parse(localStorage.getItem('ludia_records') || '[]'); }
+  catch(e) { records = []; }
+
+  // ── UPDATE existing visit ──────────────────────────────────────
+  if (fd.editingVisitId && fd.editingPatientId) {
+    const patient = records.find(p => p.id === fd.editingPatientId);
+    if (patient) {
+      patient.name = fd.name; patient.dob = fd.dob; patient.gender = fd.gender;
+      patient.phone = fd.phone; patient.email = fd.email; patient.occupation = fd.occupation;
+      const vIdx = patient.visits.findIndex(v => v.id === fd.editingVisitId);
+      if (vIdx !== -1) {
+        const updated = buildVisitData();
+        updated.id = fd.editingVisitId; // preserve original ID
+        patient.visits[vIdx] = updated;
+      }
+      try {
+        localStorage.setItem('ludia_records', JSON.stringify(records));
+        alert(t(`${fd.name} 님의 기록이 수정되었습니다.`, `Record updated for ${fd.name}.`));
+      } catch(e) {
+        alert(t('저장 실패: 저장 공간이 부족합니다.', 'Save failed: storage quota exceeded.'));
+      }
+      return;
+    }
+  }
+
+  // ── CREATE new visit ───────────────────────────────────────────
+  let patient = records.find(p => p.name === fd.name && p.dob === fd.dob);
+  if (!patient) {
+    patient = {
+      id: 'p_' + Date.now().toString(36),
+      name: fd.name, dob: fd.dob, gender: fd.gender,
+      phone: fd.phone, email: fd.email, occupation: fd.occupation,
+      createdAt: new Date().toISOString().slice(0,10),
+      visits: []
+    };
+    records.push(patient);
+  } else {
+    patient.phone = fd.phone; patient.email = fd.email; patient.occupation = fd.occupation;
+  }
+
+  const newVisit = buildVisitData();
+  newVisit.id = 'v_' + Date.now().toString(36);
+  patient.visits.push(newVisit);
+
+  try {
+    localStorage.setItem('ludia_records', JSON.stringify(records));
+    alert(t(
+      `${fd.name} 님의 기록이 저장되었습니다.\n(총 ${patient.visits.length}회 방문 기록)`,
+      `Record saved for ${fd.name}.\n(Total ${patient.visits.length} visit${patient.visits.length>1?'s':''})`
+    ));
+  } catch(e) {
+    alert(t('저장 실패: 저장 공간이 부족합니다.\n사진 해상도를 줄이거나 관리자 페이지에서 오래된 기록을 삭제해 주세요.',
+            'Save failed: storage quota exceeded.\nReduce image size or delete old records in the admin panel.'));
+  }
 }
 
 // ═══════════════════════════════════════════

@@ -413,6 +413,13 @@ function sColor(v) { return v>=80?'var(--success)':v>=65?'var(--warning)':v>=50?
 function calcAge(dob) { if (!dob) return '–'; return Math.floor((new Date() - new Date(dob)) / 31557600000); }
 function fmtDate(d) { if (!d) return '–'; return new Date(d).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'}); }
 function fmtDateShort(d) { if (!d) return '–'; return d.slice(0,10); }
+function fmtDateTime(d) {
+  if (!d) return '–';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d.slice(0,10);
+  return dt.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}) + ' ' +
+    dt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+}
 
 function getOverall(visit) {
   if (visit.overallScore) return visit.overallScore;
@@ -576,6 +583,7 @@ function renderPatientsTable() {
       : '<span class="trend-fl">→ 0</span>';
     return `<tr onclick="navigate('patient','${p.id}')">
       <td><strong>${p.name || '–'}</strong></td>
+      <td style="font-size:12px;color:var(--text-light)">${fmtDateTime(p.createdAt)}</td>
       <td>${p.dob || '–'}</td>
       <td>${calcAge(p.dob)}세</td>
       <td>${GENDER_KO[p.gender] || '–'}</td>
@@ -588,7 +596,7 @@ function renderPatientsTable() {
   }).join('');
 
   el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>이름</th><th>생년월일</th><th>나이</th><th>성별</th><th>마지막 방문</th><th>최근 점수</th><th>추세</th><th>방문</th><th>작업</th></tr></thead>
+    <thead><tr><th>이름</th><th>등록일</th><th>생년월일</th><th>나이</th><th>성별</th><th>마지막 방문</th><th>최근 점수</th><th>추세</th><th>방문</th><th>작업</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -615,7 +623,7 @@ function renderPatientDetail() {
         <div class="pt-meta">
           생년월일: ${p.dob || '–'} · 나이: ${calcAge(p.dob)}세 · ${GENDER_KO[p.gender] || '–'}<br>
           연락처: ${p.phone || '–'} · 이메일: ${p.email || '–'}<br>
-          직업: ${p.occupation || '–'} · 등록일: ${p.createdAt || '–'}
+          직업: ${p.occupation || '–'} · 처음 등록: ${fmtDateTime(p.createdAt)}
         </div>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
@@ -774,7 +782,7 @@ function renderReportView() {
       </div>
 
       <!-- PATIENT STRIP -->
-      <div style="background:#F8FAFC;border-bottom:2px solid var(--border);padding:16px 32px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px 28px">
+      <div style="background:#F8FAFC;border-bottom:2px solid var(--border);padding:16px 32px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px 24px">
         ${[
           ['환자명', p.name || '–'],
           ['생년월일', p.dob || '–'],
@@ -782,6 +790,7 @@ function renderReportView() {
           ['연락처', p.phone || '–'],
           ['이메일', p.email || '–'],
           ['직업', p.occupation || '–'],
+          ['처음 등록', fmtDateTime(p.createdAt)],
         ].map(([lbl, val]) => `<div>
           <div style="font-size:11px;font-weight:600;color:var(--text-light);margin-bottom:3px">${lbl}</div>
           <div style="font-size:14px;font-weight:700;color:var(--navy-dark)">${val}</div>

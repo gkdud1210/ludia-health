@@ -322,6 +322,9 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
   .rpt-iris-map{width:130px!important;height:140px!important;background-size:200% auto!important;}
   .rpt-eye-circle img{width:140px!important;height:140px!important;}
   .rpt-eye-circle{width:140px!important;height:140px!important;overflow:hidden!important;}
+  /* ── AI grid map: scale canvases for print ── */
+  .iris-grid-canvas{width:115px!important;height:115px!important;}
+  #iris-grid-section{margin-top:10px!important;padding-top:8px!important;page-break-inside:avoid!important;}
 
   /* ── report wrapper: remove decorative chrome ── */
   #app>div:first-child{
@@ -1737,6 +1740,7 @@ function r9(){
             }).join('')}
           </tbody>
         </table>
+
       </div>
 
       <!-- ══ PAGE 2 START ══ -->
@@ -1879,7 +1883,6 @@ function r9(){
           <button class="btn-dark" onclick="window.print()">🖨️ ${t('리포트 출력','Print Report')}</button>
         </div>`}
   </div>`;
-
 }
 
 // ═══════════════════════════════════════════
@@ -1972,6 +1975,149 @@ function drawIrisCanvas(scores){
   ctx.beginPath();ctx.arc(cx,cy,32,0,Math.PI*2);ctx.fillStyle=pg;ctx.fill();
   ctx.beginPath();ctx.arc(cx-10,cy-10,7,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.55)';ctx.fill();
   ctx.beginPath();ctx.arc(cx+8,cy+7,3,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.2)';ctx.fill();
+}
+
+// ═══════════════════════════════════════════
+//  AI GRID MAP (report iris visualization)
+// ═══════════════════════════════════════════
+function drawIrisGridMap(){
+  // ── 홍채 분석 표시도 기준 구역 각도 (시계 방향, 0° = 12시) ──
+  // nervous 75°, endocrine 40°, immune 40°, respiratory 50°,
+  // digestive 55°, urinary 35°, musculoskeletal 35°, cardiovascular 30° = 360°
+  const ZONE_ARCS=[
+    {key:'nervous',        s:315, e:30 },  // 75° — 뇌/정신 (top)
+    {key:'endocrine',      s:30,  e:70 },  // 40° — 내분비/안면
+    {key:'immune',         s:70,  e:110},  // 40° — 면역/림프
+    {key:'respiratory',    s:110, e:160},  // 50° — 호흡기/폐
+    {key:'digestive',      s:160, e:215},  // 55° — 소화기
+    {key:'urinary',        s:215, e:250},  // 35° — 비뇨기/골반
+    {key:'musculoskeletal',s:250, e:285},  // 35° — 근골격/하체
+    {key:'cardiovascular', s:285, e:315},  // 30° — 심혈관/흉부
+  ];
+  function zoneForAngle(ang){
+    for(const z of ZONE_ARCS){
+      if(z.s>z.e){if(ang>=z.s||ang<z.e)return z.key;}
+      else{if(ang>=z.s&&ang<z.e)return z.key;}
+    }
+    return 'nervous';
+  }
+  const STATUS_CFG={
+    normal:    {f:[16,185,129,.08],s:[16,185,129,.20],hi:false},
+    good:      {f:[59,130,246,.12],s:[59,130,246,.22],hi:false},
+    caution:   {f:[245,158,11,.48],s:[245,158,11,.82],hi:true},
+    needs_care:{f:[249,115,22,.58],s:[249,115,22,.90],hi:true},
+    intensive: {f:[239,68,68,.65], s:[239,68,68,.95], hi:true},
+  };
+  const ZONE_LBL={
+    ko:{respiratory:'호흡',cardiovascular:'심혈',immune:'면역',digestive:'소화',urinary:'비뇨',musculoskeletal:'근골',endocrine:'내분',nervous:'신경'},
+    en:{respiratory:'Resp',cardiovascular:'CV',immune:'Imm',digestive:'GI',urinary:'GU',musculoskeletal:'MSK',endocrine:'Endo',nervous:'NS'}
+  };
+
+  function drawGrid(id){
+    const canvas=document.getElementById(id);if(!canvas)return;
+    const S=canvas.width,ctx=canvas.getContext('2d');
+    const cx=S/2,cy=S/2,R=S/2-3,PR=R*.265,IR=R*.42;
+
+    function render(){
+      ctx.clearRect(0,0,S,S);
+
+      // ── 1단계: drawIrisTemplate과 동일한 구조로 배경 그리기 ──
+      // (구역 구분선·레이블이 정확히 일치하도록 같은 로직 사용)
+      const sg=ctx.createRadialGradient(cx,cy-R*.12,R*.15,cx,cy,R);
+      sg.addColorStop(0,'#FFFFFF');sg.addColorStop(1,'#EDF2F7');
+      ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fillStyle=sg;ctx.fill();
+      ctx.beginPath();ctx.arc(cx,cy,R*.88,0,Math.PI*2);ctx.fillStyle='#C8DCF0';ctx.fill();
+
+      // 섬유 결 (미세 방사선)
+      for(let a=0;a<Math.PI*2;a+=Math.PI/24){
+        ctx.beginPath();
+        ctx.moveTo(cx+R*.39*Math.cos(a),cy+R*.39*Math.sin(a));
+        ctx.lineTo(cx+R*.88*Math.cos(a),cy+R*.88*Math.sin(a));
+        ctx.strokeStyle='rgba(80,130,190,.07)';ctx.lineWidth=.5;ctx.stroke();
+      }
+      // 동심원 링
+      [R*.52,R*.68,R*.81].forEach(r=>{
+        ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+        ctx.strokeStyle='rgba(20,58,100,.14)';ctx.lineWidth=.8;
+        ctx.setLineDash([3,5]);ctx.stroke();ctx.setLineDash([]);
+      });
+      // 구역 경계선 (ZONE_ARCS 시작각 기준)
+      for(const z of ZONE_ARCS){
+        const a=(z.s-90)*Math.PI/180;
+        ctx.beginPath();
+        ctx.moveTo(cx+R*.38*Math.cos(a),cy+R*.38*Math.sin(a));
+        ctx.lineTo(cx+R*.9*Math.cos(a),cy+R*.9*Math.sin(a));
+        ctx.strokeStyle='rgba(20,45,90,.30)';ctx.lineWidth=1;ctx.stroke();
+      }
+      // 내부 링 경계
+      ctx.beginPath();ctx.arc(cx,cy,R*.41,0,Math.PI*2);
+      ctx.strokeStyle='rgba(20,50,100,.5)';ctx.lineWidth=2;ctx.stroke();
+      const ig=ctx.createRadialGradient(cx,cy,R*.2,cx,cy,R*.41);
+      ig.addColorStop(0,'#2A4A6F');ig.addColorStop(1,'#1A3356');
+      ctx.beginPath();ctx.arc(cx,cy,R*.41,0,Math.PI*2);ctx.fillStyle=ig;ctx.fill();
+
+      // ── 2단계: 격자 셀 색상 오버레이 ──
+      const CELL=Math.floor(S/22);
+      ctx.save();ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.clip();
+      for(let row=0;row*CELL<S;row++){
+        for(let col=0;col*CELL<S;col++){
+          const x=col*CELL,y=row*CELL,ccx=x+CELL/2,ccy=y+CELL/2;
+          const dx=ccx-cx,dy=ccy-cy,dist=Math.sqrt(dx*dx+dy*dy);
+          if(dist>R*0.9||dist<R*.41)continue; // 홍채 링 범위만
+          const ang=(Math.atan2(dy,dx)*180/Math.PI+90+360)%360;
+          const zkey=zoneForAngle(ang);
+          const status=(fd.irisAssessment.zones[zkey]||{}).status||'normal';
+          const cfg=STATUS_CFG[status]||STATUS_CFG.normal;
+          const noise=((row*17+col*13)%7)/7*.03;
+          const[fr,fg,fb,fa]=cfg.f,[sr,sg,sb,sa]=cfg.s;
+          ctx.fillStyle=`rgba(${fr},${fg},${fb},${Math.min(1,fa+noise).toFixed(2)})`;
+          ctx.fillRect(x,y,CELL,CELL);
+          ctx.strokeStyle=`rgba(${sr},${sg},${sb},${sa})`;
+          ctx.lineWidth=cfg.hi?.8:.35;
+          ctx.strokeRect(x+.5,y+.5,CELL-1,CELL-1);
+        }
+      }
+      ctx.restore();
+
+      // ── 3단계: 구역 레이블 (각 구역 중심각 위치) ──
+      const lbls=ZONE_LBL[lang]||ZONE_LBL.ko;
+      const fSz=Math.max(8,Math.floor(S/30));
+      ctx.font=`bold ${fSz}px -apple-system,sans-serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      for(const z of ZONE_ARCS){
+        // 구역 중심각: 0° 넘김 처리
+        let mid=z.s>z.e?(z.s+z.e+360)/2:(z.s+z.e)/2;
+        if(mid>=360)mid-=360;
+        const a=(mid-90)*Math.PI/180;
+        const lr=R*.63,lx=cx+lr*Math.cos(a),ly=cy+lr*Math.sin(a);
+        const hi=['caution','needs_care','intensive'].includes((fd.irisAssessment.zones[z.key]||{}).status||'normal');
+        if(hi){
+          ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=3;
+          ctx.fillStyle='rgba(255,255,255,.96)';
+        }else{
+          ctx.shadowBlur=0;ctx.fillStyle='rgba(12,30,60,.65)';
+        }
+        ctx.fillText(lbls[z.key]||z.key,lx,ly);
+        ctx.shadowBlur=0;
+      }
+
+      // ── 4단계: 동공 ──
+      const pg=ctx.createRadialGradient(cx-R*.05,cy-R*.07,R*.02,cx,cy,R*.28);
+      pg.addColorStop(0,'#1A1A2E');pg.addColorStop(1,'#05050D');
+      ctx.beginPath();ctx.arc(cx,cy,R*.28,0,Math.PI*2);ctx.fillStyle=pg;ctx.fill();
+      ctx.beginPath();ctx.arc(cx-R*.1,cy-R*.1,R*.065,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,.52)';ctx.fill();
+
+      // ── 외곽 링 ──
+      ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);
+      ctx.strokeStyle='#A0BAD0';ctx.lineWidth=2;ctx.stroke();
+    }
+
+    render();
+  }
+
+  drawGrid('irisGridLeft');
+  drawGrid('irisGridRight');
 }
 
 // ═══════════════════════════════════════════
@@ -2344,7 +2490,7 @@ function saveRecord() {
       id: 'p_' + Date.now().toString(36),
       name: fd.name, dob: fd.dob, gender: fd.gender,
       phone: fd.phone, email: fd.email, occupation: fd.occupation,
-      createdAt: new Date().toISOString().slice(0,10),
+      createdAt: new Date().toISOString(),
       visits: []
     };
     records.push(patient);

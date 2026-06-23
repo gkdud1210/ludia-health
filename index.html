@@ -515,7 +515,8 @@ const fd = {
   healthRecs:[],
   reportId:null,
   editingVisitId:null,
-  editingPatientId:null
+  editingPatientId:null,
+  uniqueId:'' // 어르신 고유번호
 };
 
 // ═══════════════════════════════════════════
@@ -917,6 +918,7 @@ function init() {
         fd.leftEyeAnnotation = visit.leftEyeAnnotation||null; fd.rightEyeAnnotation = visit.rightEyeAnnotation||null;
         fd.healthRecs = visit.healthRecs||[];
         fd.reportId = visit.reportId||null;
+        fd.uniqueId = patient.uniqueId||'';
         fd.editingVisitId = vId;
         fd.editingPatientId = pId;
         if (!fd.scores) fd.scores = scoreFromAssessment();
@@ -1045,6 +1047,14 @@ function r1(){
       <label class="form-label">${t('직업','Occupation')}</label>
       <input class="form-input" id="f_occ" placeholder="${t('직업을 입력하세요','Enter your occupation')}" value="${fd.occupation}">
     </div>
+    ${fd.uniqueId ? `
+    <div class="form-group">
+      <label class="form-label">${t('어르신 고유번호','Patient Unique ID')}</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:monospace;font-size:15px;font-weight:800;color:var(--blue-primary);background:var(--blue-bg);border:1.5px solid var(--blue-pale);padding:9px 16px;border-radius:9px;letter-spacing:1px">${fd.uniqueId}</span>
+        <span style="font-size:11px;color:var(--text-light)">${t('이 번호로 가족 앱 연동이 가능합니다','Family app link via this ID')}</span>
+      </div>
+    </div>` : ''}
     <div class="nav">
       <button class="btn-back" onclick="save1();step=0;renderStep()">← ${t('처음으로','Back')}</button>
       <button class="btn-next" onclick="save1();next()">${t('다음 단계','Next')} →</button>
@@ -2536,16 +2546,23 @@ function saveRecord() {
   // ── CREATE new visit ───────────────────────────────────────────
   let patient = records.find(p => p.name === fd.name && p.dob === fd.dob);
   if (!patient) {
+    const existingCount = records.length;
+    const uniqueId = 'LUD-' + String(existingCount + 1).padStart(3, '0');
+    const curSession = JSON.parse(sessionStorage.getItem('ludia_session') || 'null');
     patient = {
       id: 'p_' + Date.now().toString(36),
+      uniqueId,
+      createdBy: curSession?.userId || null,
       name: fd.name, dob: fd.dob, gender: fd.gender,
       phone: fd.phone, email: fd.email, occupation: fd.occupation,
       createdAt: new Date().toISOString(),
       visits: []
     };
+    fd.uniqueId = uniqueId;
     records.push(patient);
   } else {
     patient.phone = fd.phone; patient.email = fd.email; patient.occupation = fd.occupation;
+    fd.uniqueId = patient.uniqueId || '';
   }
 
   const newVisit = buildVisitData();
@@ -2555,8 +2572,8 @@ function saveRecord() {
   try {
     localStorage.setItem('ludia_records', JSON.stringify(records));
     alert(t(
-      `${fd.name} 님의 기록이 저장되었습니다.\n(총 ${patient.visits.length}회 방문 기록)`,
-      `Record saved for ${fd.name}.\n(Total ${patient.visits.length} visit${patient.visits.length>1?'s':''})`
+      `${fd.name} 님의 기록이 저장되었습니다.\n고유번호: ${patient.uniqueId||'–'}\n(총 ${patient.visits.length}회 방문 기록)`,
+      `Record saved for ${fd.name}.\nUnique ID: ${patient.uniqueId||'–'}\n(Total ${patient.visits.length} visit${patient.visits.length>1?'s':''})`
     ));
   } catch(e) {
     alert(t('저장 실패: 저장 공간이 부족합니다.\n사진 해상도를 줄이거나 관리자 페이지에서 오래된 기록을 삭제해 주세요.',

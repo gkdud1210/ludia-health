@@ -216,10 +216,25 @@ function renderForm() {
       ${isAdmin ? `
       <div class="form-group">
         <label class="form-label">관리자 코드</label>
-        <input class="form-input admin-focus" type="password" id="adminCode" placeholder="관리자 코드 입력"
+        <input class="form-input admin-focus" type="text" id="adminCode" placeholder="예: ludia9141"
           onkeydown="if(event.key==='Enter')doRegister()">
-        <div class="info-box admin">관리자 코드는 시스템 관리자에게 문의하세요.<br>초기 코드: <strong>LUDIA2024</strong></div>
-      </div>` : ''}
+        <div class="info-box admin">
+          담당자별로 부여된 관리자 코드를 입력하세요.<br>
+          <strong>슈퍼관리자</strong>는 <code>ludia9141</code>,
+          <strong>일반 관리자</strong>는 <code>ludia{핸드폰 뒷자리}</code> 형식입니다.
+        </div>
+      </div>` : `
+      <div class="form-group">
+        <label class="form-label">회원 초대 코드</label>
+        <input class="form-input" type="text" id="inviteCode" placeholder="관리자에게 받은 초대 코드"
+          style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">어르신 고유번호</label>
+        <input class="form-input" type="text" id="patientUniqueId" placeholder="예: LUD-001"
+          style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+        <div class="info-box">담당 관리자에게 받은 어르신 고유번호를 입력하세요. 이 번호로 건강 기록이 연결됩니다.</div>
+      </div>`}
       <button class="btn-submit ${cls}" onclick="doRegister()">가입하기</button>
     `;
   }
@@ -251,16 +266,47 @@ function doRegister() {
   if (pw.length < 6) { showMsg('비밀번호는 6자 이상이어야 합니다.', 'error'); return; }
   if (pw !== pw2)    { showMsg('비밀번호가 일치하지 않습니다.', 'error'); return; }
 
-  if (isAdmin) {
-    const code = (document.getElementById('adminCode').value || '').trim();
-    const stored = localStorage.getItem('ludia_admin_code') || 'LUDIA2024';
-    if (code !== stored) { showMsg('관리자 코드가 올바르지 않습니다.', 'error'); return; }
-  }
-
   const users = JSON.parse(localStorage.getItem('ludia_users') || '[]');
   if (users.find(u => u.email === email)) { showMsg('이미 사용 중인 이메일입니다.', 'error'); return; }
 
-  const newUser = { id:'usr_'+Date.now(), name, email, password:simpleHash(pw), role, createdAt:new Date().toISOString() };
+  let newUser = { id:'usr_'+Date.now(), name, email, password:simpleHash(pw), role, createdAt:new Date().toISOString() };
+
+  if (isAdmin) {
+    // Admin code must be ludia + digits
+    const code = (document.getElementById('adminCode').value || '').trim();
+    if (!/^ludia\d+$/.test(code)) {
+      showMsg('관리자 코드 형식이 올바르지 않습니다. (예: ludia9141)', 'error'); return;
+    }
+    // Check no duplicate admin code
+    if (users.find(u => u.adminCode === code)) {
+      showMsg('이미 사용 중인 관리자 코드입니다.', 'error'); return;
+    }
+    newUser.adminCode  = code;
+    newUser.isSuperAdmin = (code === 'ludia9141');
+
+  } else {
+    // Member: validate invite code
+    const inviteCodeRaw = (document.getElementById('inviteCode').value || '').trim().toUpperCase();
+    const patientUniqueId = (document.getElementById('patientUniqueId').value || '').trim().toUpperCase();
+    if (!inviteCodeRaw) { showMsg('회원 초대 코드를 입력해주세요.', 'error'); return; }
+    if (!patientUniqueId) { showMsg('어르신 고유번호를 입력해주세요.', 'error'); return; }
+
+    const codes = JSON.parse(localStorage.getItem('ludia_invite_codes') || '[]');
+    const codeObj = codes.find(c => c.code === inviteCodeRaw && !c.used);
+    if (!codeObj) { showMsg('유효하지 않은 초대 코드입니다. 관리자에게 문의해주세요.', 'error'); return; }
+
+    const records = JSON.parse(localStorage.getItem('ludia_records') || '[]');
+    const patient = records.find(p => (p.uniqueId||'').toUpperCase() === patientUniqueId);
+    if (!patient) { showMsg('어르신 고유번호를 찾을 수 없습니다. 다시 확인해주세요.', 'error'); return; }
+
+    // Mark code as used
+    codeObj.used = true; codeObj.usedBy = newUser.id; codeObj.usedAt = new Date().toISOString();
+    localStorage.setItem('ludia_invite_codes', JSON.stringify(codes));
+
+    newUser.linkedPatientUniqueId = patient.uniqueId;
+    newUser.linkedPatientName     = patient.name;
+  }
+
   users.push(newUser);
   localStorage.setItem('ludia_users', JSON.stringify(users));
 
@@ -272,6 +318,10 @@ function doRegister() {
 function setSession(user) {
   sessionStorage.setItem('ludia_session', JSON.stringify({
     userId: user.id, name: user.name, email: user.email, role: user.role,
+    isSuperAdmin: user.isSuperAdmin || false,
+    adminCode: user.adminCode || null,
+    linkedPatientUniqueId: user.linkedPatientUniqueId || null,
+    linkedPatientName: user.linkedPatientName || null,
     loginAt: new Date().toISOString()
   }));
 }

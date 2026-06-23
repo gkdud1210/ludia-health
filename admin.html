@@ -243,6 +243,8 @@ tbody tr:last-child td{border-bottom:none;}
 const adminSession = JSON.parse(sessionStorage.getItem('ludia_session') || 'null');
 if (!adminSession || adminSession.role !== 'admin') { location.href = 'login.html'; }
 
+const IS_SUPER = !!(adminSession && adminSession.isSuperAdmin);
+
 function doLogout() {
   sessionStorage.removeItem('ludia_session');
   location.href = 'login.html';
@@ -250,13 +252,31 @@ function doLogout() {
 
 // Show admin name in sidebar & header badge
 window.addEventListener('DOMContentLoaded', () => {
-  const nameEl = document.getElementById('adminNameSb');
-  const initEl = document.getElementById('adminInitial');
+  const nameEl  = document.getElementById('adminNameSb');
+  const initEl  = document.getElementById('adminInitial');
   const badgeEl = document.getElementById('adminBadge');
-  if (nameEl && adminSession) nameEl.textContent = adminSession.name || '';
-  if (initEl && adminSession) initEl.textContent = (adminSession.name||'A')[0];
-  if (badgeEl && adminSession) badgeEl.textContent = `관리자 · ${adminSession.name||''}`;
+  if (nameEl  && adminSession) nameEl.textContent  = adminSession.name || '';
+  if (initEl  && adminSession) initEl.textContent  = (adminSession.name||'A')[0];
+  if (badgeEl && adminSession) badgeEl.textContent = IS_SUPER
+    ? `슈퍼관리자 · ${adminSession.name||''}`
+    : `관리자 · ${adminSession.name||''}`;
+  // Auto-assign uniqueId to existing records that don't have one
+  ensureUniqueIds();
 });
+
+function ensureUniqueIds() {
+  try {
+    const records = JSON.parse(localStorage.getItem('ludia_records') || '[]');
+    let changed = false;
+    records.forEach((p, i) => {
+      if (!p.uniqueId) {
+        p.uniqueId = 'LUD-' + String(i + 1).padStart(3, '0');
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem('ludia_records', JSON.stringify(records));
+  } catch(e) {}
+}
 
 // ═══════════════════════════════════════
 //  CONFIG & STATE
@@ -286,7 +306,13 @@ const GENDER_KO = {male:'남성',female:'여성',other:'기타'};
 // ═══════════════════════════════════════
 //  DATA
 // ═══════════════════════════════════════
-function getRecords() { try { return JSON.parse(localStorage.getItem('ludia_records') || '[]'); } catch(e) { return []; } }
+function getAllRecords() { try { return JSON.parse(localStorage.getItem('ludia_records') || '[]'); } catch(e) { return []; } }
+function getRecords() {
+  const all = getAllRecords();
+  if (IS_SUPER) return all;
+  // Regular admin: only sees patients they created
+  return all.filter(p => p.createdBy === adminSession.userId);
+}
 function saveRecordsData(r) { localStorage.setItem('ludia_records', JSON.stringify(r)); }
 function getPatient(id) { return getRecords().find(p => p.id === id); }
 function getVisit(pid, vid) { const p = getPatient(pid); return p?.visits?.find(v => v.id === vid); }
@@ -562,7 +588,7 @@ function renderPatientsTable() {
       : diff < 0 ? `<span class="trend-dn">↓ ${diff}</span>`
       : '<span class="trend-fl">→ 0</span>';
     return `<tr onclick="navigate('patient','${p.id}')">
-      <td><strong>${p.name || '–'}</strong></td>
+      <td><span style="font-size:10px;font-weight:700;color:var(--blue-primary);background:var(--blue-bg);padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:3px">${p.uniqueId||'–'}</span><br><strong>${p.name || '–'}</strong></td>
       <td style="font-size:12px;color:var(--text-light)">${fmtDateTime(p.createdAt)}</td>
       <td>${p.dob || '–'}</td>
       <td>${calcAge(p.dob)}세</td>
@@ -576,7 +602,7 @@ function renderPatientsTable() {
   }).join('');
 
   el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>이름</th><th>등록일</th><th>생년월일</th><th>나이</th><th>성별</th><th>마지막 방문</th><th>최근 점수</th><th>추세</th><th>방문</th><th>작업</th></tr></thead>
+    <thead><tr><th>고유번호 / 이름</th><th>등록일</th><th>생년월일</th><th>나이</th><th>성별</th><th>마지막 방문</th><th>최근 점수</th><th>추세</th><th>방문</th><th>작업</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -1053,43 +1079,108 @@ function renderComparison() {
 function renderSettings() {
   const records = getRecords();
   const allVisits = records.flatMap(p => p.visits || []);
-  const hasPhotos = allVisits.some(v => v.leftEyePhoto || v.rightEyePhoto);
   const storageUsed = (() => { try { return (JSON.stringify(localStorage).length / 1024).toFixed(0); } catch(e) { return '?'; } })();
+
+  // Invite codes
+  const codes = JSON.parse(localStorage.getItem('ludia_invite_codes') || '[]');
+  const myCodes = IS_SUPER ? codes : codes.filter(c => c.createdBy === adminSession.userId);
+  const codesHtml = myCodes.length === 0
+    ? `<div style="font-size:12px;color:var(--text-light);padding:10px 0">발급된 초대 코드가 없습니다.</div>`
+    : myCodes.map(c => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-light)">
+        <div>
+          <span style="font-family:monospace;font-size:13px;font-weight:700;color:${c.used?'var(--text-light)':'var(--navy-dark)'}">${c.code}</span>
+          ${c.used ? `<span style="font-size:10px;color:var(--text-light);margin-left:8px">사용됨 (${c.usedAt?c.usedAt.slice(0,10):''})</span>` : '<span style="font-size:10px;color:var(--success);margin-left:8px;font-weight:700">사용 가능</span>'}
+        </div>
+        ${!c.used ? `<button onclick="deleteInviteCode('${c.code}')" style="font-size:11px;padding:3px 9px;border:1px solid #FCA5A5;border-radius:5px;background:none;color:var(--danger);cursor:pointer">삭제</button>` : ''}
+      </div>`).join('');
+
+  // Admin list (super admin only)
+  const adminListHtml = IS_SUPER ? (() => {
+    const users = JSON.parse(localStorage.getItem('ludia_users') || '[]').filter(u => u.role === 'admin');
+    if (!users.length) return '<div style="font-size:12px;color:var(--text-light);padding:8px 0">등록된 관리자 없음</div>';
+    return users.map(u => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-light)">
+        <div style="width:30px;height:30px;border-radius:50%;background:${u.isSuperAdmin?'#7C3AED':'var(--blue-primary)'};display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:700;flex-shrink:0">${(u.name||'?')[0]}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy-dark)">${u.name} ${u.isSuperAdmin?'<span style="font-size:10px;color:#7C3AED;background:#F5F3FF;padding:1px 6px;border-radius:3px;font-weight:700">슈퍼</span>':''}</div>
+          <div style="font-size:11px;color:var(--text-light)">${u.email} · <code style="font-size:11px">${u.adminCode||'–'}</code></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-light)">${getRecordsFor(u.id).length}명 담당</div>
+      </div>`).join('');
+  })() : '';
 
   return `
     <div class="pg-title">설정</div>
     <div class="pg-desc">시스템 설정을 관리합니다.</div>
+
+    ${IS_SUPER ? `
     <div class="settings-card" style="margin-bottom:16px">
-      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:6px">🔐 관리자 코드 변경</div>
-      <div style="font-size:12px;color:var(--text-light);margin-bottom:14px;line-height:1.6">신규 관리자 회원가입 시 요구하는 코드입니다. 현재 코드: <strong>${localStorage.getItem('ludia_admin_code')||'LUDIA2024'}</strong></div>
-      <div style="margin-bottom:12px">
-        <label style="display:block;font-size:12px;font-weight:600;color:var(--navy-mid);margin-bottom:5px">새 관리자 코드</label>
-        <input id="newPass" type="text" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit" placeholder="새 코드 입력 (4자 이상)">
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:12px">👥 관리자 목록</div>
+      ${adminListHtml}
+    </div>` : ''}
+
+    <div class="settings-card" style="margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:6px">🎟️ 회원 초대 코드</div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:14px;line-height:1.6">
+        회원이 가입할 때 사용하는 1회용 초대 코드입니다.<br>코드와 어르신 고유번호를 함께 안내해주세요.
       </div>
-      <div id="passMsg" style="font-size:12px;margin-bottom:10px;display:none"></div>
-      <button class="btn-prim" onclick="changePassword()">코드 변경</button>
+      <button class="btn-prim" onclick="generateInviteCode()" style="margin-bottom:14px">+ 초대 코드 발급</button>
+      <div id="inviteCodeList">${codesHtml}</div>
     </div>
+
+    <div class="settings-card" style="margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:10px">📋 어르신 고유번호 목록</div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:12px">각 어르신의 고유번호를 가족/보호자에게 알려주세요.</div>
+      <div style="max-height:220px;overflow-y:auto">
+        ${records.length === 0
+          ? '<div style="font-size:12px;color:var(--text-light);padding:8px 0">등록된 환자 없음</div>'
+          : records.map(p => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-light)">
+              <span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--blue-primary);background:var(--blue-bg);padding:3px 9px;border-radius:5px;flex-shrink:0">${p.uniqueId||'–'}</span>
+              <span style="font-size:13px;font-weight:600">${p.name||'–'}</span>
+              <span style="font-size:11px;color:var(--text-light)">${p.dob||''} · ${p.visits?.length||0}회 방문</span>
+            </div>`).join('')}
+      </div>
+    </div>
+
     <div class="settings-card" style="margin-bottom:16px">
       <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:10px">📦 저장소 현황</div>
       <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px">사용 중: 약 ${storageUsed} KB</div>
-      <div style="font-size:12px;color:var(--text-light)">환자 수: ${records.length}명 · 방문 기록: ${allVisits.length}건 · 사진 포함: ${allVisits.filter(v=>v.leftEyePhoto||v.rightEyePhoto).length}건</div>
+      <div style="font-size:12px;color:var(--text-light)">담당 환자: ${records.length}명 · 방문 기록: ${allVisits.length}건 · 사진 포함: ${allVisits.filter(v=>v.leftEyePhoto||v.rightEyePhoto).length}건</div>
     </div>
+    ${IS_SUPER ? `
     <div class="settings-card" style="border:1px solid #FCA5A5">
       <div style="font-size:14px;font-weight:700;color:var(--danger);margin-bottom:8px">⚠️ 위험 구역</div>
       <div style="font-size:12px;color:var(--text-mid);margin-bottom:14px;line-height:1.7">모든 환자 데이터를 삭제합니다. 이 작업은 되돌릴 수 없습니다.</div>
       <button class="btn-danger" onclick="clearAllData()">전체 데이터 삭제</button>
-    </div>`;
+    </div>` : ''}`;
 }
 
-function changePassword() {
-  const nw = (document.getElementById('newPass').value || '').trim();
-  const msg = document.getElementById('passMsg');
-  msg.style.display = 'block';
-  if (nw.length < 4) { msg.style.color = 'var(--danger)'; msg.textContent = '코드는 4자 이상이어야 합니다.'; return; }
-  localStorage.setItem('ludia_admin_code', nw);
-  msg.style.color = 'var(--success)'; msg.textContent = '✓ 관리자 코드가 변경되었습니다.';
-  document.getElementById('newPass').value = '';
+function getRecordsFor(userId) {
+  try {
+    return JSON.parse(localStorage.getItem('ludia_records') || '[]').filter(p => p.createdBy === userId);
+  } catch(e) { return []; }
 }
+
+function generateInviteCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'INV-';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  const codes = JSON.parse(localStorage.getItem('ludia_invite_codes') || '[]');
+  codes.push({ code, used: false, usedBy: null, createdBy: adminSession.userId, createdAt: new Date().toISOString() });
+  localStorage.setItem('ludia_invite_codes', JSON.stringify(codes));
+  navigate('settings'); // re-render
+}
+
+function deleteInviteCode(code) {
+  const codes = JSON.parse(localStorage.getItem('ludia_invite_codes') || '[]');
+  const idx = codes.findIndex(c => c.code === code && !c.used);
+  if (idx >= 0) { codes.splice(idx, 1); localStorage.setItem('ludia_invite_codes', JSON.stringify(codes)); }
+  navigate('settings');
+}
+
+function changePassword() {} // legacy – no longer used
 
 function clearAllData() {
   if (!confirm('정말로 모든 환자 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;

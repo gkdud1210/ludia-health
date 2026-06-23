@@ -165,8 +165,10 @@ function fmtDate(iso) {
 // ─── Load records ───────────────────────────────────────────────────────────
 function getMyRecords() {
   try {
+    const uid = session.linkedPatientUniqueId;
+    if (!uid) return null;
     const all = JSON.parse(localStorage.getItem('ludia_records') || '[]');
-    return all.find(p => (p.email||'').toLowerCase() === session.email.toLowerCase()) || null;
+    return all.find(p => (p.uniqueId||'').toUpperCase() === uid.toUpperCase()) || null;
   } catch(e) { return null; }
 }
 
@@ -198,11 +200,13 @@ function render() {
   `;
 
   if (!emailMatched) {
+    const uid = session.linkedPatientUniqueId;
     html += `
       <div class="no-match">
-        <strong>아직 연결된 진단 기록이 없습니다.</strong>
-        담당 원장님 또는 관리자에게 이 계정 이메일(<strong>${session.email}</strong>)을
-        진단 기록에 등록해 달라고 요청해주세요.
+        <strong>연결된 진단 기록을 찾을 수 없습니다.</strong>
+        ${uid
+          ? `어르신 고유번호 <strong>${uid}</strong>에 해당하는 기록이 아직 등록되지 않았습니다. 담당 관리자에게 문의해주세요.`
+          : `어르신 고유번호가 연결되지 않은 계정입니다. 담당 관리자에게 올바른 코드로 재가입을 안내받으세요.`}
       </div>
     `;
   }

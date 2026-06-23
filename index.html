@@ -279,6 +279,26 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
 @media(max-width:560px){.eye-photo-row{grid-template-columns:1fr;}}
 .eye-photo-col{display:flex;flex-direction:column;align-items:center;gap:8px;}
 .eye-photo-lbl{font-size:13px;font-weight:700;color:var(--navy-mid);}
+/* ── CAPTURE MODE TOGGLE ── */
+.capture-choice{display:flex;gap:8px;width:200px;}
+.capture-choice-btn{flex:1;padding:10px 6px;border:1.5px solid var(--border);border-radius:9px;background:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-mid);transition:all .18s;}
+.capture-choice-btn:hover{border-color:var(--blue-light);color:var(--navy-mid);}
+.capture-choice-btn .cicon{font-size:24px;line-height:1;}
+/* ── CAMERA MODAL ── */
+.cam-modal-bg{position:fixed;inset:0;background:rgba(10,22,40,.92);z-index:500;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;}
+.cam-modal{background:var(--navy-dark);border-radius:18px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:14px;max-width:480px;width:100%;box-shadow:0 12px 48px rgba(0,0,0,.5);}
+.cam-title{color:white;font-size:16px;font-weight:700;letter-spacing:.3px;}
+.cam-video-wrap{position:relative;width:280px;height:280px;border-radius:50%;overflow:hidden;background:#000;border:3px solid var(--blue-primary);box-shadow:0 0 0 5px rgba(46,109,180,.2);}
+#camVideo{width:100%;height:100%;object-fit:cover;display:block;}
+.cam-guide-ring{position:absolute;inset:0;border-radius:50%;border:2px dashed rgba(255,255,255,.35);pointer-events:none;}
+.cam-controls{display:flex;gap:10px;align-items:center;}
+.cam-select{padding:7px 12px;border:1px solid rgba(255,255,255,.25);border-radius:8px;background:rgba(255,255,255,.08);color:white;font-size:12px;cursor:pointer;font-family:inherit;outline:none;}
+.cam-select option{background:var(--navy-dark);color:white;}
+.cam-snap{width:64px;height:64px;border-radius:50%;border:4px solid white;background:var(--blue-primary);cursor:pointer;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(46,109,180,.5);transition:all .18s;}
+.cam-snap:hover{transform:scale(1.08);background:var(--navy-light);}
+.cam-cancel{padding:9px 22px;border:1.5px solid rgba(255,255,255,.3);border-radius:9px;background:none;color:rgba(255,255,255,.75);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;}
+.cam-cancel:hover{border-color:rgba(255,255,255,.6);color:white;}
+.cam-hint{font-size:11px;color:rgba(255,255,255,.45);text-align:center;}
 .eye-annotate-wrap{position:relative;width:200px;height:200px;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.2);flex-shrink:0;}
 .eye-annotate-wrap img{width:200px;height:200px;object-fit:cover;display:block;}
 .eye-annotate-wrap canvas{position:absolute;top:0;left:0;width:200px!important;height:200px!important;cursor:crosshair;touch-action:none;}
@@ -894,23 +914,14 @@ function updateProgress() {
   if(step===0||step===10){pb.style.display='none';return;}
   pb.style.display='block';
   const lbls=STEP_LABELS[lang];
-  const canJump = !!fd.editingVisitId; // edit mode: any step; normal: completed steps only
   for(let i=1;i<=TOTAL_STEPS;i++){
     const dot=document.getElementById(`sd${i}`);
     const done=i<step, active=i===step;
     dot.className='step-dot'+(done?' done':active?' active':'');
     dot.textContent=done?'✓':i;
-    // clickable if: in edit mode (any step) OR already completed (done)
-    const clickable = canJump || done;
-    if(clickable){
-      dot.style.cursor='pointer';
-      dot.onclick=((n)=>()=>{step=n;renderStep();})(i);
-      if(!active) dot.title=t(`${i}단계로 이동`,`Go to step ${i}`);
-    } else {
-      dot.style.cursor='default';
-      dot.onclick=null;
-      dot.title='';
-    }
+    dot.style.cursor='pointer';
+    dot.onclick=((n)=>()=>{step=n;renderStep();})(i);
+    dot.title=active?'':t(`${i}단계로 이동`,`Go to step ${i}`);
     if(i<TOTAL_STEPS) document.getElementById(`sl${i}`).className='step-line'+(done?' done':'');
     const lbl=document.getElementById(`sl_lbl${i}`);
     if(lbl){lbl.textContent=lbls[i-1];lbl.className=active?'active':'';}
@@ -2175,11 +2186,20 @@ function buildEyePhotoHTML() {
     if (!photo) {
       return `<div class="eye-photo-col">
         <div class="eye-photo-lbl">${sideLabel}</div>
-        <div class="iris-upload" style="width:200px;padding:24px 16px;text-align:center;position:relative;cursor:pointer" id="${side}UploadBox">
-          <input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" onchange="loadEyePhoto('${side}',this)">
-          <div style="font-size:38px;margin-bottom:8px">👁️</div>
-          <div style="font-size:13px;font-weight:700;color:var(--navy-mid);margin-bottom:3px">${sideLabel}</div>
-          <div style="font-size:11px;color:var(--text-light)">${t('클릭하여 업로드','Click to upload')}</div>
+        <div style="width:200px;height:160px;border:2px dashed var(--blue-light);border-radius:14px;background:#F5FAFF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin-bottom:4px">
+          <div style="font-size:38px;line-height:1">👁️</div>
+          <div style="font-size:12px;color:var(--text-light)">${sideLabel}</div>
+        </div>
+        <div class="capture-choice">
+          <label class="capture-choice-btn" style="cursor:pointer">
+            <input type="file" accept="image/*" style="display:none" onchange="loadEyePhoto('${side}',this)">
+            <span class="cicon">📁</span>
+            <span>${t('업로드','Upload')}</span>
+          </label>
+          <button class="capture-choice-btn" onclick="openCamera('${side}')">
+            <span class="cicon">📷</span>
+            <span>${t('촬영','Capture')}</span>
+          </button>
         </div>
       </div>`;
     }
@@ -2515,10 +2535,120 @@ function saveRecord() {
 }
 
 // ═══════════════════════════════════════════
+//  CAMERA CAPTURE
+// ═══════════════════════════════════════════
+let CAM = { stream: null, side: null, devices: [] };
+
+async function openCamera(side) {
+  CAM.side = side;
+  const modal = document.getElementById('camModal');
+  modal.style.display = 'flex';
+  const sideLabel = side === 'left' ? t('좌안 (Left Eye)', 'Left Eye') : t('우안 (Right Eye)', 'Right Eye');
+  const titleEl = document.getElementById('camModalTitle');
+  const hintEl  = document.getElementById('camHint');
+  if (titleEl) titleEl.textContent = t(`${sideLabel} 촬영`, `Capture — ${sideLabel}`);
+  if (hintEl)  hintEl.textContent  = t('홍채가 원 안에 들어오도록 맞춘 후 📷를 누르세요',
+                                        'Align the iris within the circle, then press 📷');
+
+  try {
+    CAM.devices = (await navigator.mediaDevices.enumerateDevices())
+      .filter(d => d.kind === 'videoinput');
+    buildCamSelect();
+    await startCamStream();
+  } catch(e) {
+    alert(t('카메라 접근 권한이 필요합니다. 브라우저 설정에서 카메라 허용 후 다시 시도해주세요.',
+            'Camera access is required. Please allow camera access in browser settings and try again.'));
+    closeCameraModal();
+  }
+}
+
+function buildCamSelect() {
+  const sel = document.getElementById('camDeviceSelect');
+  sel.innerHTML = '';
+  if (CAM.devices.length <= 1) { sel.style.display = 'none'; return; }
+  sel.style.display = '';
+  CAM.devices.forEach((d, i) => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    opt.textContent = d.label || t(`카메라 ${i+1}`, `Camera ${i+1}`);
+    sel.appendChild(opt);
+  });
+}
+
+async function startCamStream(deviceId) {
+  if (CAM.stream) { CAM.stream.getTracks().forEach(t => t.stop()); CAM.stream = null; }
+  const constraints = { video: deviceId
+    ? { deviceId: { exact: deviceId } }
+    : { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } }
+  };
+  CAM.stream = await navigator.mediaDevices.getUserMedia(constraints);
+  const video = document.getElementById('camVideo');
+  video.srcObject = CAM.stream;
+  await video.play();
+}
+
+function switchCamera() {
+  const sel = document.getElementById('camDeviceSelect');
+  startCamStream(sel.value).catch(()=>{});
+}
+
+function snapPhoto() {
+  const video = document.getElementById('camVideo');
+  const canvas = document.createElement('canvas');
+  const size = Math.min(video.videoWidth, video.videoHeight);
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video,
+    (video.videoWidth - size) / 2, (video.videoHeight - size) / 2,
+    size, size, 0, 0, size, size
+  );
+  const src = canvas.toDataURL('image/jpeg', 0.9);
+  closeCameraModal();
+
+  const side = CAM.side;
+  const img = new Image();
+  img.onload = () => {
+    const minDim = Math.min(img.naturalWidth, img.naturalHeight);
+    const initFill = 220 / minDim;
+    const c = CROP[side];
+    c.active = true; c.src = src;
+    c.imgW = img.naturalWidth * initFill;
+    c.imgH = img.naturalHeight * initFill;
+    c.scale = 1; c.ox = 0; c.oy = 0;
+    refreshEyeSection();
+  };
+  img.src = src;
+}
+
+function closeCameraModal() {
+  if (CAM.stream) { CAM.stream.getTracks().forEach(t => t.stop()); CAM.stream = null; }
+  const modal = document.getElementById('camModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// ═══════════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════════
 init();
 
 </script>
+
+<!-- CAMERA MODAL -->
+<div id="camModal" class="cam-modal-bg" style="display:none">
+  <div class="cam-modal">
+    <div class="cam-title" id="camModalTitle">홍채 촬영</div>
+    <div class="cam-video-wrap">
+      <video id="camVideo" autoplay playsinline muted></video>
+      <div class="cam-guide-ring"></div>
+    </div>
+    <div class="cam-controls">
+      <select id="camDeviceSelect" class="cam-select" onchange="switchCamera()" style="display:none"></select>
+      <button class="cam-snap" onclick="snapPhoto()" title="촬영">📷</button>
+    </div>
+    <div class="cam-hint" id="camHint">홍채가 원 안에 들어오도록 맞춘 후 📷를 누르세요</div>
+    <button class="cam-cancel" onclick="closeCameraModal()">취소 / Cancel</button>
+  </div>
+</div>
+
 </body>
 </html>

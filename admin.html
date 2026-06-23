@@ -204,34 +204,14 @@ tbody tr:last-child td{border-bottom:none;}
   <div style="display:flex;align-items:center;gap:10px">
     <button class="mob-menu-btn" onclick="toggleSidebar()">☰</button>
     <a href="index.html" class="hdr-back">← 진단 시스템</a>
-    <div class="header-badge">관리자</div>
+    <div class="header-badge" id="adminBadge">관리자</div>
   </div>
 </header>
-
-<!-- Login overlay -->
-<div id="loginOverlay" style="position:fixed;inset:0;background:rgba(10,22,40,.92);z-index:200;display:flex;align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:18px;padding:44px;width:360px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.4)">
-    <div style="text-align:center;margin-bottom:28px">
-      <div style="width:62px;height:62px;border-radius:16px;margin:0 auto 14px;overflow:hidden;background:#8B1A52">
-        <img src="ludia-logo.png" style="width:62px;height:62px;display:block;object-fit:contain">
-      </div>
-      <div style="font-size:18px;font-weight:800;color:#0A1628;margin-bottom:4px">관리자 로그인</div>
-      <div style="font-size:12px;color:#6B7280">LUDIA HEALTH Admin Panel</div>
-    </div>
-    <div style="margin-bottom:16px">
-      <label style="display:block;font-size:12px;font-weight:700;color:#1E3A5F;margin-bottom:6px">비밀번호</label>
-      <input id="loginPass" type="password" style="width:100%;padding:10px 13px;border:1.5px solid #D1DCE8;border-radius:9px;font-size:14px;outline:none;font-family:inherit;transition:border-color .2s" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()" onfocus="this.style.borderColor='#2E6DB4'" onblur="this.style.borderColor='#D1DCE8'">
-      <div id="loginErr" style="font-size:11px;color:#EF4444;margin-top:6px;display:none">비밀번호가 올바르지 않습니다.</div>
-    </div>
-    <button onclick="doLogin()" style="width:100%;padding:12px;border:none;border-radius:9px;background:linear-gradient(135deg,#2E6DB4,#1E3A5F);color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">로그인</button>
-    <div style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:12px">기본 비밀번호: ludia2024</div>
-  </div>
-</div>
 
 <div id="mobOverlay" class="mob-overlay" onclick="toggleSidebar()"></div>
 
 <!-- Admin layout -->
-<div id="adminLayout" style="display:none">
+<div id="adminLayout">
   <div class="admin-wrap">
     <aside class="sidebar" id="sidebar">
       <div class="sb-label">메인 메뉴</div>
@@ -240,7 +220,13 @@ tbody tr:last-child td{border-bottom:none;}
       <div class="sb-div"></div>
       <div class="sb-label">시스템</div>
       <div class="sb-link" id="sb-settings" onclick="navigate('settings')"><span class="sb-icon">⚙️</span> 설정</div>
-      <div class="sb-link" onclick="doLogout()" style="margin-top:4px"><span class="sb-icon">🔓</span> 로그아웃</div>
+      <div class="sb-div"></div>
+      <div style="padding:8px 20px 4px;font-size:10px;color:rgba(255,255,255,.3);letter-spacing:1.5px;text-transform:uppercase;">계정</div>
+      <div style="padding:6px 20px 10px;font-size:12px;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:7px">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--blue-primary);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0" id="adminInitial">A</div>
+        <span id="adminNameSb" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      </div>
+      <div class="sb-link" onclick="doLogout()"><span class="sb-icon">🔓</span> 로그아웃</div>
     </aside>
     <main class="main-content" id="content"></main>
   </div>
@@ -252,9 +238,29 @@ tbody tr:last-child td{border-bottom:none;}
 
 <script>
 // ═══════════════════════════════════════
+//  AUTH (session-based)
+// ═══════════════════════════════════════
+const adminSession = JSON.parse(sessionStorage.getItem('ludia_session') || 'null');
+if (!adminSession || adminSession.role !== 'admin') { location.href = 'login.html'; }
+
+function doLogout() {
+  sessionStorage.removeItem('ludia_session');
+  location.href = 'login.html';
+}
+
+// Show admin name in sidebar & header badge
+window.addEventListener('DOMContentLoaded', () => {
+  const nameEl = document.getElementById('adminNameSb');
+  const initEl = document.getElementById('adminInitial');
+  const badgeEl = document.getElementById('adminBadge');
+  if (nameEl && adminSession) nameEl.textContent = adminSession.name || '';
+  if (initEl && adminSession) initEl.textContent = (adminSession.name||'A')[0];
+  if (badgeEl && adminSession) badgeEl.textContent = `관리자 · ${adminSession.name||''}`;
+});
+
+// ═══════════════════════════════════════
 //  CONFIG & STATE
 // ═══════════════════════════════════════
-const DEFAULT_PASS = 'ludia2024';
 let curPage = 'dashboard';
 let curPatientId = null;
 let curVisitId = null;
@@ -276,32 +282,6 @@ const STATUS_COLORS = {normal:'#10B981',good:'#3B82F6',caution:'#F59E0B',needs_c
 const SYMPTOM_KO = {headache:'두통/어지러움',eye:'눈 이상',ent:'귀·코·목',chest:'흉통/호흡곤란',abdominal:'복통/소화불량',joint:'관절/근육통',fatigue:'피로/무기력',sleep:'수면장애',weight:'체중변화',skin:'피부이상',urinary:'비뇨기',psych:'심리증상'};
 const GENDER_KO = {male:'남성',female:'여성',other:'기타'};
 
-// ═══════════════════════════════════════
-//  AUTH
-// ═══════════════════════════════════════
-function checkAuth() { return sessionStorage.getItem('ludia_auth') === '1'; }
-
-function doLogin() {
-  const pass = document.getElementById('loginPass').value;
-  const stored = localStorage.getItem('ludia_admin_pass') || DEFAULT_PASS;
-  if (pass === stored) {
-    sessionStorage.setItem('ludia_auth', '1');
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('adminLayout').style.display = 'block';
-    navigate('dashboard');
-  } else {
-    document.getElementById('loginErr').style.display = 'block';
-    document.getElementById('loginPass').style.borderColor = '#EF4444';
-  }
-}
-
-function doLogout() {
-  sessionStorage.removeItem('ludia_auth');
-  document.getElementById('adminLayout').style.display = 'none';
-  document.getElementById('loginOverlay').style.display = 'flex';
-  document.getElementById('loginPass').value = '';
-  document.getElementById('loginErr').style.display = 'none';
-}
 
 // ═══════════════════════════════════════
 //  DATA
@@ -1080,21 +1060,14 @@ function renderSettings() {
     <div class="pg-title">설정</div>
     <div class="pg-desc">시스템 설정을 관리합니다.</div>
     <div class="settings-card" style="margin-bottom:16px">
-      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:14px">🔐 비밀번호 변경</div>
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:6px">🔐 관리자 코드 변경</div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:14px;line-height:1.6">신규 관리자 회원가입 시 요구하는 코드입니다. 현재 코드: <strong>${localStorage.getItem('ludia_admin_code')||'LUDIA2024'}</strong></div>
       <div style="margin-bottom:12px">
-        <label style="display:block;font-size:12px;font-weight:600;color:var(--navy-mid);margin-bottom:5px">현재 비밀번호</label>
-        <input id="curPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit" placeholder="현재 비밀번호">
-      </div>
-      <div style="margin-bottom:12px">
-        <label style="display:block;font-size:12px;font-weight:600;color:var(--navy-mid);margin-bottom:5px">새 비밀번호</label>
-        <input id="newPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit" placeholder="새 비밀번호">
-      </div>
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-size:12px;font-weight:600;color:var(--navy-mid);margin-bottom:5px">새 비밀번호 확인</label>
-        <input id="cfmPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit" placeholder="새 비밀번호 재입력">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--navy-mid);margin-bottom:5px">새 관리자 코드</label>
+        <input id="newPass" type="text" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit" placeholder="새 코드 입력 (4자 이상)">
       </div>
       <div id="passMsg" style="font-size:12px;margin-bottom:10px;display:none"></div>
-      <button class="btn-prim" onclick="changePassword()">비밀번호 변경</button>
+      <button class="btn-prim" onclick="changePassword()">코드 변경</button>
     </div>
     <div class="settings-card" style="margin-bottom:16px">
       <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:10px">📦 저장소 현황</div>
@@ -1109,18 +1082,13 @@ function renderSettings() {
 }
 
 function changePassword() {
-  const cur = document.getElementById('curPass').value;
-  const nw = document.getElementById('newPass').value;
-  const cfm = document.getElementById('cfmPass').value;
-  const stored = localStorage.getItem('ludia_admin_pass') || DEFAULT_PASS;
+  const nw = (document.getElementById('newPass').value || '').trim();
   const msg = document.getElementById('passMsg');
   msg.style.display = 'block';
-  if (cur !== stored) { msg.style.color = 'var(--danger)'; msg.textContent = '현재 비밀번호가 올바르지 않습니다.'; return; }
-  if (nw.length < 4) { msg.style.color = 'var(--danger)'; msg.textContent = '새 비밀번호는 4자 이상이어야 합니다.'; return; }
-  if (nw !== cfm) { msg.style.color = 'var(--danger)'; msg.textContent = '새 비밀번호가 일치하지 않습니다.'; return; }
-  localStorage.setItem('ludia_admin_pass', nw);
-  msg.style.color = 'var(--success)'; msg.textContent = '✓ 비밀번호가 변경되었습니다.';
-  ['curPass','newPass','cfmPass'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  if (nw.length < 4) { msg.style.color = 'var(--danger)'; msg.textContent = '코드는 4자 이상이어야 합니다.'; return; }
+  localStorage.setItem('ludia_admin_code', nw);
+  msg.style.color = 'var(--success)'; msg.textContent = '✓ 관리자 코드가 변경되었습니다.';
+  document.getElementById('newPass').value = '';
 }
 
 function clearAllData() {
@@ -1134,15 +1102,7 @@ function clearAllData() {
 // ═══════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════
-function init() {
-  if (checkAuth()) {
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('adminLayout').style.display = 'block';
-    navigate('dashboard');
-  }
-}
-
-init();
+navigate('dashboard');
 </script>
 </body>
 </html>

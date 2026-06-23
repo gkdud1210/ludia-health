@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUDIA HEALTH — 내 건강 기록</title>
+<style>
+:root{
+  --navy-dark:#0A1628;--navy-mid:#1E3A5F;--navy-light:#2E5C8A;
+  --blue-primary:#2E6DB4;--blue-light:#5B9BD5;--blue-pale:#B8D4F0;--blue-bg:#EBF4FF;
+  --white:#FFFFFF;--off-white:#F0F4F8;--gray-light:#E2EAF2;
+  --text-dark:#0A1628;--text-mid:#374151;--text-light:#6B7280;
+  --success:#10B981;--warning:#F59E0B;--orange:#F97316;--danger:#EF4444;--border:#D1DCE8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  background:var(--off-white);color:var(--text-dark);min-height:100vh;}
+
+/* Header */
+.header{background:var(--navy-dark);height:66px;padding:0 28px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.35);}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;}
+.logo-eye{width:40px;height:40px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#8B1A52;}
+.logo-eye img{width:40px;height:40px;display:block;object-fit:contain;}
+.logo-name{font-size:18px;font-weight:800;color:white;letter-spacing:3px;}
+.logo-tagline{font-size:10px;color:var(--blue-pale);letter-spacing:1.5px;margin-top:-1px;}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.user-badge{display:flex;align-items:center;gap:7px;padding:5px 12px;
+  border:1px solid rgba(255,255,255,.2);border-radius:20px;
+  font-size:12px;color:rgba(255,255,255,.75);}
+.user-avatar{width:24px;height:24px;border-radius:50%;background:var(--blue-primary);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
+.btn-logout{padding:5px 14px;border:1px solid rgba(255,255,255,.25);border-radius:8px;
+  background:none;color:rgba(255,255,255,.65);font-size:12px;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:all .18s;}
+.btn-logout:hover{background:rgba(255,255,255,.1);color:white;}
+
+/* Main */
+.main{max-width:860px;margin:32px auto;padding:0 16px 80px;}
+
+/* Welcome band */
+.welcome-band{background:linear-gradient(135deg,var(--navy-dark),var(--navy-mid));
+  border-radius:18px;padding:28px 32px;color:white;margin-bottom:24px;
+  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+.wb-left h1{font-size:20px;font-weight:800;margin-bottom:4px;}
+.wb-left p{font-size:13px;opacity:.6;line-height:1.6;}
+.wb-icon{font-size:48px;opacity:.25;}
+
+/* Stats row */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;}
+@media(max-width:600px){.stats-row{grid-template-columns:1fr 1fr;}}
+.stat-card{background:white;border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.stat-lbl{font-size:11px;color:var(--text-light);margin-bottom:6px;}
+.stat-num{font-size:26px;font-weight:800;color:var(--navy-dark);line-height:1.1;}
+.stat-sub{font-size:11px;color:var(--text-light);margin-top:4px;}
+.stat-blue{border-top:3px solid var(--blue-primary);}
+.stat-green{border-top:3px solid var(--success);}
+.stat-navy{border-top:3px solid var(--navy-mid);}
+
+/* Records list */
+.section-title{font-size:16px;font-weight:800;color:var(--navy-dark);margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;}
+.visit-card{background:white;border:1px solid var(--border);border-radius:14px;
+  padding:20px 24px;margin-bottom:12px;display:flex;align-items:center;gap:20px;
+  transition:box-shadow .18s,border-color .18s;cursor:pointer;}
+.visit-card:hover{box-shadow:0 4px 18px rgba(10,22,40,.1);border-color:var(--blue-light);}
+@media(max-width:560px){.visit-card{flex-direction:column;align-items:flex-start;gap:12px;}}
+.visit-score-ring{width:68px;height:68px;border-radius:50%;
+  background:conic-gradient(var(--clr,var(--blue-primary)) calc(var(--pct,72)*3.6deg), var(--gray-light) 0);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;}
+.visit-score-ring::before{content:'';position:absolute;inset:7px;background:white;border-radius:50%;}
+.visit-score-inner{position:relative;z-index:1;text-align:center;}
+.visit-score-num{font-size:18px;font-weight:800;color:var(--navy-dark);line-height:1;}
+.visit-score-lbl{font-size:9px;color:var(--text-light);margin-top:1px;}
+.visit-info{flex:1;min-width:0;}
+.visit-date{font-size:13px;font-weight:700;color:var(--navy-dark);margin-bottom:4px;}
+.visit-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px;}
+.vtag{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.vtag-good{background:#F0FDF4;color:var(--success);border:1px solid #BBF7D0;}
+.vtag-warn{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;}
+.vtag-danger{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;}
+.vtag-blue{background:var(--blue-bg);color:var(--blue-primary);border:1px solid var(--blue-pale);}
+.visit-zones{display:flex;gap:6px;flex-wrap:wrap;}
+.vzone{font-size:11px;color:var(--text-light);}
+.btn-view-report{padding:9px 18px;border:1.5px solid var(--blue-primary);border-radius:9px;
+  background:none;color:var(--blue-primary);font-size:12px;font-weight:700;
+  cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .18s;flex-shrink:0;}
+.btn-view-report:hover{background:var(--blue-bg);}
+
+/* Empty state */
+.empty-state{text-align:center;padding:60px 20px;background:white;border:1px solid var(--border);
+  border-radius:18px;}
+.empty-icon{font-size:52px;margin-bottom:16px;opacity:.35;}
+.empty-title{font-size:17px;font-weight:700;color:var(--navy-mid);margin-bottom:8px;}
+.empty-desc{font-size:13px;color:var(--text-light);line-height:1.7;max-width:360px;margin:0 auto;}
+
+/* No-match alert */
+.no-match{background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;
+  padding:16px 20px;font-size:13px;color:#92400E;line-height:1.7;margin-bottom:20px;}
+.no-match strong{display:block;margin-bottom:4px;}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a class="logo" href="member.html">
+    <div class="logo-eye"><img src="ludia-logo.png" alt="LUDIA"></div>
+    <div>
+      <div class="logo-name">LUDIA HEALTH</div>
+      <div class="logo-tagline">MY HEALTH RECORDS</div>
+    </div>
+  </a>
+  <div class="hdr-right">
+    <div class="user-badge">
+      <div class="user-avatar" id="userInitial"></div>
+      <span id="userName"></span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+  </div>
+</header>
+
+<div class="main" id="main">
+  <div style="text-align:center;padding:60px;color:var(--text-light);">로딩 중…</div>
+</div>
+
+<script>
+// ─── Auth ──────────────────────────────────────────────────────────────────
+const session = JSON.parse(sessionStorage.getItem('ludia_session') || 'null');
+if (!session || session.role !== 'member') { location.href = 'login.html'; }
+
+function doLogout() {
+  sessionStorage.removeItem('ludia_session');
+  location.href = 'login.html';
+}
+
+// ─── Score helpers ──────────────────────────────────────────────────────────
+const STATUS_COLORS = {normal:'#10B981',good:'#3B82F6',caution:'#F59E0B',needs_care:'#F97316',intensive:'#EF4444'};
+const ZONE_KO = {respiratory:'호흡기계',cardiovascular:'심혈관계',immune:'면역계',
+  digestive:'소화기계',urinary:'비뇨기계',musculoskeletal:'근골격계',endocrine:'내분비계',nervous:'신경계'};
+const ZONE_ICON = {respiratory:'🫁',cardiovascular:'❤️',immune:'🛡️',digestive:'🫙',
+  urinary:'💧',musculoskeletal:'🦴',endocrine:'⚡',nervous:'🧠'};
+
+function scoreColor(s) {
+  if (s >= 80) return '#10B981';
+  if (s >= 65) return '#3B82F6';
+  if (s >= 50) return '#F59E0B';
+  if (s >= 35) return '#F97316';
+  return '#EF4444';
+}
+function scoreLabel(s) {
+  if (s >= 80) return {text:'건강 양호', cls:'vtag-good'};
+  if (s >= 65) return {text:'경미한 주의', cls:'vtag-blue'};
+  if (s >= 50) return {text:'주의 필요', cls:'vtag-warn'};
+  return {text:'집중 관리', cls:'vtag-danger'};
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+  } catch(e) { return iso; }
+}
+
+// ─── Load records ───────────────────────────────────────────────────────────
+function getMyRecords() {
+  try {
+    const all = JSON.parse(localStorage.getItem('ludia_records') || '[]');
+    return all.find(p => (p.email||'').toLowerCase() === session.email.toLowerCase()) || null;
+  } catch(e) { return null; }
+}
+
+// ─── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const main = document.getElementById('main');
+  document.getElementById('userName').textContent = session.name;
+  document.getElementById('userInitial').textContent = (session.name||'?')[0];
+
+  const patient = getMyRecords();
+  const visits = patient?.visits || [];
+  const totalVisits = visits.length;
+  const lastVisit = totalVisits ? visits[visits.length-1] : null;
+  const lastScore = lastVisit?.scores?.overall ?? null;
+  const avgScore = totalVisits
+    ? Math.round(visits.reduce((s,v)=>s+(v.scores?.overall||0),0)/totalVisits)
+    : null;
+
+  const emailMatched = !!patient;
+
+  let html = `
+    <div class="welcome-band">
+      <div class="wb-left">
+        <h1>안녕하세요, ${session.name}님 👋</h1>
+        <p>LUDIA HEALTH 홍채 건강 진단 결과를 확인하세요.</p>
+      </div>
+      <div class="wb-icon">👁️</div>
+    </div>
+  `;
+
+  if (!emailMatched) {
+    html += `
+      <div class="no-match">
+        <strong>아직 연결된 진단 기록이 없습니다.</strong>
+        담당 원장님 또는 관리자에게 이 계정 이메일(<strong>${session.email}</strong>)을
+        진단 기록에 등록해 달라고 요청해주세요.
+      </div>
+    `;
+  }
+
+  html += `
+    <div class="stats-row">
+      <div class="stat-card stat-blue">
+        <div class="stat-lbl">총 진단 횟수</div>
+        <div class="stat-num">${totalVisits}</div>
+        <div class="stat-sub">누적 방문 기록</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="stat-lbl">최근 건강 점수</div>
+        <div class="stat-num" style="color:${lastScore!=null?scoreColor(lastScore):'var(--text-light)'}">${lastScore!=null?lastScore:'—'}</div>
+        <div class="stat-sub">${lastScore!=null?'/ 100점':'-'}</div>
+      </div>
+      <div class="stat-card stat-navy">
+        <div class="stat-lbl">마지막 진단일</div>
+        <div class="stat-num" style="font-size:16px;padding-top:4px">${lastVisit?fmtDate(lastVisit.date):'—'}</div>
+        <div class="stat-sub">&nbsp;</div>
+      </div>
+    </div>
+  `;
+
+  if (totalVisits === 0) {
+    html += `
+      <div class="section-title">📋 진단 기록</div>
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">진단 기록이 없습니다</div>
+        <div class="empty-desc">홍채 진단을 받으신 후 이 화면에서 결과를 확인하실 수 있습니다.</div>
+      </div>
+    `;
+  } else {
+    html += `<div class="section-title">📋 진단 기록 (${totalVisits}건)</div>`;
+    const sorted = [...visits].reverse();
+    sorted.forEach(v => {
+      const score = v.scores?.overall ?? 0;
+      const clr = scoreColor(score);
+      const pct = score;
+      const lbl = scoreLabel(score);
+      const zones = v.scores?.zones || {};
+      const lowZones = Object.entries(zones)
+        .filter(([,sc]) => sc < 50)
+        .map(([k]) => `${ZONE_ICON[k]||''}${ZONE_KO[k]||k}`)
+        .slice(0,3);
+
+      html += `
+        <div class="visit-card" onclick="viewReport('${patient.id}','${v.id}')">
+          <div class="visit-score-ring" style="--pct:${pct};--clr:${clr}">
+            <div class="visit-score-inner">
+              <div class="visit-score-num" style="color:${clr}">${score}</div>
+              <div class="visit-score-lbl">점수</div>
+            </div>
+          </div>
+          <div class="visit-info">
+            <div class="visit-date">📅 ${fmtDate(v.date)}</div>
+            <div class="visit-tags">
+              <span class="vtag ${lbl.cls}">${lbl.text}</span>
+              ${(v.symptoms||[]).slice(0,2).map(s=>`<span class="vtag vtag-blue">${s}</span>`).join('')}
+            </div>
+            ${lowZones.length ? `<div class="visit-zones">주요 관심 부위: ${lowZones.join(' · ')}</div>` : ''}
+          </div>
+          <button class="btn-view-report" onclick="event.stopPropagation();viewReport('${patient.id}','${v.id}')">보고서 보기 →</button>
+        </div>
+      `;
+    });
+  }
+
+  main.innerHTML = html;
+}
+
+function viewReport(patientId, visitId) {
+  location.href = `index.html?record=${patientId}&visit=${visitId}&member=1`;
+}
+
+render();
+</script>
+</body>
+</html>

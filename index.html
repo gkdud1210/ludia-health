@@ -422,7 +422,7 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
     </div>
   </a>
   <div style="display:flex;align-items:center;gap:10px;">
-    <a href="admin.html" class="admin-link">관리자</a>
+    <div id="hdrAuthArea" style="display:flex;align-items:center;gap:8px"></div>
     <div class="lang-switch">
       <button class="lang-btn active" data-lang="ko" onclick="switchLang('ko')">한국어</button>
       <div class="lang-sep"></div>
@@ -445,6 +445,36 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
 <!-- OVERLAY -->
 
 <script>
+// ═══════════════════════════════════════════
+//  AUTH CHECK
+// ═══════════════════════════════════════════
+(function() {
+  const s = JSON.parse(sessionStorage.getItem('ludia_session') || 'null');
+  const params = new URLSearchParams(location.search);
+  const isMemberView = params.get('member') === '1';
+  if (!s) { location.href = 'login.html'; return; }
+  if (s.role === 'member') {
+    // Members may only view their own report in read-only mode
+    if (!isMemberView || !params.get('record')) { location.href = 'member.html'; return; }
+  }
+  // Render header auth area
+  document.addEventListener('DOMContentLoaded', () => {
+    const area = document.getElementById('hdrAuthArea');
+    if (!area) return;
+    if (s.role === 'admin') {
+      area.innerHTML = `
+        <a href="admin.html" style="padding:5px 12px;border:1px solid rgba(255,255,255,.22);border-radius:8px;color:rgba(255,255,255,.65);font-size:11px;font-weight:600;text-decoration:none;transition:all .18s" onmouseover="this.style.background='rgba(255,255,255,.1)';this.style.color='white'" onmouseout="this.style.background='none';this.style.color='rgba(255,255,255,.65)'">관리자 패널</a>
+        <button onclick="sessionStorage.removeItem('ludia_session');location.href='login.html'" style="padding:5px 12px;border:1px solid rgba(255,255,255,.22);border-radius:8px;background:none;color:rgba(255,255,255,.5);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">로그아웃</button>
+      `;
+    } else {
+      area.innerHTML = `
+        <a href="member.html" style="padding:5px 12px;border:1px solid rgba(255,255,255,.22);border-radius:8px;color:rgba(255,255,255,.65);font-size:11px;font-weight:600;text-decoration:none">← 내 기록</a>
+        <button onclick="sessionStorage.removeItem('ludia_session');location.href='login.html'" style="padding:5px 12px;border:1px solid rgba(255,255,255,.22);border-radius:8px;background:none;color:rgba(255,255,255,.5);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">로그아웃</button>
+      `;
+    }
+  });
+})();
+
 // ═══════════════════════════════════════════
 //  LANG & STATE
 // ═══════════════════════════════════════════

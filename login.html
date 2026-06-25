@@ -268,15 +268,20 @@ function renderForm() {
   }
 }
 
+function phoneToCode(digits) {
+  // 010-2841-9141 → 28419141 (앞 3자리 010 제거)
+  return digits.length >= 4 ? digits.slice(3) : digits;
+}
+
 function updateAdminCodePreview(val) {
   const el = document.getElementById('adminCodePreview');
   if (!el) return;
   const digits = val.replace(/\D/g,'');
-  if (digits.length < 4) {
+  if (digits.length < 7) {
     el.innerHTML = '핸드폰 번호를 입력하면 관리자 코드가 자동으로 생성됩니다.';
     return;
   }
-  const code = 'ludia' + digits.slice(-4);
+  const code = phoneToCode(digits);
   el.innerHTML = '관리자 코드 (자동 생성): <strong style="color:#7C3AED;font-size:14px">' + code + '</strong>';
 }
 
@@ -324,10 +329,10 @@ function doRegister() {
 
   if (isAdmin) {
     const phoneRaw = (document.getElementById('adminPhone').value || '').replace(/\D/g,'');
-    if (phoneRaw.length < 4) {
-      showMsg('핸드폰 번호를 입력해주세요.', 'error'); return;
+    if (phoneRaw.length < 7) {
+      showMsg('핸드폰 번호를 올바르게 입력해주세요.', 'error'); return;
     }
-    const code = 'ludia' + phoneRaw.slice(-4);
+    const code = phoneToCode(phoneRaw);
     // Check no duplicate admin code
     if (users.find(u => u.adminCode === code)) {
       showMsg('이미 등록된 핸드폰 번호입니다. (관리자 코드 중복)', 'error'); return;

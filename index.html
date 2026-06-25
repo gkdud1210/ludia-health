@@ -738,6 +738,10 @@ const STEP_LABELS = {
   ko:['기본정보','현재증상','과거병력','수술력','복용약','가족력','생활습관','홍채진단','권장사항'],
   en:['Basic Info','Symptoms','Med Hx','Surgery','Meds','Family Hx','Lifestyle','Iris Dx','Recs'],
 };
+const ADMIN_STEP_LABELS = {
+  ko:['기본정보','현재증상','과거병력','수술력','복용약','가족력','생활습관','홍채사진'],
+  en:['Basic Info','Symptoms','Med Hx','Surgery','Meds','Family Hx','Lifestyle','Iris Photo'],
+};
 const TOTAL_STEPS = 9;
 
 // ─── Health recommendation catalogue ────────────────────────────────────────
@@ -952,10 +956,11 @@ function init() {
 function buildProgress() {
   const steps = document.getElementById('progressSteps');
   const labels = document.getElementById('progressLabels');
+  const total = _IS_SUPER ? TOTAL_STEPS : 8;
   let sh='', lh='';
-  for (let i=1;i<=TOTAL_STEPS;i++) {
+  for (let i=1;i<=total;i++) {
     sh+=`<div class="step-dot" id="sd${i}">${i}</div>`;
-    if(i<TOTAL_STEPS) sh+=`<div class="step-line" id="sl${i}"></div>`;
+    if(i<total) sh+=`<div class="step-line" id="sl${i}"></div>`;
     lh+=`<span id="sl_lbl${i}"></span>`;
   }
   steps.innerHTML=sh; labels.innerHTML=lh;
@@ -965,16 +970,18 @@ function updateProgress() {
   const pb=document.getElementById('progressBar');
   if(step===0||step===10){pb.style.display='none';return;}
   pb.style.display='block';
-  const lbls=STEP_LABELS[lang];
-  for(let i=1;i<=TOTAL_STEPS;i++){
+  const total = _IS_SUPER ? TOTAL_STEPS : 8;
+  const lbls = (_IS_SUPER ? STEP_LABELS : ADMIN_STEP_LABELS)[lang];
+  for(let i=1;i<=total;i++){
     const dot=document.getElementById(`sd${i}`);
+    if(!dot) continue;
     const done=i<step, active=i===step;
     dot.className='step-dot'+(done?' done':active?' active':'');
     dot.textContent=done?'✓':i;
     dot.style.cursor='pointer';
     dot.onclick=((n)=>()=>{step=n;renderStep();})(i);
     dot.title=active?'':t(`${i}단계로 이동`,`Go to step ${i}`);
-    if(i<TOTAL_STEPS) document.getElementById(`sl${i}`).className='step-line'+(done?' done':'');
+    if(i<total) document.getElementById(`sl${i}`).className='step-line'+(done?' done':'');
     const lbl=document.getElementById(`sl_lbl${i}`);
     if(lbl){lbl.textContent=lbls[i-1];lbl.className=active?'active':'';}
   }

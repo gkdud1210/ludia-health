@@ -257,7 +257,7 @@ if (_IS_SUPER_ADMIN) {
 }
 
 
-const IS_SUPER = !!(adminSession && adminSession.isSuperAdmin);
+const IS_SUPER = !!(adminSession && (adminSession.isSuperAdmin || adminSession.role === 'super_admin'));
 
 function doLogout() {
   sessionStorage.removeItem('ludia_session');
@@ -534,18 +534,21 @@ function renderDashboard() {
       ` : `
       <div class="tbl-wrap"><table>
         <thead><tr>
-          <th>환자명</th><th>방문일</th><th>점수</th><th>주요 증상</th><th>작업</th>
+          <th>환자명</th>${IS_SUPER ? '<th>등록 관리자</th>' : ''}<th>방문일</th><th>점수</th><th>주요 증상</th><th>작업</th>
         </tr></thead>
         <tbody>
           ${recent.map(v => {
             const sc = getOverall(v);
             const syms = (v.symptoms || []).slice(0,2).map(s => SYMPTOM_KO[s] || s).join(', ');
-            return `<tr ${_IS_SUPER_ADMIN ? `onclick="navigate('report','${v.patientId}','${v.id}')"` : ''} style="${_IS_SUPER_ADMIN ? 'cursor:pointer' : ''}">
-              <td><strong>${v.patientName || '–'}</strong></td>
+            const regBy = v.registeredBy?.name || '–';
+            const rptDone = !!v.reportBy;
+            return `<tr ${IS_SUPER ? `onclick="navigate('report','${v.patientId}','${v.id}')"` : (rptDone ? `onclick="window.open('index.html?record=${v.patientId}&visit=${v.id}','_blank')"` : '')} style="${(IS_SUPER || rptDone) ? 'cursor:pointer' : ''}">
+              <td><strong>${v.patientName || '–'}</strong>${rptDone && !IS_SUPER ? '<span style="font-size:9px;font-weight:800;color:#059669;background:#D1FAE5;padding:1px 6px;border-radius:4px;margin-left:4px">리포트 완성</span>' : ''}</td>
+              ${IS_SUPER ? `<td style="font-size:12px;color:var(--text-light)">${regBy}</td>` : ''}
               <td>${fmtDateShort(v.date)}</td>
               <td><span class="scr-badge scr-${sClass(sc)}">${sc}</span></td>
               <td style="color:var(--text-light);font-size:12px">${syms || '–'}</td>
-              <td>${_IS_SUPER_ADMIN ? `<button class="act-btn" onclick="event.stopPropagation();navigate('report','${v.patientId}','${v.id}')">리포트</button>` : '–'}</td>
+              <td>${IS_SUPER ? `<button class="act-btn" onclick="event.stopPropagation();navigate('report','${v.patientId}','${v.id}')">리포트</button>` : (rptDone ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="event.stopPropagation();window.open('index.html?record=${v.patientId}&visit=${v.id}','_blank')">리포트 보기</button>` : '–')}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -601,8 +604,15 @@ function renderPatientsTable() {
       : diff > 0 ? `<span class="trend-up">↑ +${diff}</span>`
       : diff < 0 ? `<span class="trend-dn">↓ ${diff}</span>`
       : '<span class="trend-fl">→ 0</span>';
+    const hasReport = visits.some(v => v.reportBy);
+    const adminName = p.createdByName || '–';
     return `<tr onclick="navigate('patient','${p.id}')">
-      <td><span style="font-size:10px;font-weight:700;color:var(--blue-primary);background:var(--blue-bg);padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:3px">${p.uniqueId||'–'}</span><br><strong>${p.name || '–'}</strong></td>
+      <td>
+        <span style="font-size:10px;font-weight:700;color:var(--blue-primary);background:var(--blue-bg);padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:3px">${p.uniqueId||'–'}</span><br>
+        <strong>${p.name || '–'}</strong>
+        ${hasReport && !IS_SUPER ? '<span style="font-size:9px;font-weight:800;color:#059669;background:#D1FAE5;padding:1px 6px;border-radius:4px;margin-left:4px">리포트 완성</span>' : ''}
+      </td>
+      ${IS_SUPER ? `<td style="font-size:12px"><strong style="color:var(--navy-dark)">${adminName}</strong></td>` : ''}
       <td style="font-size:12px;color:var(--text-light)">${fmtDateTime(p.createdAt)}</td>
       <td>${p.dob || '–'}</td>
       <td>${calcAge(p.dob)}세</td>
@@ -616,7 +626,7 @@ function renderPatientsTable() {
   }).join('');
 
   el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>고유번호 / 이름</th><th>등록일</th><th>생년월일</th><th>나이</th><th>성별</th><th>마지막 방문</th><th>최근 점수</th><th>추세</th><th>방문</th><th>작업</th></tr></thead>
+    <thead><tr><th>고유번호 / 이름</th>${IS_SUPER ? '<th>등록 관리자</th>' : ''}<th>등록일시</th><th>생년월일</th><th>나이</th><th>성별</th><th>마지막 방문</th><th>최근 점수</th><th>추세</th><th>방문</th><th>작업</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -695,11 +705,15 @@ function renderPatientDetail() {
             <div class="vc-tags">
               ${syms.map(s => `<span class="vc-tag">${s}</span>`).join('')}
             </div>
+            <div style="margin-top:8px;font-size:10.5px;color:var(--text-light);line-height:1.7">
+              ${v.registeredBy ? `<span>등록: <strong style="color:var(--navy-dark)">${v.registeredBy.name}</strong> · ${fmtDateTime(v.registeredBy.registeredAt||v.date)}</span>` : ''}
+              ${v.reportBy ? `<br><span style="color:#059669">리포트 생성: <strong>${v.reportBy.name}</strong> · ${fmtDateTime(v.reportBy.reportAt)}</span>` : ''}
+            </div>
           </div>
           <div class="vc-actions">
-            ${_IS_SUPER_ADMIN ? `<button class="act-btn" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>` : ''}
-            ${_IS_SUPER_ADMIN ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true&iris=true','_blank')">🔬 홍채 진단</button>` : ''}
-            <button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true','_blank')">✏️ 수정</button>
+            ${IS_SUPER ? `<button class="act-btn" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>` : (v.reportBy ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트 보기</button>` : '')}
+            ${IS_SUPER ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true&iris=true','_blank')">🔬 홍채 진단</button>` : ''}
+            ${IS_SUPER ? `<button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true','_blank')">✏️ 수정</button>` : ''}
             <button class="act-btn-danger" onclick="deleteVisit('${p.id}','${v.id}')">삭제</button>
             ${visits.length >= 2 ? `<label class="cmp-check"><input type="checkbox" ${isInCmp?'checked':''} onchange="toggleCmp('${p.id}','${v.id}',this)"> 비교 선택</label>` : ''}
           </div>

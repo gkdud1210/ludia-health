@@ -982,8 +982,11 @@ function updateProgress() {
 
 function renderStep() {
   updateProgress();
-  // 리포트(step 9=rRecs, step 10=r9)는 최종관리자만 접근 가능
-  if (!_IS_SUPER && (step === 9 || step === 10)) { step = 0; renderStep(); return; }
+  // step 9(리포트 생성 흐름)는 최종관리자만, step 10(뷰)는 기존 기록 볼 때 허용
+  if (!_IS_SUPER) {
+    if (step === 9) { step = 0; renderStep(); return; }
+    if (step === 10 && !fd.editingVisitId) { step = 0; renderStep(); return; }
+  }
   [r0,r1,r2,r3,r4,r5,r6,r7,r8,rRecs,r9][step]();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -2989,6 +2992,7 @@ function buildVisitData() {
     overallScore: overall, scores: fd.scores,
     reportId: fd.reportId || generateReportId(),
     date: new Date().toISOString().slice(0,10),
+    registeredBy: { name: _SESS.name || '알 수 없음', userId: _SESS.userId || _ROLE, role: _ROLE, registeredAt: new Date().toISOString() },
     symptoms: fd.symptoms, symptomDuration: fd.symptomDuration,
     painLevel: fd.painLevel, painDesc: fd.painDesc,
     pastConditions: fd.pastConditions, otherConditions: fd.otherConditions,
@@ -3045,6 +3049,14 @@ function saveRecord() {
       if (vIdx !== -1) {
         const updated = buildVisitData();
         updated.id = fd.editingVisitId; // preserve original ID
+        // Preserve who originally registered this visit
+        updated.registeredBy = patient.visits[vIdx].registeredBy || updated.registeredBy;
+        // Track when super_admin generates a report
+        if (_IS_SUPER) {
+          updated.reportBy = { name: _SESS.name, reportAt: new Date().toISOString() };
+        } else {
+          updated.reportBy = patient.visits[vIdx].reportBy || null;
+        }
         patient.visits[vIdx] = updated;
       }
       try {
@@ -3067,6 +3079,7 @@ function saveRecord() {
       id: 'p_' + Date.now().toString(36),
       uniqueId,
       createdBy: curSession?.userId || null,
+      createdByName: curSession?.name || '알 수 없음',
       name: fd.name, dob: fd.dob, gender: fd.gender,
       phone: fd.phone, email: fd.email, occupation: fd.occupation,
       createdAt: new Date().toISOString(),

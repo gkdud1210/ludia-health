@@ -2019,6 +2019,268 @@ function buildIrisLesionHtml() {
   return html;
 }
 
+
+// ─────────────────────────────────────────────────────────────
+//  리포트용 정적 홍채 SVG (클릭/hover 없음, 소형)
+// ─────────────────────────────────────────────────────────────
+function buildIrisSVGStatic(eye, size) {
+  size = size || 200;
+  var zones = eye === 'left' ? LEFT_ZONES : RIGHT_ZONES;
+  var data = (fd.irisZoneData && fd.irisZoneData[eye]) || {};
+  var scale = size / 300;
+  var cx = 150, cy = 150, ro = 132, ri = 44;
+  var s = '';
+
+  // base iris
+  s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+ro+'" fill="#B8D4EC" stroke="#7BA7CC" stroke-width="1.5"/>';
+  s += '<circle cx="'+cx+'" cy="'+cy+'" r="93" fill="none" stroke="rgba(0,0,0,.1)" stroke-width=".8" stroke-dasharray="3,4"/>';
+  s += '<circle cx="'+cx+'" cy="'+cy+'" r="66" fill="none" stroke="rgba(0,0,0,.08)" stroke-width=".6" stroke-dasharray="2,5"/>';
+
+  for (var zi = 0; zi < zones.length; zi++) {
+    var z = zones[zi];
+    var findings = data[z.id] || [];
+    var hasFinding = findings.length > 0;
+    // Last biomarker colour = dominant colour
+    var fillClr = hasFinding
+      ? ((IRIS_BM.find(function(b){ return b.id === findings[findings.length-1]; }) || {}).clr || '#94A3B8')
+      : '#FFFFFF';
+    var fillOp = hasFinding ? '0.65' : '0.05';
+    var strokeClr = hasFinding ? fillClr : '#64748B';
+    var strokeW = hasFinding ? '1.5' : '0.5';
+    var path = _sector(cx, cy, ri, ro, z.s, z.e);
+    s += '<path d="'+path+'" fill="'+fillClr+'" fill-opacity="'+fillOp+'" stroke="'+strokeClr+'" stroke-width="'+strokeW+'" stroke-linejoin="round"/>';
+
+    // If multiple findings, add small colour dots at the outer rim
+    if (findings.length > 1) {
+      var ma = (_midAngle(z.s, z.e) - 90) * Math.PI / 180;
+      var dotR = ro - 8;
+      var dotBx = cx + dotR * Math.cos(ma);
+      var dotBy = cy + dotR * Math.sin(ma);
+      var dotSpacing = 7;
+      var offset = -(findings.length - 1) * dotSpacing / 2;
+      for (var di = 0; di < findings.length; di++) {
+        var bmc = (IRIS_BM.find(function(b){ return b.id === findings[di]; }) || {}).clr || '#94A3B8';
+        var perp = (_midAngle(z.s, z.e)) * Math.PI / 180;
+        var dotX = dotBx + (offset + di * dotSpacing) * Math.cos(perp);
+        var dotY = dotBy + (offset + di * dotSpacing) * Math.sin(perp);
+        s += '<circle cx="'+dotX+'" cy="'+dotY+'" r="3.5" fill="'+bmc+'" stroke="white" stroke-width="1"/>';
+      }
+    }
+
+    // zone label
+    var span = z.e - z.s;
+    if (span >= 20) {
+      var ma2 = (_midAngle(z.s, z.e) - 90) * Math.PI / 180;
+      var rm2 = (ri + ro) / 2 + 4;
+      var tx = cx + rm2 * Math.cos(ma2);
+      var ty = cy + rm2 * Math.sin(ma2);
+      var rot = _midAngle(z.s, z.e) - 90;
+      var fs = span >= 28 ? '6.5' : '5.5';
+      var fc = hasFinding ? '#0F172A' : '#475569';
+      s += '<text x="'+tx+'" y="'+ty+'" text-anchor="middle" dominant-baseline="middle" font-size="'+fs+'" font-weight="700" fill="'+fc+'"';
+      s += ' transform="rotate('+rot+','+tx+','+ty+')" style="pointer-events:none">'+z.short+'</text>';
+    }
+  }
+
+  // hour ticks + numbers
+  for (var h = 0; h < 12; h++) {
+    var ang = (h * 30 - 90) * Math.PI / 180;
+    var x1t = cx + ro*Math.cos(ang), y1t = cy + ro*Math.sin(ang);
+    var x2t = cx + (ro-7)*Math.cos(ang), y2t = cy + (ro-7)*Math.sin(ang);
+    s += '<line x1="'+x1t+'" y1="'+y1t+'" x2="'+x2t+'" y2="'+y2t+'" stroke="#1E3A5F" stroke-width="1.2"/>';
+    var xt = cx + (ro+10)*Math.cos(ang), yt = cy + (ro+10)*Math.sin(ang);
+    s += '<text x="'+xt+'" y="'+yt+'" text-anchor="middle" dominant-baseline="middle" font-size="7.5" font-weight="700" fill="#1E3A5F">'+(h===0?'12':h)+'</text>';
+  }
+
+  // pupil
+  s += '<defs><radialGradient id="rpg_'+eye+'" cx="38%" cy="32%"><stop offset="0%" stop-color="#3B4F6B"/><stop offset="100%" stop-color="#080F1C"/></radialGradient></defs>';
+  s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+ri+'" fill="url(#rpg_'+eye+')" stroke="#1E3A5F" stroke-width="1.5"/>';
+  s += '<text x="'+cx+'" y="'+(cy+1)+'" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="900" fill="rgba(255,255,255,.45)" letter-spacing="1">'+(eye==='left'?'L':'R')+'</text>';
+
+  return '<svg viewBox="0 0 300 300" width="'+size+'" height="'+size+'" style="display:block">'+s+'</svg>';
+}
+
+// ─────────────────────────────────────────────────────────────
+//  리포트용 홍채 모형 (좌안 + 우안 나란히) + 범례
+// ─────────────────────────────────────────────────────────────
+function buildIrisReportVisual() {
+  var irisData = fd.irisZoneData || {};
+  var hasLeft  = Object.values(irisData.left  || {}).some(function(v){ return v && v.length; });
+  var hasRight = Object.values(irisData.right || {}).some(function(v){ return v && v.length; });
+  var hasGlobal= Object.values(irisData.global|| {}).some(function(v){ return v; });
+
+  if (!hasLeft && !hasRight && !hasGlobal) return '';
+
+  // collect active biomarkers for legend
+  var activeBMs = {};
+  ['left','right'].forEach(function(side){
+    var d = irisData[side] || {};
+    Object.values(d).forEach(function(bms){
+      (bms||[]).forEach(function(id){ activeBMs[id] = true; });
+    });
+  });
+  var legendHtml = '';
+  IRIS_BM.forEach(function(bm){
+    if (!activeBMs[bm.id]) return;
+    legendHtml += '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;margin-bottom:4px">'
+      +'<span style="width:10px;height:10px;border-radius:2px;background:'+bm.clr+';flex-shrink:0;display:inline-block"></span>'
+      +'<span style="font-size:9px;font-weight:600;color:#374151">'+bm.lbl+'</span>'
+      +'</span>';
+  });
+  if (hasGlobal) {
+    var gActive = Object.keys(irisData.global||{}).filter(function(k){ return irisData.global[k]; });
+    gActive.forEach(function(id){
+      var gbm = IRIS_GBM.find(function(b){ return b.id===id; });
+      if (!gbm) return;
+      legendHtml += '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;margin-bottom:4px">'
+        +'<span style="width:10px;height:10px;border-radius:2px;background:'+gbm.clr+';flex-shrink:0;display:inline-block"></span>'
+        +'<span style="font-size:9px;font-weight:600;color:#374151">'+gbm.lbl+' (전역)</span>'
+        +'</span>';
+    });
+  }
+
+  var html = '<div style="margin-bottom:18px;page-break-inside:avoid">';
+  html += '<div style="display:flex;align-items:center;margin-bottom:10px;padding:6px 12px;background:#0A1628;border-radius:4px">';
+  html += '<span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px">◉ 홍채 병소 모형</span></div>';
+
+  // two clocks side by side
+  html += '<div style="display:flex;gap:14px;justify-content:center;align-items:flex-start;flex-wrap:wrap">';
+
+  // left eye
+  html += '<div style="text-align:center">';
+  html += '<div style="font-size:9.5px;font-weight:800;color:#0A1628;margin-bottom:4px;letter-spacing:.5px">좌안 (Left Eye)</div>';
+  html += buildIrisSVGStatic('left', 200);
+  html += '</div>';
+
+  // right eye
+  html += '<div style="text-align:center">';
+  html += '<div style="font-size:9.5px;font-weight:800;color:#0A1628;margin-bottom:4px;letter-spacing:.5px">우안 (Right Eye)</div>';
+  html += buildIrisSVGStatic('right', 200);
+  html += '</div>';
+
+  html += '</div>';
+
+  // legend
+  if (legendHtml) {
+    html += '<div style="margin-top:10px;padding:8px 12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px">';
+    html += '<div style="font-size:9px;font-weight:700;color:#64748B;margin-bottom:5px;letter-spacing:.4px">범례</div>';
+    html += '<div style="display:flex;flex-wrap:wrap">'+legendHtml+'</div>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  홍채 병소 자동 소견문 생성
+// ─────────────────────────────────────────────────────────────
+function buildIrisFindingsNarrative() {
+  var irisData = fd.irisZoneData || {};
+  var leftData  = irisData.left   || {};
+  var rightData = irisData.right  || {};
+  var globalData= irisData.global || {};
+
+  var lines = [];
+
+  function eyeLines(eyeLabel, zoneList, eyeData) {
+    var found = [];
+    zoneList.forEach(function(z) {
+      var bms = eyeData[z.id] || [];
+      if (!bms.length) return;
+      var bmLabels = bms.map(function(id){
+        var bm = IRIS_BM.find(function(b){ return b.id===id; });
+        return bm ? bm.lbl : id;
+      });
+      found.push(z.time + ' (' + z.short + '): ' + bmLabels.join(', ') + ' 검출');
+    });
+    return found;
+  }
+
+  var lLines = eyeLines('좌안', LEFT_ZONES,  leftData);
+  var rLines = eyeLines('우안', RIGHT_ZONES, rightData);
+
+  var gLines = [];
+  Object.keys(globalData).forEach(function(id){
+    if (!globalData[id]) return;
+    var gbm = IRIS_GBM.find(function(b){ return b.id===id; });
+    if (gbm) gLines.push(gbm.lbl + ' 관찰');
+  });
+
+  if (!lLines.length && !rLines.length && !gLines.length) return '';
+
+  // axis summary for clinical note
+  var axisScores = fd.irisAxisScores || {1:0,2:0,3:0,4:0,5:0};
+  var AXIS_NAMES = {
+    1:'Axis 1 신경-내분비축 (뇌·부신·생식·척추)',
+    2:'Axis 2 세포 에너지·대사 (갑상선·췌장·미토콘드리아)',
+    3:'Axis 3 미세환경·순환 (폐·심장·말초 혈행·조직산화)',
+    4:'Axis 4 장-뇌·점막 면역 (소화관·인두·뇌장축)',
+    5:'Axis 5 해독·메틸화 (간·신장·림프·피부)'
+  };
+  var sortedAxes = [1,2,3,4,5]
+    .filter(function(n){ return axisScores[n] > 0; })
+    .sort(function(a,b){ return axisScores[b] - axisScores[a]; });
+
+  var html = '<div style="margin-bottom:18px;page-break-inside:avoid">';
+  html += '<div style="display:flex;align-items:center;margin-bottom:10px;padding:6px 12px;background:#0A1628;border-radius:4px">';
+  html += '<span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px">◉ 홍채 병소 검출 소견</span></div>';
+
+  var listStyle = 'margin:0;padding:0;list-style:none';
+  var liStyle = 'padding:4px 0;font-size:10px;color:#1E293B;border-bottom:1px solid #F1F5F9;display:flex;gap:6px';
+  var dotStyle = 'flex-shrink:0;width:6px;height:6px;border-radius:50%;margin-top:4px';
+
+  if (lLines.length) {
+    html += '<div style="margin-bottom:8px">';
+    html += '<div style="font-size:9.5px;font-weight:800;color:#0369A1;background:#EFF6FF;padding:3px 9px;border-radius:4px;display:inline-block;margin-bottom:5px">좌안 (Left Eye)</div>';
+    html += '<ul style="'+listStyle+'">';
+    lLines.forEach(function(l){
+      html += '<li style="'+liStyle+'"><span style="background:#0369A1;'+dotStyle+'"></span><span>'+l+'</span></li>';
+    });
+    html += '</ul></div>';
+  }
+
+  if (rLines.length) {
+    html += '<div style="margin-bottom:8px">';
+    html += '<div style="font-size:9.5px;font-weight:800;color:#0F766E;background:#F0FDFA;padding:3px 9px;border-radius:4px;display:inline-block;margin-bottom:5px">우안 (Right Eye)</div>';
+    html += '<ul style="'+listStyle+'">';
+    rLines.forEach(function(l){
+      html += '<li style="'+liStyle+'"><span style="background:#0F766E;'+dotStyle+'"></span><span>'+l+'</span></li>';
+    });
+    html += '</ul></div>';
+  }
+
+  if (gLines.length) {
+    html += '<div style="margin-bottom:8px">';
+    html += '<div style="font-size:9.5px;font-weight:800;color:#7C3AED;background:#F5F3FF;padding:3px 9px;border-radius:4px;display:inline-block;margin-bottom:5px">전역 동심원 소견</div>';
+    html += '<ul style="'+listStyle+'">';
+    gLines.forEach(function(l){
+      html += '<li style="'+liStyle+'"><span style="background:#7C3AED;'+dotStyle+'"></span><span>'+l+'</span></li>';
+    });
+    html += '</ul></div>';
+  }
+
+  // Clinical axis summary
+  if (sortedAxes.length) {
+    var topAxis = sortedAxes[0];
+    var summaryParts = [];
+    summaryParts.push('<strong>' + AXIS_NAMES[topAxis] + '</strong> 영역에서 병소 집중도가 가장 높습니다 (' + axisScores[topAxis] + 'pt).');
+    if (sortedAxes.length > 1) {
+      var others = sortedAxes.slice(1).map(function(n){ return AXIS_NAMES[n].split(' ')[0]+' '+AXIS_NAMES[n].split(' ')[1]; });
+      summaryParts.push(others.join(', ') + ' 영역의 동반 관여가 확인됩니다.');
+    }
+    summaryParts.push('아래 5-Axis 정량 지표 및 분자교정 영양 가이드라인을 참고하시기 바랍니다.');
+
+    html += '<div style="margin-top:10px;padding:10px 12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:6px;border-left:3px solid #F97316">';
+    html += '<div style="font-size:9.5px;font-weight:800;color:#92400E;margin-bottom:5px">임상 고찰 요약</div>';
+    html += '<div style="font-size:10px;color:#78350F;line-height:1.7">'+summaryParts.join(' ')+'</div>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
 function buildDominoMapHtml(axisScores) {
   var well = _axWellness(axisScores);
   var AXIS_INFO = [
@@ -2305,7 +2567,9 @@ function r9(){
 
       ${(function(){
         var _isc = fd.irisAxisScores||{1:0,2:0,3:0,4:0,5:0};
-        return buildIrisLesionHtml()
+        return buildIrisReportVisual()
+          + buildIrisFindingsNarrative()
+          + buildIrisLesionHtml()
           + buildDominoMapHtml(_isc)
           + buildQuantDashHtml(_isc)
           + buildNutritionBlueprintHtml(_isc);

@@ -366,6 +366,24 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
   tr{page-break-inside:avoid!important;}
   td,th{page-break-inside:avoid!important;}
 
+  /* ── PAGE 1: iris clocks 축소 ── */
+  .rpt-clock-svg{width:155px!important;height:155px!important;}
+
+  /* ── PAGE 1: 섹션 여백 압축 ── */
+  #rpt-body>div{margin-bottom:8px!important;}
+  #rpt-body [style*="margin-bottom:18px"]{margin-bottom:8px!important;}
+  #rpt-body [style*="margin-bottom:16px"]{margin-bottom:7px!important;}
+  #rpt-body [style*="padding:6px 12px;background:#0A1628"]{padding:4px 10px!important;}
+
+  /* ── PAGE 1: 홍채 병소 소견 (2컬럼 표) ── */
+  #rpt-body [style*="display:grid;grid-template-columns:1fr 1fr"]{font-size:7.5pt!important;}
+  #rpt-body [style*="grid-template-columns:1fr 1fr"] *{font-size:7.5pt!important;line-height:1.3!important;}
+  #rpt-body [style*="grid-template-columns:1fr 1fr"] [style*="padding:10px"]{padding:6px 8px!important;}
+
+  /* ── PAGE 1: 구분표 구역 병변 카드 ── */
+  #rpt-body [style*="grid-template-columns:repeat(3,1fr)"]{gap:4px!important;}
+  #rpt-body [style*="grid-template-columns:repeat(3,1fr)"]>div{padding:5px 7px!important;}
+
   /* PAGE 2 = everything from #rpt-page2 onward */
   #rpt-page2{page-break-before:always!important;margin-top:0!important;padding-top:4px!important;}
   #rpt-rec-section{page-break-before:avoid!important;margin-top:0!important;}
@@ -373,18 +391,20 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
   .rpt-q-pagebreak{page-break-before:avoid!important;}
   #rpt-q-section>div{page-break-inside:avoid!important;}
 
+  /* ── PAGE 2: 도미노 맵 압축 ── */
+  #rpt-page2>div:first-child{margin-bottom:8px!important;}
+  #rpt-page2 [style*="background:linear-gradient"]{padding:10px 12px!important;}
+  #rpt-page2 .dino-box{padding:6px 8px!important;}
+
   /* ── letterhead & patient strip: tighten ── */
   #rpt-body{padding:8px 14px!important;}
-  /* section header navy background — needs background graphics on */
   #rpt-body [style*="background:var(--navy-dark)"][style*="border-radius:4px"]{background:#0A1628!important;}
-  /* eye photo panel background */
-  .rpt-eyes-section+div,div:has(>.rpt-eyes-section){background:#F1F5F9!important;}
 
   /* ── iris table ── */
   th,td{padding:5px 9px!important;font-size:8.5pt!important;}
   th{font-size:7.5pt!important;letter-spacing:.5px!important;}
 
-  /* wellness text: show BOTH base + pattern to fill page 1 */
+  /* wellness text */
   .rpt-well-pat{display:block!important;font-size:7pt!important;line-height:1.4!important;margin-top:2px!important;color:#374151!important;}
   .rpt-well-base{font-size:7.5pt!important;line-height:1.45!important;}
   .rpt-well-note{font-size:7pt!important;margin-top:2px!important;font-style:italic!important;}
@@ -393,14 +413,14 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
   .tag{font-size:7pt!important;padding:2px 6px!important;}
 
   /* ── health rec cards (3-col grid) ── */
-  #rpt-rec-section{margin-bottom:8px!important;}
-  .rpt-rec-card{padding:4px 6px!important;gap:1px!important;page-break-inside:avoid!important;}
-  .rpt-rec-name{font-size:7.5pt!important;line-height:1.2!important;}
-  .rpt-rec-desc{font-size:6.5pt!important;line-height:1.3!important;}
-  .rpt-rec-food{font-size:6pt!important;line-height:1.25!important;}
+  #rpt-rec-section{margin-bottom:6px!important;}
+  .rpt-rec-card{padding:3px 5px!important;gap:1px!important;page-break-inside:avoid!important;}
+  .rpt-rec-name{font-size:7pt!important;line-height:1.2!important;}
+  .rpt-rec-desc{font-size:6pt!important;line-height:1.25!important;}
+  .rpt-rec-food{display:none!important;}
 
   /* questionnaire summary table */
-  #rpt-q-section{margin-top:8px!important;}
+  #rpt-q-section{margin-top:6px!important;}
   #rpt-q-section td{padding:4px 8px!important;font-size:8pt!important;}
   #rpt-q-section .tag{font-size:7pt!important;padding:1px 5px!important;line-height:1.5!important;}
 
@@ -489,6 +509,58 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
     }
   });
 })();
+
+
+// ── Axis별 자동 권장 항목 매핑 ───────────────────────────────
+const AXIS_AUTO_RECS = {
+  1: { // 신경-내분비
+    supplement: ['magnesium','vit_b','melatonin','zinc','vit_d'],
+    food_rec:   ['nuts_seeds','mushroom','whole_grain'],
+    food_avoid: ['caffeine','alcohol'],
+    lifestyle:  ['sleep_imp','stress_mg','sunlight']
+  },
+  2: { // 세포 에너지·대사
+    supplement: ['coq10','ala','vit_b','selenium','vit_d','iron'],
+    food_rec:   ['whole_grain','legumes','oily_fish'],
+    food_avoid: ['ref_sugar','processed'],
+    lifestyle:  ['exercise','intermit_fast']
+  },
+  3: { // 미세환경·순환
+    supplement: ['omega3','vit_c','vit_e','vit_k2','red_ginseng'],
+    food_rec:   ['oily_fish','colorful_veg','berries','garlic_ginger'],
+    food_avoid: ['trans_fat','salt_excess'],
+    lifestyle:  ['exercise','hydration']
+  },
+  4: { // 장-뇌·점막 면역
+    supplement: ['probio','prebiotic','collagen','zinc'],
+    food_rec:   ['fermented','green_veg','cruciferous','garlic_ginger'],
+    food_avoid: ['processed','ref_sugar','alcohol'],
+    lifestyle:  ['gut_care','stress_mg','hydration']
+  },
+  5: { // 해독·메틸화
+    supplement: ['nac','curcumin','folate','selenium','vit_c'],
+    food_rec:   ['cruciferous','green_veg','berries','seaweed'],
+    food_avoid: ['alcohol','processed','acid_food'],
+    lifestyle:  ['hydration','intermit_fast']
+  }
+};
+
+function autoRecommendFromAxes() {
+  // 이미 자동 적용된 경우 스킵
+  if (fd._recsAutoApplied) return;
+  const sc = calcIrisScores();
+  const active = [1,2,3,4,5].filter(n => (sc[n]||0) > 0);
+  if (!active.length) { fd._recsAutoApplied = true; return; }
+  const suggested = new Set();
+  active.forEach(function(n) {
+    const m = AXIS_AUTO_RECS[n] || {};
+    ['supplement','food_rec','food_avoid','lifestyle'].forEach(function(t) {
+      (m[t] || []).forEach(function(id) { suggested.add(id); });
+    });
+  });
+  fd._autoSuggestedRecs = Array.from(suggested); // 체크 없이 추천 표시만
+  fd._recsAutoApplied = true;
+}
 
 // ═══════════════════════════════════════════
 //  LANG & STATE
@@ -1385,6 +1457,16 @@ const IRIS_GBM = [
   {id:'sodium_ring',       lbl:'나트륨링 (Sodium Ring)',    clr:'#D97706'},
   {id:'skin_ring',         lbl:'피부선 (Skin Ring)',        clr:'#B45309'},
   {id:'global_laxity',     lbl:'전신 기질 성글어짐',           clr:'#6366F1'},
+  {id:'cholesterol_ring',  lbl:'콜레스테롤링 (Cholesterol Ring)', clr:'#C8A96E'},
+  {id:'black_pigment',     lbl:'흑태 (흑색 색소침착)',             clr:'#1A1A1A'},
+];
+const IRIS_GUIDE_ZONES = [
+  {id:'ann',    r:53,  w:18, c:'99,102,241',  hex:'#6366F1', lbl:'자율신경환', desc:'동공 주변·자율신경 반사구'},
+  {id:'digest', r:71,  w:18, c:'34,197,94',   hex:'#22C55E', lbl:'소화기계',   desc:'소화관·장·위'},
+  {id:'nutri',  r:88,  w:16, c:'245,158,11',  hex:'#F59E0B', lbl:'영양·흡수',  desc:'영양 대사·흡수 기능'},
+  {id:'circ',   r:103, w:14, c:'239,68,68',   hex:'#EF4444', lbl:'순환기계',   desc:'심장·혈관·혈행'},
+  {id:'organ',  r:116, w:12, c:'139,92,246',  hex:'#8B5CF6', lbl:'장기·신경',  desc:'각 장기 반사구·신경'},
+  {id:'lymph',  r:127, w:10, c:'148,163,184', hex:'#94A3B8', lbl:'림프·피부',  desc:'림프계·피부·외곽'},
 ];
 const LEFT_ZONES = [
   {id:'L01',time:'0~1시',  short:'뇌하수체·후두부',  full:'뇌의 활력·운동신경·감정조절·균형감각 (뇌하수체·후두부)',s:0,   e:30},
@@ -1495,10 +1577,15 @@ function calcIrisScores() {
 }
 let _irisTab = 'left';
 let _irisSelZone = null;
+let _irisPhotoOpacity = 0; // 0=숨김, 0<x<=1=겹쳐보기
+let _irisGuideMode = false;  // 구분표 오버레이
+let _rptShowPhoto = false;   // 리포트 사진 표시 여부
+let _irisSelGuideZone = null; // 구분표 병변 패널 열린 구역
 
 function _irisData() {
-  if (!fd.irisZoneData) fd.irisZoneData = {left:{}, right:{}, global:{}};
+  if (!fd.irisZoneData) fd.irisZoneData = {left:{}, right:{}, global:{}, guide:{}};
   if (!fd.irisZoneData.global) fd.irisZoneData.global = {};
+  if (!fd.irisZoneData.guide) fd.irisZoneData.guide = {};
   return fd.irisZoneData;
 }
 
@@ -1526,6 +1613,29 @@ function buildIrisSVG(eye) {
   // ring guides
   s += '<circle cx="'+cx+'" cy="'+cy+'" r="93" fill="none" stroke="rgba(0,0,0,.1)" stroke-width=".8" stroke-dasharray="3,4"/>';
   s += '<circle cx="'+cx+'" cy="'+cy+'" r="66" fill="none" stroke="rgba(0,0,0,.08)" stroke-width=".6" stroke-dasharray="2,5"/>';
+
+  // 사진 오버레이
+  var _ovlPhoto = eye === 'left' ? fd.leftEyePhoto : fd.rightEyePhoto;
+  if (_ovlPhoto && _irisPhotoOpacity > 0) {
+    s += '<defs><clipPath id="ipc_'+eye+'"><circle cx="'+cx+'" cy="'+cy+'" r="'+ro+'"/></clipPath></defs>';
+    s += '<image id="irisPhotoOvl" href="'+_ovlPhoto+'" x="0" y="0" width="300" height="300"'
+      +' clip-path="url(#ipc_'+eye+')" opacity="'+_irisPhotoOpacity+'"'
+      +' preserveAspectRatio="xMidYMid slice" style="pointer-events:none"/>';
+  }
+
+  // 구분표 오버레이 링 — 병변 있는 구역은 항상 표시, 나머지는 구분표 모드 시만
+  var _guideD = _irisData().guide || {};
+  IRIS_GUIDE_ZONES.forEach(function(g) {
+    var hasF = (_guideD[g.id] || []).length > 0;
+    var isSel = _irisSelGuideZone === g.id;
+    if (!hasF && !_irisGuideMode && !isSel) return; // 병변 없고 모드 OFF면 생략
+    var op = hasF ? (isSel ? '0.45' : '0.32') : (isSel ? '0.28' : '0.13');
+    s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+g.r+'" fill="none" stroke="rgba('+g.c+','+op+')" stroke-width="'+g.w+'" style="pointer-events:none"/>';
+    if (hasF || isSel) {
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+(g.r-g.w/2-0.8).toFixed(1)+'" fill="none" stroke="rgba('+g.c+',.88)" stroke-width="1.2" style="pointer-events:none"/>';
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+(g.r+g.w/2+0.8).toFixed(1)+'" fill="none" stroke="rgba('+g.c+',.88)" stroke-width="1.2" style="pointer-events:none"/>';
+    }
+  });
 
   // sectors
   for (var zi = 0; zi < zones.length; zi++) {
@@ -1555,6 +1665,37 @@ function buildIrisSVG(eye) {
       var fc = hasFinding ? '#0F172A' : '#334155';
       s += '<text x="'+tx+'" y="'+ty+'" text-anchor="middle" dominant-baseline="middle" font-size="'+fs+'" font-weight="700" fill="'+fc+'"';
       s += ' transform="rotate('+rot+','+tx+','+ty+')" style="pointer-events:none;user-select:none">'+z.short+'</text>';
+    }
+  }
+
+  // 구분표 클릭 핫스팟 — 병변 있는 구역은 구분표 모드 OFF여도 클릭 가능
+  var _guideDH = _irisData().guide || {};
+  IRIS_GUIDE_ZONES.forEach(function(g) {
+    var hasFH = (_guideDH[g.id] || []).length > 0;
+    if (!hasFH && !_irisGuideMode) return; // 병변 없고 모드 OFF면 핫스팟 생략
+    s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+g.r+'" fill="none" stroke="rgba(0,0,0,0.001)" stroke-width="'+g.w+'" style="cursor:pointer" onclick="selectGuideZone(\''+g.id+'\')"/>';
+  });
+
+  // 외곽 링 병소 마커 (콜레스테롤링 · 흑태) — 전역 또는 구분표 구역에서 선택 시 표시
+  var _gd = _irisData().global || {};
+  var _guideD2 = _irisData().guide || {};
+  var _guideVals = Object.keys(_guideD2).map(function(k){return _guideD2[k]||[];});
+  var _hasChol = _gd.cholesterol_ring || _guideVals.some(function(a){return a.indexOf('cholesterol_ring')>=0;});
+  var _hasBlack = _gd.black_pigment || _guideVals.some(function(a){return a.indexOf('black_pigment')>=0;});
+  if (_hasChol) {
+    // 크림색 외곽 링 — 고전적 콜레스테롤링 표현
+    s += '<circle cx="'+cx+'" cy="'+cy+'" r="129" fill="none" stroke="#E8D9B0" stroke-width="9" opacity="0.88" style="pointer-events:none"/>';
+    s += '<circle cx="'+cx+'" cy="'+cy+'" r="124" fill="none" stroke="#C8A96E" stroke-width="1.2" opacity="0.7" style="pointer-events:none"/>';
+    s += '<circle cx="'+cx+'" cy="'+cy+'" r="133" fill="none" stroke="#C8A96E" stroke-width="0.8" opacity="0.5" style="pointer-events:none"/>';
+  }
+  if (_hasBlack) {
+    // 외곽에 분포하는 흑태 점들
+    var _bpSizes = [3.5,2.5,2,3,2.5,2,3.5,2,2.5,3,2,3.5];
+    for (var bpi=0; bpi<12; bpi++) {
+      var bpa = (bpi*30 - 90) * Math.PI / 180;
+      var bpx = (cx + 126*Math.cos(bpa)).toFixed(1);
+      var bpy = (cy + 126*Math.sin(bpa)).toFixed(1);
+      s += '<circle cx="'+bpx+'" cy="'+bpy+'" r="'+_bpSizes[bpi]+'" fill="#1A1A1A" opacity="0.78" style="pointer-events:none"/>';
     }
   }
 
@@ -1602,6 +1743,44 @@ function refreshIrisClock() {
   var el = document.getElementById('irisClock');
   if (el) el.outerHTML = buildIrisClockHTML();
 }
+function toggleIrisGuide() {
+  _irisGuideMode = !_irisGuideMode;
+  refreshIrisClock();
+}
+function toggleRptPhoto() {
+  _rptShowPhoto = !_rptShowPhoto;
+  r9();
+}
+function toggleGuideSelection(id) {
+  if (!fd.irisGuideSelection) fd.irisGuideSelection = [];
+  var idx = fd.irisGuideSelection.indexOf(id);
+  if (idx >= 0) fd.irisGuideSelection.splice(idx, 1);
+  else fd.irisGuideSelection.push(id);
+  refreshIrisClock();
+}
+function selectGuideZone(id) {
+  _irisSelGuideZone = (_irisSelGuideZone === id) ? null : id;
+  refreshIrisClock();
+}
+function toggleGuideZoneBM(gid, bmId) {
+  var d = _irisData();
+  if (!d.guide[gid]) d.guide[gid] = [];
+  var idx = d.guide[gid].indexOf(bmId);
+  if (idx >= 0) d.guide[gid].splice(idx, 1);
+  else d.guide[gid].push(bmId);
+  refreshIrisClock();
+}
+function toggleIrisPhoto() {
+  _irisPhotoOpacity = _irisPhotoOpacity > 0 ? 0 : 0.5;
+  refreshIrisClock();
+}
+function updateIrisOverlay(val) {
+  _irisPhotoOpacity = parseFloat(val);
+  var img = document.getElementById('irisPhotoOvl');
+  if (img) img.setAttribute('opacity', _irisPhotoOpacity);
+  var pct = document.getElementById('irisOvlPct');
+  if (pct) pct.textContent = Math.round(_irisPhotoOpacity * 100) + '%';
+}
 
 function irisTab(tab) {
   _irisTab = tab;
@@ -1642,6 +1821,97 @@ function buildIrisClockHTML() {
   } else {
     var svgHTML = buildIrisSVG(_irisTab);
 
+    // 컨트롤 바 (구분표 + 사진 오버레이)
+    var _curPhoto = _irisTab === 'left' ? fd.leftEyePhoto : fd.rightEyePhoto;
+    var _ovlOn = _irisPhotoOpacity > 0;
+    var overlayBar = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 10px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;flex-wrap:wrap">';
+    // 구분표 버튼 (항상 표시)
+    overlayBar += '<button onclick="toggleIrisGuide()" style="padding:4px 11px;border-radius:6px;border:1.5px solid '
+      +(_irisGuideMode?'#7C3AED':'#CBD5E1')+';background:'+(_irisGuideMode?'#7C3AED':'white')
+      +';color:'+(_irisGuideMode?'white':'#64748B')+';font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">'
+      +(_irisGuideMode?'📊 구분표 ON':'📊 구분표')+'</button>';
+    // 구분선
+    if (_curPhoto) {
+      overlayBar += '<span style="width:1px;height:18px;background:#E2E8F0;flex-shrink:0"></span>';
+      overlayBar += '<button onclick="toggleIrisPhoto()" style="padding:4px 11px;border-radius:6px;border:1.5px solid '
+        +(_ovlOn?'#0284C7':'#CBD5E1')+';background:'+(_ovlOn?'#0284C7':'white')
+        +';color:'+(_ovlOn?'white':'#64748B')+';font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">'
+        +(_ovlOn ? '👁 사진 가리기' : '📸 사진 겹치기')+'</button>';
+      if (_ovlOn) {
+        overlayBar += '<span style="font-size:10px;color:#64748B;white-space:nowrap">투명도</span>';
+        overlayBar += '<input type="range" min="10" max="100" value="'+Math.round(_irisPhotoOpacity*100)+'"'
+          +' oninput="updateIrisOverlay(this.value/100)"'
+          +' style="flex:1;min-width:80px;max-width:160px;cursor:pointer;accent-color:#0284C7">';
+        overlayBar += '<span id="irisOvlPct" style="font-size:11px;font-weight:700;color:#0284C7;min-width:32px">'+Math.round(_irisPhotoOpacity*100)+'%</span>';
+      }
+    }
+    overlayBar += '</div>';
+
+    // 구분표 범례 + 병변 선택 패널
+    var _gzData = _irisData().guide || {};
+    // 구분표 전용 병변 목록 (IRIS_BM + 콜레스테롤링 + 흑태)
+    var GUIDE_BM = IRIS_BM.concat([
+      {id:'cholesterol_ring', lbl:'콜레스테롤링', clr:'#C8A96E', tip:'지질 대사 이상 · 혈행 장애'},
+      {id:'black_pigment',    lbl:'흑태',         clr:'#374151', tip:'색소 침착 · 독소 누적'}
+    ]);
+    var guideLegend = _irisGuideMode ? (function(){
+      // 칩 행
+      var chipsHtml = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px">';
+      IRIS_GUIDE_ZONES.forEach(function(g) {
+        var isSel = _irisSelGuideZone === g.id;
+        var gzF = _gzData[g.id] || [];
+        var hasFd = gzF.length > 0;
+        chipsHtml += '<span onclick="selectGuideZone(\'' + g.id + '\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:10px;border:'
+          + (isSel ? '2px solid '+g.hex : hasFd ? '1.5px solid '+g.hex+'CC' : '1.5px solid '+g.hex+'55')
+          + ';background:' + (isSel ? g.hex+'2A' : hasFd ? g.hex+'1C' : g.hex+'10')
+          + ';font-size:8.5px;font-weight:800;color:' + g.hex
+          + ';transition:all .12s;box-shadow:' + (isSel ? '0 0 0 2px '+g.hex+'33' : 'none') + '">';
+        chipsHtml += '<span style="width:8px;height:8px;border-radius:50%;background:'+g.hex+';flex-shrink:0'
+          + (isSel ? ';box-shadow:0 0 0 2px white,0 0 0 3px '+g.hex : '') + '"></span>';
+        chipsHtml += g.lbl;
+        if (hasFd) chipsHtml += '<span style="font-size:8.5px;font-weight:900;background:'+g.hex+';color:white;border-radius:8px;padding:0 4px;min-width:14px;text-align:center">'+gzF.length+'</span>';
+        if (isSel) chipsHtml += '<span style="font-size:8px">▼</span>';
+        chipsHtml += '</span>';
+      });
+      chipsHtml += '</div>';
+
+      // 선택된 구역 병변 패널
+      var panelHtml = '';
+      if (_irisSelGuideZone) {
+        var selGZ = null;
+        for (var _gi=0; _gi<IRIS_GUIDE_ZONES.length; _gi++) {
+          if (IRIS_GUIDE_ZONES[_gi].id === _irisSelGuideZone) { selGZ = IRIS_GUIDE_ZONES[_gi]; break; }
+        }
+        if (selGZ) {
+          var gzFindings = _gzData[_irisSelGuideZone] || [];
+          panelHtml += '<div style="margin-top:8px;padding:10px 12px;background:white;border:1.5px solid '+selGZ.hex+'66;border-radius:8px">';
+          panelHtml += '<div style="font-size:9.5px;font-weight:800;color:'+selGZ.hex+';margin-bottom:8px;display:flex;align-items:center;gap:5px">';
+          panelHtml += '<span style="width:9px;height:9px;border-radius:50%;background:'+selGZ.hex+'"></span>';
+          panelHtml += selGZ.lbl + ' 구역 — 병변 선택</div>';
+          panelHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">';
+          for (var _gbi=0; _gbi<GUIDE_BM.length; _gbi++) {
+            var _gb = GUIDE_BM[_gbi];
+            var _gbon = gzFindings.indexOf(_gb.id) >= 0;
+            panelHtml += '<button onclick="toggleGuideZoneBM(\''+_irisSelGuideZone+'\',\''+_gb.id+'\')" '
+              + 'style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;border:1.5px solid '
+              + (_gbon ? _gb.clr : '#E2E8F0')
+              + ';background:' + (_gbon ? _gb.clr+'18' : 'white')
+              + ';cursor:pointer;font-family:inherit;text-align:left">';
+            panelHtml += '<span style="width:10px;height:10px;border-radius:3px;background:'+(_gbon?_gb.clr:'#CBD5E1')+';flex-shrink:0;display:block"></span>';
+            panelHtml += '<div style="min-width:0">';
+            panelHtml += '<div style="font-size:9.5px;font-weight:700;color:'+(_gbon?_gb.clr:'#374151')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_gb.lbl+'</div>';
+            panelHtml += '<div style="font-size:8.5px;color:#94A3B8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_gb.tip+'</div>';
+            panelHtml += '</div></button>';
+          }
+          panelHtml += '</div>';
+          panelHtml += '<button onclick="selectGuideZone(\''+_irisSelGuideZone+'\')" '
+            + 'style="width:100%;margin-top:8px;padding:5px;border:1px solid #E2E8F0;background:white;border-radius:6px;cursor:pointer;font-size:10px;color:#94A3B8;font-family:inherit">닫기 ✕</button>';
+          panelHtml += '</div>';
+        }
+      }
+      return chipsHtml + panelHtml;
+    })() : '';
+
     // Panel
     var panelHTML = '';
     if (selZone) {
@@ -1667,8 +1937,9 @@ function buildIrisClockHTML() {
     }
 
     mainContent = '<div style="border:1px solid #CBD5E1;border-radius:0 0 10px 10px;padding:12px">';
+    mainContent += overlayBar;
     mainContent += '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">';
-    mainContent += '<div style="flex:0 0 auto">'+svgHTML+'</div>';
+    mainContent += '<div style="flex:0 0 auto">'+svgHTML+guideLegend+'</div>';
     mainContent += panelHTML;
     mainContent += '</div></div>';
   }
@@ -1872,21 +2143,29 @@ function toggleHealthRec(id) {
 function rRecs() {
   function recCard(rec) {
     const sel = fd.healthRecs.includes(rec.id);
+    const isSug = (fd._autoSuggestedRecs || []).includes(rec.id);
     const isAvoid = rec.type === 'food_avoid';
     const ac = isAvoid ? 'var(--danger)' : 'var(--success)';
-    const bg = sel ? (isAvoid ? '#FEF2F2' : '#F0FDF4') : 'white';
-    const bdr = sel ? ac : 'var(--border)';
+    const bg = sel ? (isAvoid ? '#FEF2F2' : '#F0FDF4') : (isSug ? (isAvoid ? '#FFF7F7' : '#F0FDF4') : 'white');
+    const bdr = sel ? ac : (isSug ? (isAvoid ? '#FECACA' : '#86EFAC') : 'var(--border)');
     const chkBg = sel ? ac : 'transparent';
     const chkBdr = sel ? ac : '#CBD5E1';
     const chkTxt = sel ? '✓' : '';
     const txtColor = isAvoid ? 'var(--danger)' : 'var(--blue-primary)';
+    const sugBadge = isSug && !sel
+      ? '<span style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:8px;background:'
+        +(isAvoid?'#FEE2E2':'#DCFCE7')+';color:'+(isAvoid?'#B91C1C':'#15803D')+';white-space:nowrap">추천</span>'
+      : '';
     return '<div id="rc_' + rec.id + '" onclick="toggleHealthRec(\'' + rec.id + '\')" '
       + 'style="cursor:pointer;border:1.5px solid ' + bdr + ';border-radius:10px;padding:10px 12px;background:' + bg + ';display:flex;align-items:flex-start;gap:10px;transition:all .15s">'
       + '<span style="font-size:20px;flex-shrink:0;margin-top:1px">' + rec.icon + '</span>'
       + '<div style="flex:1;min-width:0">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap">'
       + '<span style="font-size:12px;font-weight:700;color:var(--navy-dark)">' + t(rec.ko, rec.en) + '</span>'
+      + '<div style="display:flex;align-items:center;gap:4px">'
+      + sugBadge
       + '<div class="rc-chk" style="width:18px;height:18px;border-radius:4px;border:1.5px solid ' + chkBdr + ';background:' + chkBg + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;flex-shrink:0">' + chkTxt + '</div>'
+      + '</div>'
       + '</div>'
       + '<div style="font-size:10.5px;color:var(--text-light);margin-top:2px">' + t(rec.dko, rec.den) + '</div>'
       + '<div style="font-size:10px;color:' + txtColor + ';margin-top:3px;font-style:italic">' + t(rec.eko, rec.een) + '</div>'
@@ -1903,6 +2182,9 @@ function rRecs() {
       + '</div>';
   }
 
+  // Axis 기반 자동 추천 적용 (최초 1회)
+  autoRecommendFromAxes();
+
   // 5-Axis 점수 패널 (홍채 병소 선택 결과 참고용)
   const _sc = calcIrisScores();
   const _maxSc = Math.max(1, ...[1,2,3,4,5].map(n => _sc[n]||0));
@@ -1913,6 +2195,19 @@ function rRecs() {
     {n:4, lbl:'Axis 4  장-뇌·점막 면역', sub:'소화관·인두·뇌장', clr:'#B45309'},
     {n:5, lbl:'Axis 5  해독·메틸화', sub:'간·신장·림프·피부', clr:'#BE185D'},
   ];
+  const _autoAxes = [1,2,3,4,5].filter(n => (_sc[n]||0) > 0);
+  const _autoAxeNames = {1:'신경-내분비',2:'세포 에너지·대사',3:'미세환경·순환',4:'장-뇌·점막 면역',5:'해독·메틸화'};
+  const _autoBanner = _autoAxes.length
+    ? '<div style="margin-bottom:12px;padding:8px 12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;font-size:10px;color:#1E40AF">'
+      + '✅ <strong>Axis 기반 자동 추천 완료</strong> — '
+      + _autoAxes.map(function(n){return '<span style="font-weight:700">Axis '+n+' '+_autoAxeNames[n]+'</span>';}).join(', ')
+      + ' 영역의 추천 영양소·식품 카드에 <strong style="color:#1E40AF">&#39;추천&#39;</strong> 배지가 표시됩니다. 필요에 따라 직접 선택하세요.'
+      + '</div>'
+    : '';
+
+  // 분자교정 가이드라인 (환자 설명용) — step 9에서 표시
+  const _nutritionGuideHtml = buildNutritionBlueprintHtml(fd.irisAxisScores||{1:0,2:0,3:0,4:0,5:0});
+
   let axisPanel = '<div style="margin-bottom:18px;padding:12px 14px;background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:10px">';
   axisPanel += '<div style="font-size:11px;font-weight:800;color:#0A1628;margin-bottom:10px;letter-spacing:.4px">📊 홍채 5-Axis 병소 가중치 점수 <span style="font-size:9px;font-weight:500;color:#94A3B8;margin-left:6px">← 이전 단계에서 선택한 홍채 병소 기반</span></div>';
   AXIS_META9.forEach(function(am) {
@@ -1937,7 +2232,9 @@ function rRecs() {
     + '<div class="step-title">' + t('건강 권장사항 선택', 'Health Recommendations') + '</div>'
     + '<div class="step-desc">' + t('환자에게 권장하거나 금기할 사항을 선택하세요. 선택된 항목은 리포트에 반영됩니다.', 'Select recommendations or restrictions for this patient. Selections appear in the report.') + '</div>'
     + '</div>'
+    + _autoBanner
     + axisPanel
+    + _nutritionGuideHtml
     + recSection('supplement', '영양 보충제 권장', 'Supplements Recommended', 'var(--success)')
     + recSection('food_rec', '권장 식품', 'Recommended Foods', 'var(--blue-primary)')
     + recSection('food_avoid', '금기 식품', 'Foods to Avoid', 'var(--danger)')
@@ -2064,6 +2361,14 @@ function buildIrisSVGStatic(eye, size) {
   s += '<circle cx="'+cx+'" cy="'+cy+'" r="93" fill="none" stroke="rgba(0,0,0,.1)" stroke-width=".8" stroke-dasharray="3,4"/>';
   s += '<circle cx="'+cx+'" cy="'+cy+'" r="66" fill="none" stroke="rgba(0,0,0,.08)" stroke-width=".6" stroke-dasharray="2,5"/>';
 
+  if (_rptShowPhoto) {
+    var _rptPhoto = eye === 'left' ? fd.leftEyePhoto : fd.rightEyePhoto;
+    if (_rptPhoto) {
+      s += '<defs><clipPath id="spc_'+eye+'"><circle cx="'+cx+'" cy="'+cy+'" r="'+ro+'"/></clipPath></defs>';
+      s += '<image href="'+_rptPhoto+'" x="0" y="0" width="300" height="300" clip-path="url(#spc_'+eye+')" opacity="0.68" preserveAspectRatio="xMidYMid slice" style="pointer-events:none"/>';
+    }
+  }
+
   for (var zi = 0; zi < zones.length; zi++) {
     var z = zones[zi];
     var findings = data[z.id] || [];
@@ -2120,17 +2425,66 @@ function buildIrisSVGStatic(eye, size) {
     s += '<text x="'+xt+'" y="'+yt+'" text-anchor="middle" dominant-baseline="middle" font-size="7.5" font-weight="700" fill="#1E3A5F">'+(h===0?'12':h)+'</text>';
   }
 
+  // 외곽 링 병소 마커 (정적 리포트)
+  var _sgd = (fd.irisZoneData && fd.irisZoneData.global) || {};
+  var _sgz = (fd.irisZoneData && fd.irisZoneData.guide) || {};
+  var _sgv = Object.keys(_sgz).map(function(k){return _sgz[k]||[];});
+  if (_sgd.cholesterol_ring || _sgv.some(function(a){return a.indexOf('cholesterol_ring')>=0;})) {
+    s += '<circle cx="'+cx+'" cy="'+cy+'" r="129" fill="none" stroke="#E8D9B0" stroke-width="9" opacity="0.88" style="pointer-events:none"/>';
+    s += '<circle cx="'+cx+'" cy="'+cy+'" r="124" fill="none" stroke="#C8A96E" stroke-width="1.2" opacity="0.7" style="pointer-events:none"/>';
+  }
+  if (_sgd.black_pigment || _sgv.some(function(a){return a.indexOf('black_pigment')>=0;})) {
+    var _bps=[3.5,2.5,2,3,2.5,2,3.5,2,2.5,3,2,3.5];
+    for (var _bpi=0; _bpi<12; _bpi++) {
+      var _bpa=(_bpi*30-90)*Math.PI/180;
+      s += '<circle cx="'+(cx+126*Math.cos(_bpa)).toFixed(1)+'" cy="'+(cy+126*Math.sin(_bpa)).toFixed(1)+'" r="'+_bps[_bpi]+'" fill="#1A1A1A" opacity="0.78" style="pointer-events:none"/>';
+    }
+  }
+
   // pupil
   s += '<defs><radialGradient id="rpg_'+eye+'" cx="38%" cy="32%"><stop offset="0%" stop-color="#3B4F6B"/><stop offset="100%" stop-color="#080F1C"/></radialGradient></defs>';
   s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+ri+'" fill="url(#rpg_'+eye+')" stroke="#1E3A5F" stroke-width="1.5"/>';
   s += '<text x="'+cx+'" y="'+(cy+1)+'" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="900" fill="rgba(255,255,255,.45)" letter-spacing="1">'+(eye==='left'?'L':'R')+'</text>';
 
-  return '<svg viewBox="0 0 300 300" width="'+size+'" height="'+size+'" style="display:block">'+s+'</svg>';
+  return '<svg class="rpt-clock-svg" viewBox="0 0 300 300" width="'+size+'" height="'+size+'" style="display:block">'+s+'</svg>';
 }
 
 // ─────────────────────────────────────────────────────────────
 //  리포트용 홍채 모형 (좌안 + 우안 나란히) + 범례
 // ─────────────────────────────────────────────────────────────
+function buildGuideZoneFindingsHtml() {
+  var guideData = (fd.irisZoneData && fd.irisZoneData.guide) || {};
+  var GUIDE_BM_ALL = IRIS_BM.concat([
+    {id:'cholesterol_ring', lbl:'콜레스테롤링', clr:'#C8A96E'},
+    {id:'black_pigment',    lbl:'흑태',         clr:'#374151'}
+  ]);
+  var GUIDE_BM_MAP = {};
+  GUIDE_BM_ALL.forEach(function(b){ GUIDE_BM_MAP[b.id] = b; });
+  var activeZones = IRIS_GUIDE_ZONES.filter(function(g) {
+    return (guideData[g.id] || []).length > 0;
+  });
+  if (!activeZones.length) return '';
+  var html = '<div style="margin-bottom:16px;page-break-inside:avoid">';
+  html += '<div style="margin-bottom:8px;padding:6px 12px;background:#0A1628;border-radius:4px">';
+  html += '<span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px">◎ 구분표 구역 병변</span></div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+  activeZones.forEach(function(gz) {
+    var findings = guideData[gz.id] || [];
+    html += '<div style="padding:8px 10px;border:1.5px solid '+gz.hex+'55;border-radius:6px;background:'+gz.hex+'0C">';
+    html += '<div style="font-size:9px;font-weight:800;color:'+gz.hex+';margin-bottom:6px;display:flex;align-items:center;gap:4px">';
+    html += '<span style="width:7px;height:7px;border-radius:50%;background:'+gz.hex+';flex-shrink:0"></span>';
+    html += gz.lbl + '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:3px">';
+    findings.forEach(function(fid) {
+      var bm = GUIDE_BM_MAP[fid];
+      if (!bm) return;
+      html += '<span style="font-size:8.5px;font-weight:700;padding:2px 7px;border-radius:4px;background:'+bm.clr+'18;color:'+bm.clr+';border:1px solid '+bm.clr+'55">'+bm.lbl+'</span>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div></div>';
+  return html;
+}
 function buildIrisReportVisual() {
   var irisData = fd.irisZoneData || {};
   var hasLeft  = Object.values(irisData.left  || {}).some(function(v){ return v && v.length; });
@@ -2166,6 +2520,22 @@ function buildIrisReportVisual() {
         +'</span>';
     });
   }
+  var guideDataLeg = irisData.guide || {};
+  var GUIDE_BM_LEG = IRIS_BM.concat([
+    {id:'cholesterol_ring', lbl:'콜레스테롤링', clr:'#C8A96E'},
+    {id:'black_pigment',    lbl:'흑태',         clr:'#374151'}
+  ]);
+  var guideActiveBMs = {};
+  Object.keys(guideDataLeg).forEach(function(gid){
+    (guideDataLeg[gid]||[]).forEach(function(bid){ guideActiveBMs[bid]=true; });
+  });
+  GUIDE_BM_LEG.forEach(function(bm){
+    if (!guideActiveBMs[bm.id] || activeBMs[bm.id]) return;
+    legendHtml += '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;margin-bottom:4px">'
+      +'<span style="width:10px;height:10px;border-radius:2px;background:'+bm.clr+';flex-shrink:0;display:inline-block"></span>'
+      +'<span style="font-size:9px;font-weight:600;color:#374151">'+bm.lbl+' (구분표)</span>'
+      +'</span>';
+  });
 
   var html = '<div style="margin-bottom:18px;page-break-inside:avoid">';
   html += '<div style="display:flex;align-items:center;margin-bottom:10px;padding:6px 12px;background:#0A1628;border-radius:4px">';
@@ -2255,32 +2625,36 @@ function buildIrisFindingsNarrative() {
   html += '<span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px">◉ 홍채 병소 검출 소견</span></div>';
 
   var listStyle = 'margin:0;padding:0;list-style:none';
-  var liStyle = 'padding:4px 0;font-size:10px;color:#1E293B;border-bottom:1px solid #F1F5F9;display:flex;gap:6px';
-  var dotStyle = 'flex-shrink:0;width:6px;height:6px;border-radius:50%;margin-top:4px';
+  var liStyle = 'padding:3px 0;font-size:9px;color:#1E293B;border-bottom:1px solid #F1F5F9;display:flex;gap:5px;line-height:1.45';
+  var dotStyle = 'flex-shrink:0;width:5px;height:5px;border-radius:50%;margin-top:4px';
 
-  if (lLines.length) {
-    html += '<div style="margin-bottom:8px">';
-    html += '<div style="font-size:9.5px;font-weight:800;color:#0369A1;background:#EFF6FF;padding:3px 9px;border-radius:4px;display:inline-block;margin-bottom:5px">좌안 (Left Eye)</div>';
-    html += '<ul style="'+listStyle+'">';
-    lLines.forEach(function(l){
-      html += '<li style="'+liStyle+'"><span style="background:#0369A1;'+dotStyle+'"></span><span>'+l+'</span></li>';
-    });
-    html += '</ul></div>';
+  function eyeCol(lines, clr, bgClr, label) {
+    var s = '<div style="padding:8px 10px">';
+    s += '<div style="font-size:9px;font-weight:800;color:'+clr+';background:'+bgClr+';padding:2px 8px;border-radius:3px;display:inline-block;margin-bottom:5px">'+label+'</div>';
+    if (lines.length) {
+      s += '<ul style="'+listStyle+'">';
+      lines.forEach(function(l){
+        s += '<li style="'+liStyle+'"><span style="background:'+clr+';'+dotStyle+'"></span><span>'+l+'</span></li>';
+      });
+      s += '</ul>';
+    } else {
+      s += '<div style="font-size:9px;color:#CBD5E1;padding:4px 0">검출된 병소 없음</div>';
+    }
+    s += '</div>';
+    return s;
   }
 
-  if (rLines.length) {
-    html += '<div style="margin-bottom:8px">';
-    html += '<div style="font-size:9.5px;font-weight:800;color:#0F766E;background:#F0FDFA;padding:3px 9px;border-radius:4px;display:inline-block;margin-bottom:5px">우안 (Right Eye)</div>';
-    html += '<ul style="'+listStyle+'">';
-    rLines.forEach(function(l){
-      html += '<li style="'+liStyle+'"><span style="background:#0F766E;'+dotStyle+'"></span><span>'+l+'</span></li>';
-    });
-    html += '</ul></div>';
+  // 좌안 | 우안 2열 테이블
+  if (lLines.length || rLines.length) {
+    html += '<div style="margin-bottom:8px;border:1px solid #E2E8F0;border-radius:6px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr">';
+    html += eyeCol(lLines, '#0369A1', '#EFF6FF', '◉ 좌안 (Left Eye)');
+    html += '<div style="border-left:1px solid #E2E8F0">' + eyeCol(rLines, '#0F766E', '#F0FDFA', '◎ 우안 (Right Eye)') + '</div>';
+    html += '</div>';
   }
 
   if (gLines.length) {
-    html += '<div style="margin-bottom:8px">';
-    html += '<div style="font-size:9.5px;font-weight:800;color:#7C3AED;background:#F5F3FF;padding:3px 9px;border-radius:4px;display:inline-block;margin-bottom:5px">전역 동심원 소견</div>';
+    html += '<div style="margin-bottom:8px;border:1px solid #EDE9FE;border-radius:6px;padding:8px 10px">';
+    html += '<div style="font-size:9px;font-weight:800;color:#7C3AED;background:#F5F3FF;padding:2px 8px;border-radius:3px;display:inline-block;margin-bottom:5px">⊙ 전역 동심원 소견</div>';
     html += '<ul style="'+listStyle+'">';
     gLines.forEach(function(l){
       html += '<li style="'+liStyle+'"><span style="background:#7C3AED;'+dotStyle+'"></span><span>'+l+'</span></li>';
@@ -2348,27 +2722,36 @@ function buildDominoMapHtml(axisScores) {
   html += '<span style="font-size:11px;font-weight:700;color:white">◉&nbsp; 홍채 검출 병소 &nbsp;→&nbsp; Core Axis 연쇄 반응</span>';
   html += '</div></div>';
 
-  // Chain of axis boxes
-  html += '<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0">';
+  // Chain of axis boxes — 5개일 때는 한 줄 강제
+  var isFull = active.length === 5;
+  html += '<div style="display:flex;flex-wrap:'+(isFull?'nowrap':'wrap')+';align-items:center;justify-content:center;gap:0'+(isFull?';overflow:hidden':'')+'">';
   for (var ai=0; ai<active.length; ai++) {
     var entry = active[ai];
     var ax = entry.info;
     var pct = well[ax.n];
     var delay = (ai*0.22+0.15).toFixed(2)+'s';
-    html += '<div class="dino-box" style="animation-delay:'+delay+';flex:0 0 auto">'
-      +'<div style="border:2px solid '+ax.clr+';border-radius:10px;padding:10px 12px;background:'+ax.bg+';min-width:110px;text-align:center">'
-      +'<div style="font-size:16px;line-height:1;margin-bottom:3px">'+ax.ico+'</div>'
-      +'<div style="font-size:10px;font-weight:800;color:'+ax.clr+';margin-bottom:2px">Axis '+ax.n+'</div>'
-      +'<div style="font-size:9px;font-weight:700;color:white;margin-bottom:4px">'+ax.lbl+'</div>'
-      +'<div style="font-size:9px;color:rgba(255,255,255,.55);line-height:1.3;margin-bottom:6px">'+ax.sub+'</div>'
-      +'<div style="font-size:8px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:2px">기능 이완도</div>'
-      +'<div style="height:5px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden">'
+    var boxPad  = isFull ? '6px 6px'  : '10px 12px';
+    var boxMin  = isFull ? '0'         : '110px';
+    var boxFlex = isFull ? '1 1 0'     : '0 0 auto';
+    var icoSz   = isFull ? '13px'      : '16px';
+    var axSz    = isFull ? '8.5px'     : '10px';
+    var lblSz   = isFull ? '8px'       : '9px';
+    var subSz   = isFull ? '7.5px'     : '9px';
+    var pctSz   = isFull ? '9px'       : '11px';
+    var barH    = isFull ? '4px'       : '5px';
+    html += '<div class="dino-box" style="animation-delay:'+delay+';flex:'+boxFlex+'">'
+      +'<div style="border:2px solid '+ax.clr+';border-radius:8px;padding:'+boxPad+';background:'+ax.bg+';min-width:'+boxMin+';text-align:center">'
+      +'<div style="font-size:'+icoSz+';line-height:1;margin-bottom:2px">'+ax.ico+'</div>'
+      +'<div style="font-size:'+axSz+';font-weight:800;color:'+ax.clr+';margin-bottom:1px">Axis '+ax.n+'</div>'
+      +'<div style="font-size:'+lblSz+';font-weight:700;color:white;margin-bottom:'+(isFull?'2px':'4px')+'">'+ax.lbl+'</div>'
+      +(isFull ? '' : '<div style="font-size:'+subSz+';color:rgba(255,255,255,.55);line-height:1.3;margin-bottom:6px">'+ax.sub+'</div>')
+      +'<div style="height:'+barH+';background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden">'
       +'<div style="height:100%;width:'+pct+'%;background:'+ax.clr+';border-radius:3px;transition:width 1s ease '+delay+'"></div>'
       +'</div>'
-      +'<div style="font-size:11px;font-weight:900;color:'+ax.clr+';margin-top:3px">'+pct+'%</div>'
+      +'<div style="font-size:'+pctSz+';font-weight:900;color:'+ax.clr+';margin-top:2px">'+pct+'%</div>'
       +'</div></div>';
     if (ai < active.length-1) {
-      html += '<div class="dino-arrow" style="padding:0 5px;font-size:18px;color:rgba(255,255,255,.4);flex-shrink:0">→</div>';
+      html += '<div class="dino-arrow" style="padding:0 '+(isFull?'2px':'5px')+';font-size:'+(isFull?'12px':'18px')+';color:rgba(255,255,255,.4);flex-shrink:0">→</div>';
     }
   }
   html += '</div>'; // flex chain
@@ -2446,80 +2829,117 @@ function buildQuantDashHtml(axisScores) {
 
 function buildNutritionBlueprintHtml(axisScores) {
   var well = _axWellness(axisScores);
-  var AXIS_RX = [
-    {a:1, lbl:'신경-내분비 축 (Axis 1)', clr:'#7C3AED',
-     items:[
-      {ico:'🌿', name:'아슈와간다 추출물',  dose:'300–600mg/일',    note:'HPA 축 코르티솔 조절 및 자율신경 안정화'},
-      {ico:'🧪', name:'마그네슘 글리시네이트', dose:'200–400mg/일', note:'교감신경 흥분 억제 및 수면 질 개선'},
-      {ico:'💊', name:'포스파티딜세린',       dose:'100–300mg/일', note:'과잉 코르티솔 완화·뇌-부신 축 지지'},
-      {ico:'🌾', name:'비타민 B5 (판토텐산)', dose:'500mg/일',     note:'부신 피질 호르몬 합성 코팩터'},
-     ]},
-    {a:2, lbl:'세포 에너지·대사 축 (Axis 2)', clr:'#0284C7',
-     items:[
-      {ico:'⚡', name:'CoQ10 (유비퀴놀)',     dose:'100–200mg/일', note:'미토콘드리아 전자전달계 활성화'},
-      {ico:'🔴', name:'R-알파리포산 (R-ALA)',  dose:'300mg/일',    note:'세포 내 항산화·인슐린 감수성 지원'},
-      {ico:'💊', name:'활성형 B 복합체',        dose:'1캡슐/일',    note:'에너지 대사 효소군 보조인자 공급'},
-      {ico:'🌿', name:'아연 (아연 피콜리네이트)',dose:'15–30mg/일', note:'갑상선 호르몬 전환(T4→T3) 지원'},
-     ]},
-    {a:3, lbl:'미세환경·순환 축 (Axis 3)', clr:'#0F766E',
-     items:[
-      {ico:'🍊', name:'비타민 C (지속형)',       dose:'1,000mg/일', note:'혈관 콜라겐 합성·항산화 순환 지원'},
-      {ico:'🐟', name:'오메가-3 (EPA+DHA)',      dose:'2–3g/일',    note:'혈액 점도 저하·말초 미세순환 개선'},
-      {ico:'🌿', name:'나토키나제',              dose:'2,000FU/일', note:'피브린 용해·혈전성 정체 완화'},
-      {ico:'🍃', name:'은행잎 추출물 (징코)',     dose:'120mg/일',   note:'말초 혈행 및 뇌 산소 공급 개선'},
-     ]},
-    {a:4, lbl:'장-뇌·점막 면역 축 (Axis 4)', clr:'#B45309',
-     items:[
-      {ico:'🦠', name:'멀티스트레인 프로바이오틱스', dose:'50억 CFU/일', note:'장내 세균총 균형·뇌장축 신호 정상화'},
-      {ico:'🌾', name:'L-글루타민',                 dose:'5g/일',       note:'장 점막 상피세포 에너지원·누수 차단'},
-      {ico:'🔬', name:'아연 카르노신 (PepZin GI)',   dose:'75mg/일',     note:'위장 점막 보호 및 H.pylori 억제'},
-      {ico:'🥛', name:'콜로스트럼 (소 초유)',         dose:'2g/일',       note:'IgA 공급·점막 면역 복구 지원'},
-     ]},
-    {a:5, lbl:'해독·메틸화 축 (Axis 5)', clr:'#BE185D',
-     items:[
-      {ico:'🌿', name:'밀크씨슬 (실리마린 80%)',   dose:'140mg×3/일',  note:'간 성상세포 보호·담즙 생성 지원'},
-      {ico:'🔴', name:'환원형 글루타치온 (GSH)',    dose:'500mg/일',    note:'간 해독 2상·중금속 킬레이션'},
-      {ico:'💊', name:'메틸폴산 (MTHF-5)',          dose:'400–800μg/일',note:'메틸화 회로 활성·호모시스테인 감소'},
-      {ico:'🧪', name:'N-아세틸시스테인 (NAC)',      dose:'600mg×2/일', note:'글루타치온 전구체·간 산화 스트레스 완화'},
-     ]},
+
+  var AXIS_NARRATIVE = [
+    {
+      a:1, lbl:'신경-내분비 축 (Axis 1)', clr:'#7C3AED',
+      domino:'HPA 축(시상하부-뇌하수체-부신) 만성 과부하 → 코르티솔 지속 상승 → 교감신경 항진 → 말초혈관 수축 · 소화 기능 저하 → 면역 조절 이상 · 수면 장애 → 호르몬 전반 불균형 심화',
+      rx:[
+        {name:'아슈와간다 추출물 300–600mg/일', note:'HPA 축 코르티솔 피드백 정상화 및 자율신경 안정화. 만성 스트레스로 항진된 부신 반응을 하향 조절하여 코르티솔 분비 리듬을 회복시킵니다.'},
+        {name:'마그네슘 글리시네이트 200–400mg/일', note:'NMDA 수용체 억제를 통한 교감신경 흥분 완화, 수면 질 및 신경 이완 개선. 스트레스 소모로 고갈된 마그네슘을 글리시네이트 형태로 보충하면 흡수율이 높습니다.'},
+        {name:'포스파티딜세린 100–300mg/일', note:'글루코코르티코이드 음성 피드백 강화로 과잉 코르티솔 분비를 억제하고 뇌-부신 축의 신호 민감도를 회복시킵니다.'},
+        {name:'비타민 B5 (판토텐산) 500mg/일', note:'부신 피질에서 코르티솔·스테로이드 호르몬 합성에 필요한 코엔자임 A의 전구체. 과부하 상태의 부신 기능 유지를 위한 필수 보조인자입니다.'}
+      ],
+      improve:'코르티솔 리듬 정상화 → 교감신경 이완 → 말초혈관 이완 · 혈행 회복 → 소화 · 면역 기능 정상화 → 수면 질 개선 · 호르몬 균형 회복 (신경-내분비 도미노 역전)'
+    },
+    {
+      a:2, lbl:'세포 에너지·대사 축 (Axis 2)', clr:'#0284C7',
+      domino:'미토콘드리아 전자전달계 효율 저하 → ATP 생성 감소 → 세포 에너지 부족 → 피로 만성화 · 신진대사 저하 → 염증 중간체 누적 → 인슐린 저항성 악화 → 갑상선 기능 부담 심화',
+      rx:[
+        {name:'CoQ10 (유비퀴놀) 100–200mg/일', note:'미토콘드리아 전자전달계 복합체 I·II·III의 핵심 전자 운반체. 유비퀴놀 형태는 산화형 대비 생체이용률이 높아 ATP 생성 효율을 직접 향상시킵니다.'},
+        {name:'R-알파리포산 (R-ALA) 300mg/일', note:'미토콘드리아 내 글루타치온을 재생하고 세포 내 항산화 능력을 강화. 인슐린 신호전달 경로(GLUT4 수용체) 활성화로 인슐린 감수성을 개선합니다.'},
+        {name:'활성형 B 복합체 1캡슐/일', note:'크렙스 회로 및 전자전달계의 효소 반응에 필수적인 B2(FAD)·B3(NAD+)·B6·B12를 활성화 형태로 공급하여 에너지 대사 효율을 회복시킵니다.'},
+        {name:'아연 (피콜리네이트) 15–30mg/일', note:'탈요오드화 효소(Deiodinase)를 활성화하여 비활성 갑상선 호르몬 T4를 활성형 T3로 전환하는 과정을 지원, 기초대사율 정상화에 기여합니다.'}
+      ],
+      improve:'ATP 생성 효율 회복 → 세포 에너지 정상화 → 피로 해소 · 신진대사 활성 → 염증 중간체 감소 → 인슐린 감수성 개선 → 갑상선 기능 안정화 (세포 대사 도미노 역전)'
+    },
+    {
+      a:3, lbl:'미세환경·순환 축 (Axis 3)', clr:'#0F766E',
+      domino:'혈액 점도 상승 · 혈관 내피 기능 저하 → 말초 미세순환 정체 → 조직 저산소증 → 만성 산화 스트레스 누적 → 혈관 콜라겐 손상 · 동맥 경직 → 미세혈전 형성 · 순환 장애 심화',
+      rx:[
+        {name:'오메가-3 EPA+DHA 2–3g/일', note:'혈소판 응집 억제(TXA2 감소)로 혈액 점도를 낮추고, 혈관 내피에서 NO(산화질소) 생성을 촉진하여 말초 미세순환을 개선합니다. EPA의 항염 작용이 혈관벽 염증을 완화합니다.'},
+        {name:'비타민 C (지속형) 1,000mg/일', note:'혈관 내피세포의 콜라겐 합성 효소(프롤린·리신 하이드록실라제) 보조인자. 내피세포 산화 스트레스를 완화하고 혈관 구조적 완전성을 회복시킵니다.'},
+        {name:'나토키나제 2,000FU/일', note:'피브린 용해 활성을 가진 세린 프로테아제로 혈전성 정체와 과도한 피브린 네트워크를 분해하여 미세혈관 개통성을 회복시킵니다.'},
+        {name:'은행잎 추출물 (징코) 120mg/일', note:'플라보노이드와 테르페노이드 성분이 말초혈관 확장 및 혈액 유동성을 개선. 조직 저산소 부위의 산소 공급 회복에 도움을 줍니다.'}
+      ],
+      improve:'혈액 유동성 회복 → 말초 미세순환 정상화 → 조직 산소 공급 개선 → 산화 스트레스 감소 → 혈관 내피 재생 · 콜라겐 복구 → 순환 장애 해소 (미세순환 도미노 역전)'
+    },
+    {
+      a:4, lbl:'장-뇌·점막 면역 축 (Axis 4)', clr:'#B45309',
+      domino:'장 점막 투과성 증가(Leaky Gut) → 내독소(LPS) 혈류 유입 → 전신 저등급 염증 지속 → 장-뇌 축(Gut-Brain Axis) 신호 교란 → 세로토닌·GABA 생성 저하 → 신경 과민·정서 불안 → 면역 조절 이상 심화',
+      rx:[
+        {name:'멀티스트레인 프로바이오틱스 50억 CFU/일', note:'Lactobacillus·Bifidobacterium 복합균주가 장내 균총 다양성을 회복시키고, 장-뇌 축 미주신경 신호와 단쇄지방산(SCFA) 생성을 정상화합니다.'},
+        {name:'L-글루타민 5g/일', note:'장 상피세포(Enterocyte)의 주요 에너지 기질로 점막 재생을 촉진하고 밀착연접(Tight Junction) 단백질(오클루딘·클라우딘) 발현을 회복시켜 장 누수를 차단합니다.'},
+        {name:'아연 카르노신 (PepZin GI) 75mg/일', note:'아연과 카르노신의 복합체가 위장 점막 상피에 선택적으로 결합하여 점막 방어층을 강화하고 H.pylori 억제 및 궤양성 점막 수복을 지원합니다.'},
+        {name:'콜로스트럼 (소 초유) 2g/일', note:'분비형 IgA(sIgA)·락토페린·성장인자(IGF-1)를 공급하여 점막 면역 방어 시스템을 재건하고 장내 병원균 접착을 억제합니다.'}
+      ],
+      improve:'장 점막 재건 → LPS 혈류 유입 차단 → 전신 저등급 염증 감소 → 장-뇌 축 신호 회복 → 세로토닌·GABA 합성 정상화 → 신경 안정·면역 균형 회복 (점막 도미노 역전)'
+    },
+    {
+      a:5, lbl:'해독·메틸화 축 (Axis 5)', clr:'#BE185D',
+      domino:'간 해독 2상(글루타치온 포합·메틸화·황산화) 경로 과부하 → 독소 반응성 중간체 누적 → 호모시스테인 상승 → 메틸화 사이클 불균형 → DNA·히스톤 메틸화 이상 → 세포 노화 촉진 · 만성 염증 고착화',
+      rx:[
+        {name:'밀크씨슬 (실리마린 80%) 140mg×3/일', note:'간 성상세포(Hepatic Stellate Cell) 활성화를 억제하고 Nrf2 경로를 통해 해독 효소(GST·UGT) 발현을 유도. 담즙 생성 지원으로 지용성 독소 배출 경로를 확보합니다.'},
+        {name:'환원형 글루타치온 (GSH) 500mg/일', note:'간 해독 2상의 핵심 포합체로 친전자성 독소·중금속과 직접 결합하여 수용성 형태로 배출. 이미 고갈된 체내 GSH 풀을 직접 보충합니다.'},
+        {name:'메틸폴산 (MTHF-5) 400–800μg/일', note:'메틸화 사이클에서 호모시스테인을 메티오닌으로 재전환하는 반응의 직접 기질. MTHFR 다형성이 있어도 활성형으로 공급되므로 메틸화 능력을 회복시킵니다.'},
+        {name:'N-아세틸시스테인 (NAC) 600mg×2/일', note:'글루타치온 합성 속도제한 전구체(시스테인 공급)로 내인성 GSH 생성을 촉진. 간 산화 스트레스 완화 및 독소 반응성 중간체 포합에 기여합니다.'}
+      ],
+      improve:'해독 효소 발현 회복 → 독소 반응성 중간체 감소 → GSH 풀 회복 → 호모시스테인 정상화 → 메틸화 사이클 균형 → DNA 메틸화 안정 · 세포 재생력 회복 (해독 도미노 역전)'
+    }
   ];
 
-  // Show only axes with burden (wellness < 95)
-  var active = AXIS_RX.filter(function(ax){return well[ax.a]<95;});
+  var active = AXIS_NARRATIVE.filter(function(ax){ return well[ax.a] < 95; });
   if (!active.length) return '';
 
   var html = '<div style="margin-bottom:18px">';
   html += '<div style="display:flex;align-items:center;margin-bottom:10px;padding:6px 12px;background:#0A1628;border-radius:4px">';
   html += '<span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px">💊 타겟 분자교정 영양 가이드라인</span></div>';
 
-  for (var ai=0; ai<active.length; ai++) {
-    var rx = active[ai];
-    var pct = well[rx.a];
-    var urgency = pct<50 ? '집중 교정' : pct<75 ? '적극 보완' : '예방 지지';
-    var uClr = pct<50?'#DC2626':pct<75?'#D97706':'#059669';
-    html += '<div style="margin-bottom:8px;border:1px solid '+rx.clr+'33;border-radius:8px;overflow:hidden">';
-    html += '<div style="background:'+rx.clr+';padding:5px 12px;display:flex;justify-content:space-between;align-items:center">';
-    html += '<span style="font-size:10px;font-weight:800;color:white">'+rx.lbl+'</span>';
-    html += '<span style="font-size:8.5px;font-weight:700;color:white;opacity:.85">이완도 '+pct+'% &nbsp;·&nbsp; '+urgency+'</span>';
+  for (var ai = 0; ai < active.length; ai++) {
+    var ax = active[ai];
+    var pct = well[ax.a];
+    var urgency = pct < 50 ? '집중 교정' : pct < 75 ? '적극 보완' : '예방 지지';
+
+    html += '<div style="margin-bottom:10px;border:1px solid '+ax.clr+'33;border-radius:8px;overflow:hidden">';
+
+    // Axis 헤더
+    html += '<div style="background:'+ax.clr+';padding:6px 12px;display:flex;justify-content:space-between;align-items:center">';
+    html += '<span style="font-size:10px;font-weight:800;color:white">'+ax.lbl+'</span>';
+    html += '<span style="font-size:8px;font-weight:700;background:rgba(255,255,255,.2);color:white;padding:2px 8px;border-radius:10px">우선순위: '+urgency+'</span>';
     html += '</div>';
-    html += '<div style="padding:8px;background:white;display:grid;grid-template-columns:repeat(2,1fr);gap:5px">';
-    for (var ii=0; ii<rx.items.length; ii++) {
-      var item = rx.items[ii];
-      html += '<div style="border:1px solid #F1F5F9;border-radius:6px;padding:6px 8px;background:#FAFAFA">';
-      html += '<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">';
-      html += '<span style="font-size:12px">'+item.ico+'</span>';
-      html += '<span style="font-size:9.5px;font-weight:700;color:#0F172A">'+item.name+'</span>';
-      html += '</div>';
-      html += '<div style="font-size:8px;font-weight:700;color:'+rx.clr+';margin-bottom:2px">권장 섭취: '+item.dose+'</div>';
-      html += '<div style="font-size:8px;color:#64748B;line-height:1.4">'+item.note+'</div>';
+
+    html += '<div style="padding:10px 12px;background:white;display:flex;flex-direction:column;gap:7px">';
+
+    // 현재 병리 도미노
+    html += '<div style="padding:8px 10px;background:#FEF2F2;border-left:3px solid #DC2626;border-radius:0 4px 4px 0">';
+    html += '<div style="font-size:8.5px;font-weight:800;color:#DC2626;margin-bottom:3px">🔴 현재 병리 도미노</div>';
+    html += '<div style="font-size:8.5px;color:#374151;line-height:1.8">'+ax.domino+'</div>';
+    html += '</div>';
+
+    // 분자교정 처방
+    html += '<div style="padding:8px 10px;background:#F0F9FF;border-left:3px solid '+ax.clr+';border-radius:0 4px 4px 0">';
+    html += '<div style="font-size:8.5px;font-weight:800;color:'+ax.clr+';margin-bottom:4px">💊 분자교정 처방</div>';
+    for (var ri = 0; ri < ax.rx.length; ri++) {
+      var rxItem = ax.rx[ri];
+      html += '<div style="margin-bottom:5px">';
+      html += '<div style="font-size:8.5px;font-weight:700;color:#0F172A;margin-bottom:1px">· '+rxItem.name+'</div>';
+      html += '<div style="font-size:8px;color:#475569;line-height:1.6;padding-left:8px">'+rxItem.note+'</div>';
       html += '</div>';
     }
+    html += '</div>';
+
+    // 교정 후 기대 개선
+    html += '<div style="padding:8px 10px;background:#F0FDF4;border-left:3px solid #059669;border-radius:0 4px 4px 0">';
+    html += '<div style="font-size:8.5px;font-weight:800;color:#059669;margin-bottom:3px">✅ 교정 후 기대 개선</div>';
+    html += '<div style="font-size:8.5px;color:#374151;line-height:1.8">'+ax.improve+'</div>';
+    html += '</div>';
+
     html += '</div></div>';
   }
 
-  html += '<div style="margin-top:6px;padding:7px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;font-size:8.5px;color:#92400E;line-height:1.6">';
-  html += '⚠ 상기 제안은 분자교정학적 영양 교정 가이드이며, 의학적 처방·치료 목적이 아닙니다. '
-        +'개인 건강 상태·복용 약물 상호작용 등을 고려하여 전문가와 충분히 상의 후 적용하시기 바랍니다.';
+  html += '<div style="margin-top:6px;padding:7px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;font-size:8px;color:#92400E;line-height:1.6">';
+  html += '⚠ 상기 내용은 분자교정학적 영양 교정 가이드이며, 의학적 처방·치료 목적이 아닙니다. '
+        + '개인 건강 상태 및 복용 약물 상호작용을 고려하여 전문가와 충분히 상의 후 적용하시기 바랍니다.';
   html += '</div>';
 
   html += '</div>';
@@ -2597,13 +3017,12 @@ function r9(){
         var _isc = fd.irisAxisScores||{1:0,2:0,3:0,4:0,5:0};
         return buildIrisReportVisual()
           + buildIrisFindingsNarrative()
-          + buildDominoMapHtml(_isc)
-          + buildQuantDashHtml(_isc)
-          + buildNutritionBlueprintHtml(_isc);
+          + buildGuideZoneFindingsHtml()
       })()}
 
       <!-- ══ PAGE 2 START ══ -->
       <div id="rpt-page2">
+      ${(function(){var _isc2=fd.irisAxisScores||{1:0,2:0,3:0,4:0,5:0};return buildDominoMapHtml(_isc2);})()}
 
 
 
@@ -2725,6 +3144,7 @@ function r9(){
           <button class="btn-outline" onclick="startFullEdit()">📝 ${t('전체 수정','Edit All')}</button>
           <button class="btn-outline" onclick="rptEditMode=true;r9()">✏️ ${t('간편 수정','Quick Edit')}</button>
           <button class="btn-save-rec" onclick="saveRecord()">💾 ${t('기록 저장','Save Record')}</button>
+          <button class="btn-outline" onclick="toggleRptPhoto()" style="border-color:${_rptShowPhoto?'#0284C7':'#CBD5E1'};color:${_rptShowPhoto?'#0284C7':'#64748B'};font-weight:700">${_rptShowPhoto?'🖼 사진 가리기':'📷 사진 표시'}</button>
           <button class="btn-dark" onclick="window.print()">🖨️ ${t('리포트 출력','Print Report')}</button>
         </div>`}
   </div>`;
@@ -2787,7 +3207,10 @@ function getInitFd(){
     leftEyePhoto:null,rightEyePhoto:null,
     leftEyeAnnotation:null,rightEyeAnnotation:null,
     healthRecs:[],
+  _recsAutoApplied:false,
+  _autoSuggestedRecs:[],
     reportId:null,
+    irisGuideSelection:[],
     editingVisitId:null,
     editingPatientId:null
   };

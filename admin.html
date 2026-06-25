@@ -542,14 +542,15 @@ function renderDashboard() {
             const syms = (v.symptoms || []).slice(0,2).map(s => SYMPTOM_KO[s] || s).join(', ');
             const regBy = v.registeredBy?.name || '–';
             const rptDone = !!v.reportBy;
-            return `<tr ${IS_SUPER ? `onclick="navigate('report','${v.patientId}','${v.id}')"` : (rptDone ? `onclick="window.open('index.html?record=${v.patientId}&visit=${v.id}','_blank')"` : '')} style="${(IS_SUPER || rptDone) ? 'cursor:pointer' : ''}">
-              <td><strong>${v.patientName || '–'}</strong>${rptDone && !IS_SUPER ? '<span style="font-size:9px;font-weight:800;color:#059669;background:#D1FAE5;padding:1px 6px;border-radius:4px;margin-left:4px">리포트 완성</span>' : ''}</td>
+            return `<tr ${IS_SUPER ? `onclick="window.open('index.html?record=${v.patientId}&visit=${v.id}&iris=true','_blank')"` : (rptDone ? `onclick="window.open('index.html?record=${v.patientId}&visit=${v.id}','_blank')"` : '')} style="${(IS_SUPER || rptDone) ? 'cursor:pointer' : ''}">
+              <td><strong>${v.patientName || '–'}</strong>${(rptDone && !IS_SUPER) || (rptDone && IS_SUPER) ? '<span style="font-size:9px;font-weight:800;color:#059669;background:#D1FAE5;padding:1px 6px;border-radius:4px;margin-left:4px">리포트 완성</span>' : ''}</td>
               ${IS_SUPER ? `<td style="font-size:12px;color:var(--text-light)">${regBy}</td>` : ''}
               <td>${fmtDateShort(v.date)}</td>
               <td><span class="scr-badge scr-${sClass(sc)}">${sc}</span></td>
               <td style="color:var(--text-light);font-size:12px">${syms || '–'}</td>
-              <td>${IS_SUPER ? `<button class="act-btn" onclick="event.stopPropagation();navigate('report','${v.patientId}','${v.id}')">리포트</button>` : (rptDone ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="event.stopPropagation();window.open('index.html?record=${v.patientId}&visit=${v.id}','_blank')">리포트 보기</button>` : '–')}</td>
+              <td>${IS_SUPER ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="event.stopPropagation();window.open('index.html?record=${v.patientId}&visit=${v.id}&iris=true','_blank')">🔬 리포트 작성</button>` : (rptDone ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="event.stopPropagation();window.open('index.html?record=${v.patientId}&visit=${v.id}','_blank')">리포트 보기</button>` : '–')}</td>
             </tr>`;
+            
           }).join('')}
         </tbody>
       </table></div>`}
@@ -606,7 +607,8 @@ function renderPatientsTable() {
       : '<span class="trend-fl">→ 0</span>';
     const hasReport = visits.some(v => v.reportBy);
     const adminName = p.createdByName || '–';
-    return `<tr onclick="navigate('patient','${p.id}')">
+    const _destUrl = IS_SUPER && last ? `index.html?record=${p.id}&visit=${last.id}&iris=true` : null;
+    return `<tr onclick="${_destUrl ? `window.open('${_destUrl}','_blank')` : `navigate('patient','${p.id}')`}" style="cursor:pointer">
       <td>
         <span style="font-size:10px;font-weight:700;color:var(--blue-primary);background:var(--blue-bg);padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:3px">${p.uniqueId||'–'}</span><br>
         <strong>${p.name || '–'}</strong>
@@ -687,7 +689,7 @@ function renderPatientDetail() {
         const dateParts = (v.date || '').split('-');
         const syms = (v.symptoms || []).slice(0,3).map(s => SYMPTOM_KO[s] || s);
         const isInCmp = cmpSel.some(x => x.vid === v.id);
-        return `<div class="vc">
+        return `<div class="vc"${IS_SUPER ? ` onclick="window.open('index.html?record=${p.id}&visit=${v.id}&iris=true','_blank')" style="cursor:pointer"` : ''}>
           <div class="vc-date-col">
             <div class="vc-day">${dateParts[2] || '–'}</div>
             <div class="vc-ym">${dateParts[0] || ''}/${dateParts[1] || ''}</div>
@@ -711,10 +713,10 @@ function renderPatientDetail() {
             </div>
           </div>
           <div class="vc-actions">
-            ${IS_SUPER ? `<button class="act-btn" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>` : (v.reportBy ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트 보기</button>` : '')}
-            ${IS_SUPER ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true&iris=true','_blank')">🔬 홍채 진단</button>` : ''}
-            ${IS_SUPER ? `<button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true','_blank')">✏️ 수정</button>` : ''}
-            <button class="act-btn-danger" onclick="deleteVisit('${p.id}','${v.id}')">삭제</button>
+            ${IS_SUPER ? `<button class="act-btn" onclick="event.stopPropagation();window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>` : (v.reportBy ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트 보기</button>` : '')}
+            ${IS_SUPER ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="event.stopPropagation();window.open('index.html?record=${p.id}&visit=${v.id}&iris=true','_blank')">🔬 홍채 진단</button>` : ''}
+            ${IS_SUPER ? `<button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="event.stopPropagation();window.open('index.html?record=${p.id}&visit=${v.id}&edit=true','_blank')">✏️ 수정</button>` : ''}
+            <button class="act-btn-danger" onclick="event.stopPropagation();deleteVisit('${p.id}','${v.id}')">삭제</button>
             ${visits.length >= 2 ? `<label class="cmp-check"><input type="checkbox" ${isInCmp?'checked':''} onchange="toggleCmp('${p.id}','${v.id}',this)"> 비교 선택</label>` : ''}
           </div>
         </div>`;

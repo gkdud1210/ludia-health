@@ -241,7 +241,21 @@ tbody tr:last-child td{border-bottom:none;}
 //  AUTH (session-based)
 // ═══════════════════════════════════════
 const adminSession = JSON.parse(sessionStorage.getItem('ludia_session') || 'null');
-if (!adminSession || adminSession.role !== 'admin') { location.href = 'login.html'; }
+if (!adminSession || (adminSession.role !== 'admin' && adminSession.role !== 'super_admin')) { location.href = 'login.html'; }
+const _IS_SUPER_ADMIN = adminSession && adminSession.role === 'super_admin';
+// 최종 관리자 뱃지 표시
+if (_IS_SUPER_ADMIN) {
+  document.addEventListener('DOMContentLoaded', function() {
+    const nameEls = document.querySelectorAll('[data-admin-name], .hdr-name, .admin-name');
+    nameEls.forEach(el => {
+      const badge = document.createElement('span');
+      badge.style.cssText = 'margin-left:6px;padding:1px 7px;background:#7C3AED;color:white;border-radius:5px;font-size:9px;font-weight:800;letter-spacing:.5px';
+      badge.textContent = '최종관리자';
+      el.appendChild(badge);
+    });
+  });
+}
+
 
 const IS_SUPER = !!(adminSession && adminSession.isSuperAdmin);
 
@@ -684,6 +698,7 @@ function renderPatientDetail() {
           </div>
           <div class="vc-actions">
             <button class="act-btn" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>
+            ${_IS_SUPER_ADMIN ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true&iris=true','_blank')">🔬 홍채 진단</button>` : ''}
             <button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true','_blank')">✏️ 수정</button>
             <button class="act-btn-danger" onclick="deleteVisit('${p.id}','${v.id}')">삭제</button>
             ${visits.length >= 2 ? `<label class="cmp-check"><input type="checkbox" ${isInCmp?'checked':''} onchange="toggleCmp('${p.id}','${v.id}',this)"> 비교 선택</label>` : ''}

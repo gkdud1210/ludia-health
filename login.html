@@ -114,6 +114,10 @@ body::after{
       <button class="role-btn admin" id="btnAdmin" onclick="setRole('admin')">
         <span class="ri">🔐</span> 관리자
       </button>
+      <button class="role-btn admin" id="btnSuper" onclick="setRole('super_admin')" style="border-left:1px solid rgba(124,58,237,.2)">
+        <div class="ri">🛡️</div>
+        <span class="rl" style="color:#7C3AED">최종관리자</span>
+      </button>
     </div>
 
     <!-- Mode tabs -->
@@ -136,13 +140,18 @@ let mode = 'login';
 function setRole(r) {
   role = r;
   const isMember = r === 'member';
+  const isAdmin  = r === 'admin';
+  const isSuper  = r === 'super_admin';
   document.getElementById('btnMember').classList.toggle('active', isMember);
-  document.getElementById('btnAdmin').classList.toggle('active', !isMember);
+  document.getElementById('btnAdmin').classList.toggle('active',  isAdmin);
+  const btnSuper = document.getElementById('btnSuper');
+  if (btnSuper) btnSuper.classList.toggle('active', isSuper);
+  const cls = isMember ? 'member' : 'admin';
   ['tabLogin','tabRegister'].forEach(id => {
     const el = document.getElementById(id);
     el.classList.remove('member','admin');
-    el.classList.add(r);
-    if (el.classList.contains('active')) el.classList.add(r);
+    el.classList.add(cls);
+    if (el.classList.contains('active')) el.classList.add(cls);
   });
   renderForm();
 }
@@ -172,12 +181,32 @@ function simpleHash(str) {
   return (h >>> 0).toString(36);
 }
 
+const SUPER_PW_HASH = 'hdycve'; // simpleHash('chlgkdud0!')
+
 function renderForm() {
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'super_admin';
+  const isSuper = role === 'super_admin';
   const isLogin = mode === 'login';
   const label = isAdmin ? '관리자' : '회원';
   const cls = isAdmin ? 'admin' : '';
   clearMsg();
+
+  // 최종관리자: 탭 숨기고 비밀번호만 표시
+  const modeTabs = document.getElementById('modeTabs');
+  if (modeTabs) modeTabs.style.display = isSuper ? 'none' : '';
+
+  if (isSuper) {
+    document.getElementById('formArea').innerHTML = `
+      <div class="form-title" style="color:#7C3AED">최종관리자 접속</div>
+      <div class="form-group">
+        <label class="form-label">비밀번호</label>
+        <input class="form-input admin-focus" type="password" id="superPw" placeholder="비밀번호 입력"
+          autocomplete="current-password" onkeydown="if(event.key==='Enter')doSuperLogin()">
+      </div>
+      <button class="btn-submit admin" style="background:linear-gradient(135deg,#7C3AED,#4C1D95)" onclick="doSuperLogin()">접속하기</button>
+    `;
+    return;
+  }
 
   if (isLogin) {
     document.getElementById('formArea').innerHTML = `
@@ -240,6 +269,17 @@ function renderForm() {
   }
 }
 
+function doSuperLogin() {
+  const pw = document.getElementById('superPw').value || '';
+  if (!pw) { showMsg('비밀번호를 입력해주세요.', 'error'); return; }
+  if (simpleHash(pw) !== SUPER_PW_HASH) { showMsg('비밀번호가 올바르지 않습니다.', 'error'); return; }
+  sessionStorage.setItem('ludia_session', JSON.stringify({
+    userId: 'super_admin', name: '최종관리자', role: 'super_admin', loginAt: new Date().toISOString()
+  }));
+  showMsg('인증 완료! 이동 중…', 'success');
+  setTimeout(() => { location.href = 'admin.html'; }, 400);
+}
+
 function doLogin() {
   const email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
   const pw    = document.getElementById('loginPw').value || '';
@@ -251,7 +291,7 @@ function doLogin() {
 
   setSession(user);
   showMsg('로그인 성공! 이동 중…', 'success');
-  setTimeout(() => { location.href = user.role === 'admin' ? 'admin.html' : 'member.html'; }, 500);
+  setTimeout(() => { location.href = (user.role === 'admin' || user.role === 'super_admin') ? 'admin.html' : 'member.html'; }, 500);
 }
 
 function doRegister() {
@@ -259,7 +299,7 @@ function doRegister() {
   const email = (document.getElementById('regEmail').value || '').trim().toLowerCase();
   const pw    = document.getElementById('regPw').value  || '';
   const pw2   = document.getElementById('regPw2').value || '';
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'super_admin';
 
   if (!name || !email || !pw || !pw2) { showMsg('모든 항목을 입력해주세요.', 'error'); return; }
   if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { showMsg('올바른 이메일 형식을 입력해주세요.', 'error'); return; }

@@ -540,12 +540,12 @@ function renderDashboard() {
           ${recent.map(v => {
             const sc = getOverall(v);
             const syms = (v.symptoms || []).slice(0,2).map(s => SYMPTOM_KO[s] || s).join(', ');
-            return `<tr onclick="navigate('report','${v.patientId}','${v.id}')">
+            return `<tr ${_IS_SUPER_ADMIN ? `onclick="navigate('report','${v.patientId}','${v.id}')"` : ''} style="${_IS_SUPER_ADMIN ? 'cursor:pointer' : ''}">
               <td><strong>${v.patientName || '–'}</strong></td>
               <td>${fmtDateShort(v.date)}</td>
               <td><span class="scr-badge scr-${sClass(sc)}">${sc}</span></td>
               <td style="color:var(--text-light);font-size:12px">${syms || '–'}</td>
-              <td><button class="act-btn" onclick="event.stopPropagation();navigate('report','${v.patientId}','${v.id}')">리포트</button></td>
+              <td>${_IS_SUPER_ADMIN ? `<button class="act-btn" onclick="event.stopPropagation();navigate('report','${v.patientId}','${v.id}')">리포트</button>` : '–'}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -697,7 +697,7 @@ function renderPatientDetail() {
             </div>
           </div>
           <div class="vc-actions">
-            <button class="act-btn" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>
+            ${_IS_SUPER_ADMIN ? `<button class="act-btn" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>` : ''}
             ${_IS_SUPER_ADMIN ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true&iris=true','_blank')">🔬 홍채 진단</button>` : ''}
             <button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="window.open('index.html?record=${p.id}&visit=${v.id}&edit=true','_blank')">✏️ 수정</button>
             <button class="act-btn-danger" onclick="deleteVisit('${p.id}','${v.id}')">삭제</button>

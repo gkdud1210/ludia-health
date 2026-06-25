@@ -982,6 +982,8 @@ function updateProgress() {
 
 function renderStep() {
   updateProgress();
+  // 리포트(step 9=rRecs, step 10=r9)는 최종관리자만 접근 가능
+  if (!_IS_SUPER && (step === 9 || step === 10)) { step = 0; renderStep(); return; }
   [r0,r1,r2,r3,r4,r5,r6,r7,r8,rRecs,r9][step]();
   window.scrollTo({top:0,behavior:'smooth'});
 }

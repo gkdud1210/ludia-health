@@ -244,13 +244,12 @@ function renderForm() {
       </div>
       ${isAdmin ? `
       <div class="form-group">
-        <label class="form-label">관리자 코드</label>
-        <input class="form-input admin-focus" type="text" id="adminCode" placeholder="예: ludia9141"
+        <label class="form-label">핸드폰 번호</label>
+        <input class="form-input admin-focus" type="tel" id="adminPhone" placeholder="예: 01012349141"
+          oninput="updateAdminCodePreview(this.value)"
           onkeydown="if(event.key==='Enter')doRegister()">
-        <div class="info-box admin">
-          담당자별로 부여된 관리자 코드를 입력하세요.<br>
-          <strong>슈퍼관리자</strong>는 <code>ludia9141</code>,
-          <strong>일반 관리자</strong>는 <code>ludia{핸드폰 뒷자리}</code> 형식입니다.
+        <div class="info-box admin" id="adminCodePreview">
+          핸드폰 번호를 입력하면 관리자 코드가 자동으로 생성됩니다.
         </div>
       </div>` : `
       <div class="form-group">
@@ -267,6 +266,18 @@ function renderForm() {
       <button class="btn-submit ${cls}" onclick="doRegister()">가입하기</button>
     `;
   }
+}
+
+function updateAdminCodePreview(val) {
+  const el = document.getElementById('adminCodePreview');
+  if (!el) return;
+  const digits = val.replace(/\D/g,'');
+  if (digits.length < 4) {
+    el.innerHTML = '핸드폰 번호를 입력하면 관리자 코드가 자동으로 생성됩니다.';
+    return;
+  }
+  const code = 'ludia' + digits.slice(-4);
+  el.innerHTML = '관리자 코드 (자동 생성): <strong style="color:#7C3AED;font-size:14px">' + code + '</strong>';
 }
 
 function doSuperLogin() {
@@ -312,17 +323,17 @@ function doRegister() {
   let newUser = { id:'usr_'+Date.now(), name, email, password:simpleHash(pw), role, createdAt:new Date().toISOString() };
 
   if (isAdmin) {
-    // Admin code must be ludia + digits
-    const code = (document.getElementById('adminCode').value || '').trim();
-    if (!/^ludia\d+$/.test(code)) {
-      showMsg('관리자 코드 형식이 올바르지 않습니다. (예: ludia9141)', 'error'); return;
+    const phoneRaw = (document.getElementById('adminPhone').value || '').replace(/\D/g,'');
+    if (phoneRaw.length < 4) {
+      showMsg('핸드폰 번호를 입력해주세요.', 'error'); return;
     }
+    const code = 'ludia' + phoneRaw.slice(-4);
     // Check no duplicate admin code
     if (users.find(u => u.adminCode === code)) {
-      showMsg('이미 사용 중인 관리자 코드입니다.', 'error'); return;
+      showMsg('이미 등록된 핸드폰 번호입니다. (관리자 코드 중복)', 'error'); return;
     }
-    newUser.adminCode  = code;
-    newUser.isSuperAdmin = (code === 'ludia9141');
+    newUser.adminCode = code;
+    newUser.phone     = phoneRaw;
 
   } else {
     // Member: validate invite code

@@ -1903,6 +1903,33 @@ function rRecs() {
       + '</div>';
   }
 
+  // 5-Axis 점수 패널 (홍채 병소 선택 결과 참고용)
+  const _sc = calcIrisScores();
+  const _maxSc = Math.max(1, ...[1,2,3,4,5].map(n => _sc[n]||0));
+  const AXIS_META9 = [
+    {n:1, lbl:'Axis 1  신경-내분비', sub:'뇌·부신·생식·척추', clr:'#7C3AED'},
+    {n:2, lbl:'Axis 2  세포 에너지·대사', sub:'갑상선·췌장·미토', clr:'#0284C7'},
+    {n:3, lbl:'Axis 3  미세환경·순환', sub:'폐·심장·혈행·조직', clr:'#0F766E'},
+    {n:4, lbl:'Axis 4  장-뇌·점막 면역', sub:'소화관·인두·뇌장', clr:'#B45309'},
+    {n:5, lbl:'Axis 5  해독·메틸화', sub:'간·신장·림프·피부', clr:'#BE185D'},
+  ];
+  let axisPanel = '<div style="margin-bottom:18px;padding:12px 14px;background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:10px">';
+  axisPanel += '<div style="font-size:11px;font-weight:800;color:#0A1628;margin-bottom:10px;letter-spacing:.4px">📊 홍채 5-Axis 병소 가중치 점수 <span style="font-size:9px;font-weight:500;color:#94A3B8;margin-left:6px">← 이전 단계에서 선택한 홍채 병소 기반</span></div>';
+  AXIS_META9.forEach(function(am) {
+    const raw = _sc[am.n] || 0;
+    const pct = Math.round(raw / _maxSc * 100);
+    axisPanel += '<div style="margin-bottom:7px">';
+    axisPanel += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">';
+    axisPanel += '<div><span style="font-size:10px;font-weight:800;color:'+(raw>0?am.clr:'#94A3B8')+'">'+am.lbl+'</span>'
+      + '<span style="font-size:9px;color:#94A3B8;margin-left:5px">'+am.sub+'</span></div>';
+    axisPanel += '<span style="font-size:11px;font-weight:900;color:'+(raw>0?am.clr:'#CBD5E1')+';min-width:30px;text-align:right">'+raw+'pt</span>';
+    axisPanel += '</div>';
+    axisPanel += '<div style="height:7px;background:#E2E8F0;border-radius:4px;overflow:hidden">';
+    axisPanel += '<div style="height:100%;width:'+pct+'%;background:'+am.clr+';border-radius:4px"></div>';
+    axisPanel += '</div></div>';
+  });
+  axisPanel += '</div>';
+
   document.getElementById('app').innerHTML =
     '<div class="card">'
     + '<div class="step-header">'
@@ -1910,6 +1937,7 @@ function rRecs() {
     + '<div class="step-title">' + t('건강 권장사항 선택', 'Health Recommendations') + '</div>'
     + '<div class="step-desc">' + t('환자에게 권장하거나 금기할 사항을 선택하세요. 선택된 항목은 리포트에 반영됩니다.', 'Select recommendations or restrictions for this patient. Selections appear in the report.') + '</div>'
     + '</div>'
+    + axisPanel
     + recSection('supplement', '영양 보충제 권장', 'Supplements Recommended', 'var(--success)')
     + recSection('food_rec', '권장 식품', 'Recommended Foods', 'var(--blue-primary)')
     + recSection('food_avoid', '금기 식품', 'Foods to Avoid', 'var(--danger)')

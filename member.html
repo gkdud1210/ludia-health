@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LUDIA HEALTH — 내 건강 기록</title>
+<script>
+(function(){var s=JSON.parse(sessionStorage.getItem('ludia_session')||'null');
+if(!s||s.role!=='member'){location.replace('login.html');}})();
+</script>
 <style>
 :root{
   --navy-dark:#0A1628;--navy-mid:#1E3A5F;--navy-light:#2E5C8A;
@@ -63,7 +67,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .visit-card{background:white;border:1px solid var(--border);border-radius:14px;
   padding:20px 24px;margin-bottom:12px;display:flex;align-items:center;gap:20px;
   transition:box-shadow .18s,border-color .18s;cursor:pointer;}
-.visit-card:hover{box-shadow:0 4px 18px rgba(10,22,40,.1);border-color:var(--blue-light);}
+.visit-card{will-change:border-color;}
+.visit-card:hover{border-color:var(--blue-light);box-shadow:0 4px 18px rgba(10,22,40,.1);}
 @media(max-width:560px){.visit-card{flex-direction:column;align-items:flex-start;gap:12px;}}
 .visit-score-ring{width:68px;height:68px;border-radius:50%;
   background:conic-gradient(var(--clr,var(--blue-primary)) calc(var(--pct,72)*3.6deg), var(--gray-light) 0);
@@ -119,18 +124,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
   </div>
 </header>
 
-<div class="main" id="main">
-  <div style="text-align:center;padding:60px;color:var(--text-light);">로딩 중…</div>
-</div>
+<div class="main" id="main" style="visibility:hidden"></div>
 
 <script>
 // ─── Auth ──────────────────────────────────────────────────────────────────
 const session = JSON.parse(sessionStorage.getItem('ludia_session') || 'null');
-if (!session || session.role !== 'member') { location.href = 'login.html'; }
 
 function doLogout() {
   sessionStorage.removeItem('ludia_session');
-  location.href = 'login.html';
+  location.replace('login.html');
 }
 
 // ─── Score helpers ──────────────────────────────────────────────────────────
@@ -277,6 +279,7 @@ function render() {
   }
 
   main.innerHTML = html;
+  main.style.visibility = '';
 }
 
 function viewReport(patientId, visitId) {

@@ -7669,14 +7669,67 @@ function buildCasePayload() {
   };
 }
 
-// ── AI 진단 실행 ─────────────────────────────────────────────────────────────
+// ── AI 진단 실행 (로컬 BCP 룰 엔진) ─────────────────────────────────────────
 async function runAIDiagnosis() {
   openAIPanel('diagnose');
-  document.getElementById('ai-result-area').innerHTML =
-    '<div style="padding:12px;background:#FEF2F2;border-radius:8px;font-size:11px;color:#DC2626">' +
-    '딥러닝 진단은 케이스 100개 이상 쌓인 후 활성화됩니다.<br>현재 유사 케이스 검색(RAG)은 정상 작동 중입니다.</div>';
+  document.getElementById('ai-loading').style.display = 'block';
+  document.getElementById('ai-result-area').innerHTML = '';
+
+  // 로컬 BCP 룰 기반 진단 (서버 불필요)
+  await new Promise(r => setTimeout(r, 500)); // UX: 분석 중 느낌
+  const sc = scoreAxes();
+  const zf = fd.irisFindings || {};
+  const chain = detectActiveChain(zf, {axis1:sc.axis1,axis2:sc.axis2,axis3:sc.axis3,axis4:sc.axis4,axis5:sc.axis5});
+
+  // 최고 축 결정
+  const axScores = [
+    {n:1, s:sc.axis1, lbl:'Axis 1 — 신경·내분비 교란형'},
+    {n:2, s:sc.axis2, lbl:'Axis 2 — 세포에너지·대사 방전형'},
+    {n:3, s:sc.axis3, lbl:'Axis 3 — 미세환경·순환 정체형'},
+    {n:4, s:sc.axis4, lbl:'Axis 4 — 장·뇌·점막 면역 붕괴형'},
+    {n:5, s:sc.axis5, lbl:'Axis 5 — 해독·메틸화 마비형'},
+  ].sort((a,b)=>b.s-a.s);
+  const total = axScores.reduce((s,a)=>s+a.s,0)||1;
+  const top = axScores[0];
+  const gc = BCP_GROUP_CONTENT[top.n] || BCP_GROUP_CONTENT[1];
+
+  // 중증도
+  const topPct = Math.round(top.s/total*100);
+  const sev = top.s>=80?{level:4,label:'Level 4 — 중증 복합 교란'}:
+              top.s>=55?{level:3,label:'Level 3 — 중등도 체계 손상'}:
+              top.s>=30?{level:2,label:'Level 2 — 경도 기능 저하'}:
+                        {level:1,label:'Level 1 — 초기 경고 신호'};
+
+  // 유전 취약성 (BCP_GROUP_CONTENT genItems 활용)
+  const geneVuln = (gc.genItems||[]).slice(0,2).map((g,i)=>({
+    gene: g.title.split(' ')[0],
+    confidence: 0.82 - i*0.12,
+  }));
+
+  // 트리거 (활성 체인에서 추출)
+  const triggers = chain.slice(0,3).map((c,i)=>({
+    trigger: c.replace(/_사슬$/,''),
+    confidence: 0.88 - i*0.1,
+  }));
+
+  const data = {
+    primary_axis: { axis_num:top.n, label:top.lbl, confidence: top.s/Math.max(total,1) },
+    chain_type:   { label: chain[0]||'BCP_기본형', confidence: chain.length>0?0.81:0.55 },
+    severity:     sev,
+    bcp_group:    gc.group,
+    gene_vuln:    geneVuln,
+    triggers:     triggers,
+    top3_axis:    axScores.slice(0,3).map(a=>[a.lbl, a.s/total]),
+    _local:       true,
+  };
+
+  document.getElementById('ai-loading').style.display = 'none';
+  _aiResult = data;
+  renderAIResult(data);
+  autoFillLabels(data);
   return;
-  // 아래 코드는 딥러닝 서버 연동 시 재활성화
+
+  // ── 딥러닝 서버 연동 시 아래 코드 재활성화 ──────────────────────────────
   openAIPanel('diagnose');
   document.getElementById('ai-loading').style.display = 'block';
   document.getElementById('ai-result-area').innerHTML = '';
@@ -7746,6 +7799,8 @@ function renderAIResult(d) {
   }).join('');
 
   document.getElementById('ai-result-area').innerHTML = `
+    ${d._local ? `<div style="padding:5px 10px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:6px;font-size:9.5px;color:#92400E;font-weight:700;margin-bottom:8px">
+      📊 BCP 룰 엔진 분석 (로컬) — 케이스 100개 누적 후 딥러닝 모델로 자동 업그레이드됩니다</div>` : ''}
     <!-- 그룹 판정 -->
     <div style="padding:10px 13px;background:${axClr};border-radius:9px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
       <div>

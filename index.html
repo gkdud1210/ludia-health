@@ -642,6 +642,8 @@ const fd = {
   irisBaseType: { color:'', fiberDensity:'', wreathType:'' },
   // ── Stage 3: 장기 복용 약물 카테고리 (영양소 약탈 변수) ────────────────────
   drugCategories: [],  // ['ppi','diuretic','betablocker','statin','nsaid','ssri']
+  // ── 홍채 병소 심도 레이어 (1=급성/백색, 2=아급성/회색, 3=만성/흑색) ──────────
+  irisZoneDepth: {},   // {left:{L10:{lac:2,cry:1}}, right:{R10:{pig:3}}}
   // ── 홍채 구역별 병소 직접 입력 (BCP 엔진 입력값) ─────────────────────────────
   manualScores: {
     active: false,      // true면 아래 5축 점수를 수동으로 사용
@@ -2271,6 +2273,7 @@ async function init() {
         fd.medFreeText    = visit.medFreeText||'';
         fd.extraMeds      = visit.extraMeds||'';
         fd.extraSymptoms  = visit.extraSymptoms||'';
+        fd.irisZoneDepth  = visit.irisZoneDepth||{};
         fd.crossValidation = visit.crossValidation||{};
         fd.familyConditions = visit.familyConditions||[]; fd.familyOther = visit.familyOther||'';
         fd.smoking = visit.smoking||'none'; fd.alcohol = visit.alcohol||'none';
@@ -3501,11 +3504,13 @@ const IRIS_BM = [
 // ── 전역 병소 (링/고리 형태 — 전체 홍채 관찰) ──────────────────────────────
 // 신경/스트레스: CON·NER / 링/퇴행: LYM·CHO·VAS
 const IRIS_GBM = [
-  {id:'con', lbl:'수축 고리',   code:'CON', clr:'#F59E0B', tip:'신경계 스트레스 수축 고리'},
-  {id:'ner', lbl:'신경 고리',   code:'NER', clr:'#8B5CF6', tip:'자율신경환 변형·신경 고리'},
-  {id:'lym', lbl:'림프 로제리', code:'LYM', clr:'#059669', tip:'림프계 부하·면역 이상 로제리'},
-  {id:'cho', lbl:'노인환',      code:'CHO', clr:'#C8A96E', tip:'콜레스테롤 침착·노인환'},
-  {id:'vas', lbl:'혈관 징후',   code:'VAS', clr:'#DC2626', tip:'혈관 이상·순환 장애 징후'},
+  {id:'con',       lbl:'수축 고리',      code:'CON',    clr:'#F59E0B', tip:'신경계 스트레스 수축 고리'},
+  {id:'ner',       lbl:'신경 고리',      code:'NER',    clr:'#8B5CF6', tip:'자율신경환 변형·신경 고리'},
+  {id:'lym',       lbl:'림프 로제리',    code:'LYM',    clr:'#059669', tip:'림프계 부하·면역 이상 로제리'},
+  {id:'cho',       lbl:'노인환',         code:'CHO',    clr:'#C8A96E', tip:'콜레스테롤 침착·노인환'},
+  {id:'vas',       lbl:'혈관 징후',      code:'VAS',    clr:'#DC2626', tip:'혈관 이상·순환 장애 징후'},
+  {id:'anw_pelv',  lbl:'ANW 골반 돌출',  code:'ANW↓골반', clr:'#9333EA', tip:'자율신경환이 5~7시(골반·비뇨기) 쪽으로 비정상 확장/돌출 → 에스트로겐 우세·호르몬 정체'},
+  {id:'anw_brain', lbl:'ANW 뇌 함몰',   code:'ANW↑뇌',  clr:'#6366F1', tip:'자율신경환이 11~1시(대뇌) 쪽으로 안으로 함몰/역전 → 오렉신·도파민 대사 셧다운'},
 ];
 const IRIS_GUIDE_ZONES = [
   {id:'ann',    r:53,  w:18, c:'99,102,241',  hex:'#6366F1', lbl:'자율신경환', desc:'동공 주변·자율신경 반사구'},
@@ -3620,33 +3625,69 @@ const ZONE_WEIGHTS = {
 // ─── 전역 링 가중치 (Global Ring Weights) ────────────────────────────────────
 // con=수축고리(CON)  ner=신경고리(NER)  lym=림프로제리(LYM)  cho=노인환(CHO)  vas=혈관징후(VAS)
 const GLOBAL_WEIGHTS = {
-  con:[{a:1,p:1}],           // CON 수축고리 → A1+1 (신경계 스트레스 반응)
-  ner:[{a:1,p:2}],           // NER 신경고리 → A1+2 (중추 자율신경계 폭주)
-  lym:[{a:5,p:1}],           // LYM 림프로제리 → A5+1 (림프 체액 정체)
-  cho:[{a:3,p:2}],           // CHO 노인환 → A3+2 (말초 순환 동결·죽상경화)
-  vas:[{a:3,p:1}],           // VAS 혈관징후 → A3+1 (전신 혈관 이상)
+  con:      [{a:1,p:1}],     // CON 수축고리 → A1+1
+  ner:      [{a:1,p:2}],     // NER 신경고리 → A1+2
+  lym:      [{a:5,p:1}],     // LYM 림프로제리 → A5+1
+  cho:      [{a:3,p:2}],     // CHO 노인환 → A3+2
+  vas:      [{a:3,p:1}],     // VAS 혈관징후 → A3+1
+  anw_pelv: [{a:5,p:2}],     // ANW 골반 돌출 → A5+2 (에스트로겐 우세·호르몬 정체)
+  anw_brain:[{a:1,p:2}],     // ANW 뇌 함몰 → A1+2 (오렉신·도파민 셧다운)
 };
+
+// ── 공간 연동성 (Spatial Contiguity) 페어 정의 ──────────────────────────────
+// 홍채 지도상 물리적으로 인접한 구역이 동시에 병소를 가질 때 공간 전이 가중치 부여
+const CONTIGUOUS_PAIRS = [
+  {z:['R10','R08'], b:{5:1.5}, note:'간·담 + 콩팥 → 전신 독소 정체 배가'},
+  {z:['R10','R09'], b:{5:1.0}, note:'간·담 + 골반·췌장 → 문맥 순환 마비'},
+  {z:['R10','R11'], b:{3:1.0}, note:'간·담 + 흉강 → 상복부 울혈'},
+  {z:['R08','R07'], b:{5:1.5, 1:1.0}, note:'콩팥 + 부신·자궁 → HPA 전체 붕괴'},
+  {z:['R07','R09'], b:{5:1.5}, note:'자궁·부신 + 골반·난소 → 에스트로겐 우세 확정'},
+  {z:['L04','L03'], b:{3:1.5}, note:'심장 + 폐 → 심폐 순환 정체'},
+  {z:['L04','L05'], b:{3:1.0}, note:'심장 + 흉강·림프 → 흉부 림프 울혈'},
+  {z:['L12','R04'], b:{2:2.0}, note:'갑상선 좌·우 양측 → 대사 마비 확정'},
+  {z:['L09','L08'], b:{5:1.0, 1:1.0}, note:'콩팥·부신 + 골반 → 코르티솔 축 붕괴'},
+  {z:['L09','L10'], b:{5:1.0, 4:1.0}, note:'부신 + 직장·방광 → 하초 독소 고착'},
+  {z:['L06','L07'], b:{5:1.5}, note:'췌장·비장 + 난소 → 인슐린·호르몬 이중 교란'},
+  {z:['L01','L15'], b:{1:2.0}, note:'뇌하수체 + 전두엽 → HPA 대뇌 전체 타격'},
+  {z:['L01','L02'], b:{1:1.5}, note:'뇌하수체 + 소뇌·연수 → 뇌간 전체 과부하'},
+  {z:['L12','L13'], b:{4:1.0}, note:'갑상선 + 인두 → 점막-대사 연동 교란'},
+];
+
+// ── 심도 배율 (Depth Multiplier) ─────────────────────────────────────────────
+// Level 1 급성/백색(과항진) ×1.0 / Level 2 아급성/회색 ×1.5 / Level 3 만성/흑색 ×2.0
+const DEPTH_MULT = {1:1.0, 2:1.5, 3:2.0};
 
 function calcIrisScores() {
   var sc = {1:0,2:0,3:0,4:0,5:0};
-  var dat = _irisData();
+  var dat  = _irisData();
+  var depthData = fd.irisZoneDepth || {};
   var eyes = ['left','right'];
+  var detectedZones = {left:[], right:[]};
+
+  // ── 구역 병소 점수 (심도 배율 적용) ─────────────────────────────────────
   for (var ei=0; ei<eyes.length; ei++) {
-    var ed = dat[eyes[ei]] || {};
+    var eye = eyes[ei];
+    var ed  = dat[eye] || {};
+    var eyeDepth = depthData[eye] || {};
     var zids = Object.keys(ed);
     for (var zi=0; zi<zids.length; zi++) {
-      var zid = zids[zi];
-      var bms = ed[zid] || [];
-      var zw = ZONE_WEIGHTS[zid];
-      if (!zw) continue;
+      var zid  = zids[zi];
+      var bms  = ed[zid] || [];
+      var zw   = ZONE_WEIGHTS[zid];
+      if (!zw || !bms.length) continue;
+      detectedZones[eye].push(zid);
+      var zDepth = eyeDepth[zid] || {};
       for (var fi=0; fi<bms.length; fi++) {
         var wlist = zw[bms[fi]];
         if (!wlist) continue;
-        for (var wi=0; wi<wlist.length; wi++) sc[wlist[wi].a] += wlist[wi].p;
+        var mult = DEPTH_MULT[zDepth[bms[fi]]] || 1.0;
+        for (var wi=0; wi<wlist.length; wi++) sc[wlist[wi].a] += wlist[wi].p * mult;
       }
     }
   }
-  var gd = dat.global || {};
+
+  // ── 전역 링 점수 ──────────────────────────────────────────────────────────
+  var gd  = dat.global || {};
   var gks = Object.keys(gd);
   for (var gi=0; gi<gks.length; gi++) {
     if (!gd[gks[gi]]) continue;
@@ -3654,6 +3695,16 @@ function calcIrisScores() {
     if (!gw) continue;
     for (var gwi=0; gwi<gw.length; gwi++) sc[gw[gwi].a] += gw[gwi].p;
   }
+
+  // ── 공간 연동성 보너스 ────────────────────────────────────────────────────
+  var allZones = detectedZones.left.concat(detectedZones.right);
+  for (var pi=0; pi<CONTIGUOUS_PAIRS.length; pi++) {
+    var pair = CONTIGUOUS_PAIRS[pi];
+    if (pair.z.every(function(z){ return allZones.indexOf(z) >= 0; })) {
+      Object.keys(pair.b).forEach(function(ax){ sc[parseInt(ax)] += pair.b[ax]; });
+    }
+  }
+
   return sc;
 }
 let _irisTab = 'left';
@@ -3904,6 +3955,15 @@ function toggleIrisBM(zoneId, bmId) {
   refreshIrisClock();
 }
 
+function setIrisBMDepth(zoneId, bmId, level) {
+  var eye = _irisTab;
+  if (!fd.irisZoneDepth) fd.irisZoneDepth = {};
+  if (!fd.irisZoneDepth[eye]) fd.irisZoneDepth[eye] = {};
+  if (!fd.irisZoneDepth[eye][zoneId]) fd.irisZoneDepth[eye][zoneId] = {};
+  fd.irisZoneDepth[eye][zoneId][bmId] = level;
+  refreshIrisClock();
+}
+
 function toggleIrisGBM(bmId) {
   var data = _irisData();
   data.global[bmId] = !data.global[bmId];
@@ -4098,19 +4158,43 @@ function buildIrisClockHTML() {
       panelHTML += '<div style="font-size:11px;font-weight:800;color:#0A1628;margin-bottom:9px;line-height:1.35">'+selZone.full+'</div>';
       panelHTML += '<div style="font-size:9.5px;font-weight:700;color:#64748B;margin-bottom:6px;letter-spacing:.3px">병변 선택</div>';
       panelHTML += '<div style="display:flex;flex-direction:column;gap:5px">';
+      var _eyeDepth = ((fd.irisZoneDepth||{})[eye]||{})[selZone.id] || {};
+      var _depthMeta = [
+        {lv:1, lbl:'L1 급성',  sub:'백색·과항진', clr:'#F8FAFC', border:'#94A3B8', txt:'#475569'},
+        {lv:2, lbl:'L2 아급성',sub:'회색·얕은 함몰', clr:'#FFF7ED', border:'#F97316', txt:'#C2410C'},
+        {lv:3, lbl:'L3 만성',  sub:'흑색·깊은 파임', clr:'#1E293B', border:'#1E293B', txt:'white'},
+      ];
       for (var bi=0; bi<IRIS_BM.length; bi++) {
         var b = IRIS_BM[bi];
         var bon = selFindings.indexOf(b.id) >= 0;
-        panelHTML += '<button onclick="toggleIrisBM(\''+selZone.id+'\',\''+b.id+'\')" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;border:1.5px solid '+(bon?b.clr:'#E2E8F0')+';background:'+(bon?b.clr+'1A':'white')+';cursor:pointer;font-family:inherit;text-align:left">';
+        var curDepth = _eyeDepth[b.id] || 1;
+        panelHTML += '<div style="border:1.5px solid '+(bon?b.clr:'#E2E8F0')+';border-radius:8px;background:'+(bon?b.clr+'0C':'white')+';overflow:hidden;margin-bottom:0">';
+        panelHTML += '<button onclick="toggleIrisBM(\''+selZone.id+'\',\''+b.id+'\')" style="width:100%;display:flex;align-items:center;gap:8px;padding:7px 9px;background:none;border:none;cursor:pointer;font-family:inherit;text-align:left">';
         panelHTML += '<span style="width:11px;height:11px;border-radius:3px;background:'+(bon?b.clr:'#CBD5E1')+';flex-shrink:0;display:block"></span>';
-        panelHTML += '<div style="min-width:0">';
+        panelHTML += '<div style="min-width:0;flex:1">';
         panelHTML += '<div style="display:flex;align-items:center;gap:4px">';
         panelHTML += '<span style="font-size:8.5px;font-weight:900;color:'+b.clr+';background:'+b.clr+'22;padding:0 5px;border-radius:3px;flex-shrink:0">'+b.code+'</span>';
         panelHTML += '<span style="font-size:10.5px;font-weight:'+(bon?'800':'700')+';color:'+(bon?b.clr:'#1E293B')+'">'+b.lbl+'</span>';
-        if(bon) panelHTML += '<span style="margin-left:auto;font-size:12px;color:'+b.clr+'">✓</span>';
+        if(bon) panelHTML += '<span style="margin-left:auto;font-size:11px;font-weight:800;color:'+b.clr+';background:'+b.clr+'18;padding:0 5px;border-radius:4px">×'+([1,1.0,1.5,2.0][curDepth]||1.0).toFixed(1)+'</span>';
         panelHTML += '</div>';
-        panelHTML += '<div style="font-size:8.5px;color:#94A3B8;margin-top:2px">'+b.tip+'</div></div>';
+        panelHTML += '<div style="font-size:8.5px;color:#94A3B8;margin-top:1px">'+b.tip+'</div></div>';
         panelHTML += '</button>';
+        // 심도 선택 (병소 선택된 경우에만 표시)
+        if (bon) {
+          panelHTML += '<div style="display:flex;gap:0;border-top:1px solid '+b.clr+'33">';
+          for (var di=0; di<_depthMeta.length; di++) {
+            var dm = _depthMeta[di];
+            var isDsel = curDepth === dm.lv;
+            panelHTML += '<button onclick="setIrisBMDepth(\''+selZone.id+'\',\''+b.id+'\','+dm.lv+')" '
+              + 'style="flex:1;padding:4px 2px;border:none;border-right:'+(di<2?'1px solid '+b.clr+'33':'none')+';cursor:pointer;font-family:inherit;'
+              + 'background:'+(isDsel?b.clr:dm.clr)+';transition:all .12s">';
+            panelHTML += '<div style="font-size:8px;font-weight:800;color:'+(isDsel?'white':dm.txt)+'">'+dm.lbl+'</div>';
+            panelHTML += '<div style="font-size:7px;color:'+(isDsel?'rgba(255,255,255,.75)':dm.txt)+';opacity:.75">'+dm.sub+'</div>';
+            panelHTML += '</button>';
+          }
+          panelHTML += '</div>';
+        }
+        panelHTML += '</div>';
       }
       panelHTML += '</div>';
       panelHTML += '<button onclick="irisZoneClick(\''+selZone.id+'\')" style="width:100%;margin-top:8px;padding:5px;border:1px solid #E2E8F0;background:white;border-radius:6px;cursor:pointer;font-size:10px;color:#94A3B8;font-family:inherit">닫기 ✕</button>';
@@ -4754,6 +4838,77 @@ const HTT_QUESTIONS = [
    chain:'NSAIDs_장벽_갑상선_사슬', boost:5},
 ];
 
+// ── Active Chain vs Silent Risk 구분 패널 ────────────────────────────────────
+function buildActiveSilentPanel() {
+  const irisRaw = calcIrisScores();  // 홍채 단독 점수
+  const sx = fd.symptoms || [];
+
+  // 각 축의 증상 기여 축 집합 계산
+  const sxAxSet = new Set();
+  sx.forEach(id => {
+    const s = SYMPTOMS_BCP.find(x => x.id === id);
+    if (s) { sxAxSet.add(s.ax); if (s.ax2) sxAxSet.add(s.ax2); }
+  });
+
+  const AXIS_META = {
+    1:{lbl:'Axis 1 신경·내분비', clr:'#7C3AED', bg:'#F5F3FF'},
+    2:{lbl:'Axis 2 세포에너지·대사', clr:'#1D4ED8', bg:'#EFF6FF'},
+    3:{lbl:'Axis 3 미세환경·순환', clr:'#059669', bg:'#ECFDF5'},
+    4:{lbl:'Axis 4 장·뇌·점막 면역', clr:'#D97706', bg:'#FFFBEB'},
+    5:{lbl:'Axis 5 해독·메틸화', clr:'#DC2626', bg:'#FFF1F2'},
+  };
+  const IRIS_THRESH = 2;  // 홍채 단독 점수 ≥ 이 값이면 의미있는 병소로 판정
+
+  const active = [], silent = [];
+  [1,2,3,4,5].forEach(ax => {
+    const iScore = irisRaw[ax] || 0;
+    const hasSx  = sxAxSet.has(ax);
+    if (iScore >= IRIS_THRESH && hasSx)  active.push(ax);
+    if (iScore >= IRIS_THRESH && !hasSx) silent.push(ax);
+  });
+
+  if (!active.length && !silent.length) return '';
+
+  const renderAxChip = (ax, type) => {
+    const m = AXIS_META[ax];
+    const isActive = type === 'active';
+    return `<div style="display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:8px;background:${isActive ? m.clr+'18' : '#F8FAFC'};border:1.5px solid ${isActive ? m.clr : '#CBD5E1'};margin-bottom:5px">
+      <div style="width:8px;height:8px;border-radius:50%;background:${m.clr};flex-shrink:0${isActive ? ';box-shadow:0 0 0 3px '+m.clr+'33' : ''}"></div>
+      <div style="flex:1">
+        <div style="font-size:10px;font-weight:800;color:${m.clr}">${m.lbl}</div>
+        <div style="font-size:8.5px;color:#64748B;margin-top:1px">${isActive
+          ? '홍채 병소 <strong>+</strong> 현재 증상 동시 양성 — 지금 즉시 세포 교정 필요'
+          : '홍채 병소 존재 / 현재 증상 미발현 — 과로·약물 시 붕괴 위험 예방 구역'
+        }</div>
+      </div>
+      <div style="font-size:9px;font-weight:900;padding:2px 8px;border-radius:5px;background:${isActive ? m.clr : '#E2E8F0'};color:${isActive ? 'white' : '#475569'};flex-shrink:0">
+        ${isActive ? '🔴 활성' : '🟡 잠재'}
+      </div>
+    </div>`;
+  };
+
+  return `
+  <div style="background:white;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.08);border:1.5px solid #CBD5E1;padding:14px 16px;margin-bottom:14px">
+    <div style="font-size:11px;font-weight:900;color:#0A1628;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:7px">
+      <span style="font-size:14px">🎯</span> Active Chain vs Silent Risk — 병소 활성 분류
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div style="font-size:9px;font-weight:800;color:#DC2626;letter-spacing:.6px;margin-bottom:6px;padding:3px 8px;background:#FFF1F2;border-radius:5px;display:inline-block">🔴 ACTIVE CHAIN — 즉시 1순위 교정 타깃</div>
+        ${active.length ? active.map(ax => renderAxChip(ax,'active')).join('') : '<div style="font-size:10px;color:#94A3B8;padding:8px">없음</div>'}
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:800;color:#D97706;letter-spacing:.6px;margin-bottom:6px;padding:3px 8px;background:#FFFBEB;border-radius:5px;display:inline-block">🟡 SILENT RISK — 예방 관리 구역</div>
+        ${silent.length ? silent.map(ax => renderAxChip(ax,'silent')).join('') : '<div style="font-size:10px;color:#94A3B8;padding:8px">없음</div>'}
+      </div>
+    </div>
+    <div style="margin-top:8px;padding:6px 10px;background:#F0FDF4;border-radius:6px;font-size:8.5px;color:#166534">
+      ⚡ 활성형: 홍채 구조 병소와 현재 자각증상이 동시에 확인된 축 → 세포 교정 최우선<br>
+      🛡 잠재형: 홍채에는 유전·만성 병소가 있지만 현재 증상 없음 → 과로·약물·수술 시 시한폭탄 구역
+    </div>
+  </div>`;
+}
+
 // ── Head-to-Toe 유도 문진 패널 렌더링 ──────────────────────────────────────
 function buildHTTPanel() {
   const sc = fd.scores || {};
@@ -4833,6 +4988,7 @@ function r9(){
 
   document.getElementById('app').innerHTML=`
   ${buildHTTPanel()}
+  ${buildActiveSilentPanel()}
   <!-- ══ MEDICAL REPORT ══ -->
   <div style="background:white;border-radius:6px;overflow:hidden;box-shadow:0 2px 12px rgba(10,22,40,.10);border:1px solid #CBD5E1">
 
@@ -7083,7 +7239,8 @@ function buildVisitData() {
     drugCategories: fd.drugCategories||[],
     surgeryIds: fd.surgeryIds||[],
     extraMeds: fd.extraMeds||'',
-    extraSymptoms: fd.extraSymptoms||''
+    extraSymptoms: fd.extraSymptoms||'',
+    irisZoneDepth: fd.irisZoneDepth||{}
   };
 }
 

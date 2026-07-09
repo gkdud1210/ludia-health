@@ -608,7 +608,7 @@ const _LOCAL_MODE = location.protocol === 'file:' || location.hostname === 'loca
 
 const fd = {
   name:'', dob:'', gender:'', phone:'', email:'', occupation:'',
-  symptoms:[], symptomDuration:'none', painLevel:5, painDesc:'', sxFreeText:'',
+  symptoms:[], sxFollowups:{}, symptomDuration:'none', painLevel:5, painDesc:'', sxFreeText:'',
   hasMedHistory:'', pastConditions:[], otherConditions:'', pmhFreeText:'',
   hadSurgery:'no', surgeries:[''], surgFreeText:'',
   surgeryIds:[],   // 새 수술력 체크박스 ID 배열
@@ -666,63 +666,305 @@ const fd = {
 // BCP 정밀 증상 체계 (Axis별 4개 × 5축 = 20종)
 // [id, 한국어, 영어, 기본Axis, 기본점수, 후행Axis(없으면null), 후행점수]
 const SYMPTOMS_BCP = [
-  // ── Axis 1: 대뇌중추 / 자율신경 폭주 ──────────────────────────────────
-  {id:'s1a', ax:1,p:2, ax2:null,p2:0, ko:'불면증·가슴 두근거림 (밤에도 강제 각성)', en:'Insomnia with palpitation'},
-  {id:'s1b', ax:1,p:2, ax2:null,p2:0, ko:'브레인 포그 (머릿속 안개·기억력 저하)',   en:'Brain fog / memory decline'},
-  {id:'s1c', ax:1,p:2, ax2:null,p2:0, ko:'원인 불명 두통·이명·어지럼증',            en:'Unexplained headache / tinnitus / dizziness'},
-  {id:'s1d', ax:1,p:2, ax2:3,  p2:1, ko:'뒷목·어깨·등줄기 신경성 근육 강직',       en:'Neurogenic neck / shoulder / back rigidity'},
-  // ── Axis 2: 미토콘드리아 / 세포 에너지 방전 ────────────────────────────
-  {id:'s2a', ax:2,p:2, ax2:null,p2:0, ko:'좀비 피로 (자고 나도 납덩이 같음)',       en:'Zombie fatigue — unrefreshed on waking'},
-  {id:'s2b', ax:2,p:2, ax2:4,  p2:1, ko:'식후 극심한 식곤증·사지 마비감',          en:'Severe postprandial exhaustion / limb heaviness'},
-  {id:'s2c', ax:2,p:2, ax2:null,p2:0, ko:'만성 섬유근육통 (온몸 근육·뼈마디 욱신)', en:'Chronic fibromyalgia / diffuse musculoskeletal ache'},
-  {id:'s2d', ax:2,p:2, ax2:null,p2:0, ko:'급격한 체중 증가·부종 (기초대사 마비)',   en:'Rapid weight gain / pitting edema'},
-  // ── Axis 3: 말초 혈류 / 미세순환 동결 ─────────────────────────────────
-  {id:'s3a', ax:3,p:2, ax2:null,p2:0, ko:'수족냉증 (4계절 손발 차고 시림)',         en:'Perpetual cold hands & feet'},
-  {id:'s3b', ax:3,p:2, ax2:1,  p2:1, ko:'상열하한 (얼굴 화끈·배·손발 얼음)',       en:'Flushing face + ice-cold abdomen & limbs'},
-  {id:'s3c', ax:3,p:2, ax2:null,p2:0, ko:'가슴 답답함·심계항진·부정맥 양상',       en:'Chest tightness / palpitation / irregular heartbeat'},
-  {id:'s3d', ax:3,p:2, ax2:null,p2:0, ko:'상습 사지 저림·잦은 쥐 (근육 경련)',     en:'Chronic limb numbness / frequent muscle cramps'},
-  // ── Axis 4: 만성 저산증 / 소화기 마비 ─────────────────────────────────
-  {id:'s4a', ax:4,p:2, ax2:null,p2:0, ko:'고기·밀가루 후 명치 마비·조기 포만감',   en:'Epigastric paralysis after protein / flour intake'},
-  {id:'s4b', ax:4,p:2, ax2:null,p2:0, ko:'식후 가스 팽만·잦은 트림·구취 (SIBO)',  en:'Postprandial bloating / belching / halitosis'},
-  {id:'s4c', ax:4,p:2, ax2:null,p2:0, ko:'역류성 식도염 (목 이물감·명치 통증·마른기침)', en:'GERD — lump in throat / epigastric pain / dry cough'},
-  {id:'s4d', ax:4,p:2, ax2:5,  p2:1, ko:'만성 변비 또는 무른 변·설사 반복',       en:'Chronic constipation or alternating loose stool'},
-  // ── Axis 5: 간 배독 필터 / 담즙 정체 ──────────────────────────────────
-  {id:'s5a', ax:5,p:2, ax2:null,p2:0, ko:'만성 두드러기·가려움·원인 불명 피부 발진', en:'Chronic urticaria / pruritus / unexplained skin rash'},
-  {id:'s5b', ax:5,p:2, ax2:null,p2:0, ko:'극소량 음주도 숙취 극심·약물 부작용 급증', en:'Extreme hangover from minimal alcohol / drug sensitivity'},
-  {id:'s5c', ax:5,p:2, ax2:3,  p2:1, ko:'눈 침침·건조·황달 양상 (담즙 대사 정체)', en:'Blurry / dry eyes or jaundice-like appearance'},
-  {id:'s5d', ax:5,p:2, ax2:null,p2:0, ko:'아침 얼굴·손발 퉁퉁 부음 (아침 수독)',   en:'Morning facial / hand / foot puffiness (fluid retention)'},
+  // ── 1. Brain & Neuro (Axis 1) ─────────────────────────────────────────
+  {id:'s01', ax:1,p:2, ax2:null,p2:0, zone:'brain', icon:'🌫️', sub:'브레인 포그',
+   ko:'요즘 기억력이 부쩍 나빠지고 단어가 잘 안 떠올라요', en:'Memory decline / brain fog'},
+  {id:'s02', ax:1,p:2, ax2:2,  p2:1, zone:'brain', icon:'😴', sub:'과다수면·기면',
+   ko:'자고 일어나도 개운하지 않고 하루 종일 잠이 쏟아져요', en:'Unrefreshed sleep / daytime hypersomnia'},
+  {id:'s03', ax:1,p:2, ax2:null,p2:0, zone:'brain', icon:'🌙', sub:'불면증',
+   ko:'밤에 누우면 심장이 뛰거나 생각이 많아져서 잠을 못 자요', en:'Insomnia with racing thoughts / palpitations'},
+  {id:'s04', ax:1,p:2, ax2:null,p2:0, zone:'brain', icon:'💓', sub:'교감신경 과항진',
+   ko:'이유 없이 가슴이 두근거리고 문득 불안하거나 초조해요', en:'Unprovoked anxiety / sympathetic overactivation'},
+  {id:'s05', ax:1,p:1, ax2:3,  p2:1, zone:'brain', icon:'🤕', sub:'긴장성 두통',
+   ko:'뒷목이 뻣뻣하고 머리 전체가 지끈거리는 두통이 자주 와요', en:'Tension headache with stiff neck'},
+  {id:'s06', ax:1,p:1, ax2:5,  p2:1, zone:'brain', icon:'👂', sub:'이명·어지럼증',
+   ko:'요즘 귀에서 삐- 하는 소리(이명)가 들리거나 어지러워요', en:'Tinnitus / vertigo'},
+  // ── 2. Energy & Metabolism (Axis 2) ───────────────────────────────────
+  {id:'s07', ax:2,p:2, ax2:null,p2:0, zone:'energy', icon:'🪫', sub:'만성 피로',
+   ko:'특별히 무리하지 않았는데 아침에 몸이 납덩이처럼 무거워요', en:'Chronic fatigue — unrefreshed mornings'},
+  {id:'s08', ax:2,p:2, ax2:5,  p2:1, zone:'energy', icon:'⚡', sub:'오후 방전·부신 고갈',
+   ko:'오후 3~4시만 되면 배터리가 완전히 방전되듯 좀비가 돼요', en:'Afternoon energy crash / adrenal fatigue'},
+  {id:'s09', ax:2,p:2, ax2:3,  p2:1, zone:'energy', icon:'🥶', sub:'수족냉증·갑상선 저하',
+   ko:'남들보다 추위를 유독 심하게 타고 손발이 늘 얼음장 같아요', en:'Cold intolerance / persistently cold extremities'},
+  {id:'s10', ax:2,p:2, ax2:3,  p2:1, zone:'energy', icon:'💪', sub:'전신 근육통·관절통',
+   ko:'조금만 활동해도 온몸의 근육과 관절이 욱신거리고 아파요', en:'Diffuse muscle/joint ache with minimal exertion'},
+  {id:'s11', ax:2,p:2, ax2:4,  p2:1, zone:'energy', icon:'⚖️', sub:'대사 저하·체중 증가',
+   ko:'적게 먹고 운동을 해도 이상하게 살이 계속 찌고 부어요', en:'Weight gain despite diet+exercise / metabolic suppression'},
+  // ── 3. Gastrointestinal (Axis 4) ──────────────────────────────────────
+  {id:'s12', ax:4,p:2, ax2:null,p2:0, zone:'gi', icon:'🫃', sub:'위무력·저산증',
+   ko:'식후에 명치 쪽이 꽉 막힌 듯 답답하고 오래 얹혀 있어요', en:'Epigastric fullness / gastric stasis after meals'},
+  {id:'s13', ax:4,p:2, ax2:null,p2:0, zone:'gi', icon:'🔥', sub:'역류성 식도염',
+   ko:'목에 무언가 걸린 느낌이 들고 신트림이나 위산이 역류해요', en:'Globus / acid reflux / dry cough'},
+  {id:'s14', ax:4,p:2, ax2:null,p2:0, zone:'gi', icon:'💨', sub:'SIBO·가스 팽만',
+   ko:'밥을 조금만 먹어도 아랫배가 터질 것처럼 가스가 차요', en:'Severe bloating after small meals (SIBO tendency)'},
+  {id:'s15', ax:4,p:2, ax2:null,p2:0, zone:'gi', icon:'🦠', sub:'장내 세균 불균형',
+   ko:'배에서 맨날 꾸르륵 소리가 나고 가스 냄새가 너무 지독해요', en:'Gurgling bowels / foul-smelling gas (dysbiosis)'},
+  {id:'s16', ax:4,p:1, ax2:5,  p2:1, zone:'gi', icon:'🥓', sub:'담즙 정체',
+   ko:'기름진 음식을 먹으면 여지없이 설사를 하거나 속이 메스꺼워요', en:'Diarrhea/nausea with fatty foods (bile insufficiency)'},
+  {id:'s17', ax:4,p:2, ax2:null,p2:0, zone:'gi', icon:'🚽', sub:'과민성 장 성향',
+   ko:'만성적인 변비나 설사가 반복되고 대변을 봐도 시원하지 않아요', en:'Chronic constipation/diarrhea alternating'},
+  // ── 4. Cardiovascular & Lymphatic (Axis 3) ────────────────────────────
+  {id:'s18', ax:3,p:2, ax2:null,p2:0, zone:'cv', icon:'🧦', sub:'림프 울혈·부종',
+   ko:'저녁이 되면 종아리와 발목이 부어서 양말 자국이 깊게 남아요', en:'Evening leg/ankle edema — deep sock marks (lymph congestion)'},
+  {id:'s19', ax:3,p:1, ax2:4,  p2:1, zone:'cv', icon:'✊', sub:'관절 강직',
+   ko:'아침에 눈을 뜨면 손가락 마디가 뻣뻣해서 주먹이 잘 안 쥐어져요', en:'Morning joint stiffness — difficulty making a fist'},
+  {id:'s20', ax:3,p:2, ax2:null,p2:0, zone:'cv', icon:'⚡', sub:'근육 경련·미네랄 결핍',
+   ko:'가만히 있거나 잘 때 다리에 쥐(경련)가 유독 자주 나요', en:'Frequent nocturnal leg cramps (mineral deficiency)'},
+  {id:'s21', ax:3,p:1, ax2:1,  p2:1, zone:'cv', icon:'🤌', sub:'말초 신경통',
+   ko:'손가락 끝이나 발바닥이 찌릿찌릿하고 남의 살처럼 저려요', en:'Peripheral tingling / numbness / burning sensation'},
+  // ── 5. Skin & Allergy (Axis 5) ────────────────────────────────────────
+  {id:'s22', ax:5,p:2, ax2:4,  p2:1, zone:'skin', icon:'🔴', sub:'피부 면역 이상',
+   ko:'피부가 이유 없이 가렵고 발진이나 진물(성인 아토피)이 올라와요', en:'Unexplained pruritus / adult atopy / weeping rash'},
+  {id:'s23', ax:5,p:1, ax2:4,  p2:1, zone:'skin', icon:'😮', sub:'구취·구강 건조',
+   ko:'아침에 일어나면 입안이 바짝 마르고 텁텁하며 구취가 심해요', en:'Morning dry mouth / thick coating / severe halitosis'},
+  {id:'s24', ax:4,p:2, ax2:5,  p2:1, zone:'skin', icon:'🌾', sub:'장누수·음식 알레르기',
+   ko:'밀가루나 우유를 먹으면 피부 트러블이나 두드러기가 바로 나요', en:'Immediate skin reaction to gluten/dairy (leaky gut)'},
+  {id:'s25', ax:5,p:1, ax2:null,p2:0, zone:'skin', icon:'👁️', sub:'안구 건조·충혈',
+   ko:'눈이 늘 건조하고 충혈되며 뻑뻑한 느낌이 지워지지 않아요', en:'Persistent dry / red / gritty eyes'},
+  // ── 6. Endocrine & Genitourinary (Axis 5) ─────────────────────────────
+  {id:'s26', ax:5,p:2, ax2:2,  p2:1, zone:'endo', icon:'🌸', sub:'에스트로겐 우세',
+   ko:'생리통이 너무 심해서 매달 진통제 없이는 일상생활이 안 돼요', en:'Severe dysmenorrhea (estrogen dominance)'},
+  {id:'s27', ax:5,p:2, ax2:1,  p2:1, zone:'endo', icon:'📅', sub:'PMS·호르몬 불균형',
+   ko:'생리 주기가 불규칙하고 생리 전 증후군(PMS) 감정 기복이 미칠 것 같아요', en:'Irregular cycle / severe PMS mood swings'},
+  {id:'s28', ax:5,p:1, ax2:1,  p2:1, zone:'endo', icon:'😶', sub:'성욕 저하·무기력',
+   ko:'요즘 성욕이 급격히 떨어지고 매사에 의욕이 전혀 없어요', en:'Sudden libido loss / total motivation collapse'},
+  {id:'s29', ax:5,p:1, ax2:null,p2:0, zone:'endo', icon:'🚿', sub:'배뇨 장애·야뇨',
+   ko:'소변을 봐도 시원치 않고 밤에 자다가 깨서 화장실을 자주 가요', en:'Incomplete voiding / nocturia'},
+  // ── 7. Lifestyle & External Inputs (Various) ──────────────────────────
+  {id:'s30', ax:4,p:3, ax2:5,  p2:1, zone:'drug', icon:'💊', sub:'PPI·H2차단제 장기복용',
+   ko:'위산억제제(소화제)를 수개월째 병원 처방받아 장기 복용 중이에요', en:'Long-term PPI/H2 blocker use (B12/Zn depletion)'},
+  {id:'s31', ax:3,p:3, ax2:null,p2:0, zone:'drug', icon:'💊', sub:'혈압약·이뇨제 복용',
+   ko:'혈압약이나 이뇨제를 매일 복용하고 있어요', en:'Daily antihypertensive / diuretic (Mg/K depletion)'},
+  {id:'s32', ax:2,p:3, ax2:null,p2:0, zone:'drug', icon:'💊', sub:'스타틴 장기복용',
+   ko:'고지혈증약(스타틴)을 의사 처방으로 오래 먹고 있어요', en:'Long-term statin use (CoQ10 depletion)'},
+  {id:'s33', ax:4,p:2, ax2:5,  p2:1, zone:'drug', icon:'🏥', sub:'수술력 (장기 절제)',
+   ko:'과거에 디스크 수술이나 장기 절제(담낭·위 등) 수술을 받은 적이 있어요', en:'History of disc/organ removal surgery'},
+  {id:'s34', ax:1,p:2, ax2:5,  p2:1, zone:'life', icon:'🌙', sub:'과로·야근·야식',
+   ko:'주당 근무 시간이 60시간 이상이고 야근과 야식이 일상이에요', en:'60h+/week work + regular late-night eating'},
+  {id:'s35', ax:1,p:2, ax2:null,p2:0, zone:'life', icon:'📱', sub:'블루라이트 노출',
+   ko:'매일 밤 늦게까지 모니터나 스마트폰 블루라이트에 노출돼요', en:'Late-night blue light exposure (melatonin disruption)'},
 ];
-// 호환성 유지: 기존 코드가 SYMPTOMS_BI를 참조하는 곳에서 사용
+// 호환성 유지
 const SYMPTOMS_BI = SYMPTOMS_BCP.map(s=>[s.id, s.ko, s.en]);
 
-// 자연어 증상 키워드 → BCP ID 매핑
+// 자연어 증상 키워드 → BCP ID 매핑 (35개 신규)
 const SYMPTOM_KEYWORDS = [
-  // Axis 1
-  {ids:['s1a'], kw:['불면','잠 못','잠이 안','두근','가슴이 두근','심계','떨림','두근두근','잠 못 자','심장이 두근']},
-  {ids:['s1b'], kw:['브레인포그','브레인 포그','집중력','기억력','멍한','멍하','인지 저하','안개','생각이 안','깜빡','깜빡깜빡']},
-  {ids:['s1c'], kw:['두통','머리 아','머리가 아','편두통','이명','귀울림','어지럼','어지러','현기증','귀에서 소리','머리 통증']},
-  {ids:['s1d'], kw:['뒷목','목이 뻐','목이 아','어깨가','어깨 뭉','승모근','경추','목 뻐','목 아','어깨 결림']},
-  // Axis 2
-  {ids:['s2a'], kw:['피로','무기력','기운이 없','지침','졸림','녹초','탈진','피곤','힘이 없','피곤함','자도 자도','아무것도 하기 싫','몸이 무거']},
-  {ids:['s2b'], kw:['식곤증','식후','밥 먹고','밥을 먹고','점심 후','밥 먹은 후','식사 후 졸','식사하고 나면','먹으면 졸']},
-  {ids:['s2c'], kw:['근육통','근육이 아','몸살','온몸이 아','전신 통증','관절통','관절이 아','뼈마디','근육 아','살이 아','뼈 아']},
-  {ids:['s2d'], kw:['체중','살이 쪄','살이 찐','비만','부종','붓기','붓는','부어','붓고','몸이 붓','체중 증가','살이 빠지지']},
-  // Axis 3
-  {ids:['s3a'], kw:['수족냉','손발 차','냉증','손이 차','발이 차','손발이 차','손발이 시','차가운 손','차가운 발','손끝 시']},
-  {ids:['s3b'], kw:['상열하한','얼굴 달아','안면홍조','얼굴이 빨개','화끈','열감','얼굴만 뜨겁','얼굴이 뜨겁']},
-  {ids:['s3c'], kw:['가슴 답답','흉통','가슴이 아','심장 두근','부정맥','흉부','가슴이 답','숨이 막히','가슴 통증']},
-  {ids:['s3d'], kw:['저림','마비','쥐가','쥐가 남','감각이 없','찌릿','저린','손이 저','발이 저','발이 찌릿','쥐 내림']},
-  // Axis 4
-  {ids:['s4a'], kw:['복통','배 아','배가 아','배탈','팽만','가스','더부룩','불룩','배가 부','배에 가스','아랫배','윗배']},
-  {ids:['s4b'], kw:['가스','트림','방귀','구취','입냄새','트름','가스가 차','트림이 자주','배에서 꾸르륵']},
-  {ids:['s4c'], kw:['역류','속쓰림','소화불량','소화가 안','위산','신물','위통','명치','속이 쓰림','역류성','위장이','소화가 잘 안']},
-  {ids:['s4d'], kw:['변비','설사','묽은 변','복통','배변','과민성','장염','변이 묽','화장실을 자주','설사가','변을 못']},
-  // Axis 5
-  {ids:['s5a'], kw:['두드러기','피부 발진','가려움','습진','아토피','피부 트러블','두드러기가','피부가 가렵','발진','피부 뒤집','피부가 나쁨']},
-  {ids:['s5b'], kw:['숙취','알코올','음주','술','술만 먹으면','조금만 마셔도','소주 한 잔','숙취가 심']},
-  {ids:['s5c'], kw:['눈 침침','시력','황달','눈이 뿌연','눈 피로','안구 건조','눈이 침침','시야가 흐','눈이 충혈','눈이 건조']},
-  {ids:['s5d'], kw:['아침 부종','아침에 붓','아침마다 붓','얼굴 붓','눈두덩','아침에 얼굴','아침 얼굴']},
+  {ids:['s01'], kw:['기억력','단어가 안','단어가 잘 안','브레인포그','브레인 포그','멍한','멍하','인지 저하','깜빡','생각이 안','집중력 저하','머릿속 안개']},
+  {ids:['s02'], kw:['잠이 쏟아','하루종일 졸','자도 개운','자도 피곤','개운하지','기면','졸음','낮졸음','항상 졸']},
+  {ids:['s03'], kw:['불면','잠 못','잠이 안','두근','가슴이 두근','심장이 두근','생각이 많아','잠들기','새벽에 깨']},
+  {ids:['s04'], kw:['불안','초조','두근거리','가슴이 두근','심계항진','긴장','떨림','공황','두근두근','불안감']},
+  {ids:['s05'], kw:['두통','머리 아','머리가 아','편두통','뒷목','목이 뻐','뻣뻣','뒷목이','긴장성 두통','머리 통증']},
+  {ids:['s06'], kw:['이명','귀에서','귀울림','어지럼','어지러','현기증','귀에서 소리','삐 소리','어지럼증']},
+  {ids:['s07'], kw:['피로','무기력','기운이 없','지침','녹초','탈진','피곤','힘이 없','자도 자도','몸이 무거','납덩이','만성 피로']},
+  {ids:['s08'], kw:['오후에','오후 3','오후 4','오후 방전','배터리','부신','오후만 되면','점심 후','좀비','에너지 방전']},
+  {ids:['s09'], kw:['수족냉','손발 차','냉증','손이 차','발이 차','손발이 차','손발이 시','추위를 타','추위에 약','갑상선']},
+  {ids:['s10'], kw:['근육통','근육이 아','몸살','온몸이 아','전신 통증','관절통','관절이 아','뼈마디','욱신거리','근육 아']},
+  {ids:['s11'], kw:['살이 쪄','살이 찐','체중 증가','대사','살이 안 빠','다이어트해도','운동해도 살','부어','부종','붓고']},
+  {ids:['s12'], kw:['명치','위무력','포만감','얹혀','소화가 안','소화불량','위가','식후에','밥 먹고 명치','조기 포만']},
+  {ids:['s13'], kw:['역류','속쓰림','신트림','위산','목에 걸린','목 이물','이물감','마른 기침','신물','역류성']},
+  {ids:['s14'], kw:['가스','배가 빵빵','아랫배 빵빵','복부 팽만','배가 터질','sibo','소장 과증식','식사 후 가스']},
+  {ids:['s15'], kw:['꾸르륵','방귀','가스 냄새','방귀 냄새','배에서 소리','장이 안 좋','배 소리','지독한 가스']},
+  {ids:['s16'], kw:['기름진','기름','고기 먹으면 설사','지방','담즙','담낭','기름 먹으면','기름진 음식','속이 메스꺼']},
+  {ids:['s17'], kw:['변비','설사','과민성 장','IBS','배변','화장실을 자주','변이 묽','묽은 변','잦은 설사','변비와 설사']},
+  {ids:['s18'], kw:['부종','양말 자국','발목이 붓','종아리 붓','림프','저녁에 붓','다리 붓','부어','부었','발이 붓']},
+  {ids:['s19'], kw:['관절','손가락 마디','뻣뻣','아침에 뻣','강직','손이 안 굽','주먹','손가락이 굳']},
+  {ids:['s20'], kw:['쥐가','쥐 내림','다리 경련','경련','다리에 쥐','잘 때 쥐','밤에 쥐','다리 쥐']},
+  {ids:['s21'], kw:['저림','마비','찌릿','찌릿찌릿','손이 저','발이 저','발바닥 저','손발 저림','전기오는','남의 살']},
+  {ids:['s22'], kw:['두드러기','피부 발진','가려움','습진','아토피','피부 트러블','피부가 가렵','발진','진물','피부 뒤집']},
+  {ids:['s23'], kw:['구취','입냄새','입이 마르','구강 건조','아침에 입','텁텁','입안이 마르','입 냄새']},
+  {ids:['s24'], kw:['밀가루 먹으면','우유 먹으면','글루텐','유제품','장누수','음식 알레르기','빵 먹으면','치즈 먹으면','밀가루 피부']},
+  {ids:['s25'], kw:['안구 건조','눈이 건조','눈이 충혈','눈 충혈','눈이 뻑뻑','눈이 빨갛','안구건조','눈 건조']},
+  {ids:['s26'], kw:['생리통','생리가 아파','월경통','생리 통증','진통제를 먹어야','생리 때마다','월경 시 통증']},
+  {ids:['s27'], kw:['pms','생리 전','생리 주기','불규칙','기분 기복','생리 불순','호르몬','생리전 증후군']},
+  {ids:['s28'], kw:['성욕','의욕','무기력','의욕이 없','하기 싫은','동기가 없','성욕 저하','리비도','의욕 상실']},
+  {ids:['s29'], kw:['소변','야뇨','화장실 자주','밤에 깨서','소변이 안','소변 잔뇨','잔뇨','야간 소변','빈뇨']},
+  {ids:['s30'], kw:['위산억제제','ppi','오메프라졸','넥시움','위장약 먹어','소화제 장기','란소프라졸','에소메프라졸','h2차단','파모티딘']},
+  {ids:['s31'], kw:['혈압약','이뇨제','하이드로클로로','라식스','혈압 약','혈압제','고혈압약','이뇨']},
+  {ids:['s32'], kw:['스타틴','고지혈증약','콜레스테롤약','리피토','크레스토','로수바스타틴','아토르바스타틴']},
+  {ids:['s33'], kw:['수술','담낭 절제','담낭 제거','위 절제','장 절제','척추 수술','디스크 수술','쓸개 제거','쓸개 없어']},
+  {ids:['s34'], kw:['야근','야식','60시간','과로','밤새','밤늦게 먹','새벽에 먹','주당 근무','과로 중','야근 중']},
+  {ids:['s35'], kw:['블루라이트','스마트폰 보다가','모니터','잠자리에서 폰','자기 전 유튜브','취침 전 폰','취침 전 모니터']},
 ];
+
+// ── 꼬리물기 후속 질문 뱅크 ─────────────────────────────────────────────────
+// opts[].boost: {1~5: 점수 부스트} — 예/아니오 또는 선택지 → axis 가중 반영
+const FOLLOWUP_QS = {
+  's01':[
+    {q:'브레인 포그가 얼마나 됐나요?', opts:[
+      {txt:'1개월 이내',boost:{}},{txt:'3개월 이상',boost:{1:5}},{txt:'6개월 이상',boost:{1:10}}]},
+    {q:'특정 약 복용 시작 후 또는 극심한 스트레스 이후에 시작됐나요?', opts:[
+      {txt:'예',boost:{1:6,5:3}},{txt:'아니오',boost:{}}]}],
+  's02':[
+    {q:'수면 시간이 어떻게 되나요?', opts:[
+      {txt:'7시간 이하',boost:{1:5}},{txt:'8~9시간',boost:{2:5}},{txt:'10시간 이상',boost:{2:8}}]},
+    {q:'카페인(커피/에너지드링크)을 끊으면 더 심해지나요?', opts:[
+      {txt:'예 (부신 고갈 신호)',boost:{2:7,5:4}},{txt:'아니오',boost:{}}]}],
+  's03':[
+    {q:'불면 패턴이 어떤가요?', opts:[
+      {txt:'잠들기가 어려움',boost:{1:5}},{txt:'새벽 3~4시에 깸',boost:{1:7,5:4}},{txt:'둘 다',boost:{1:10}}]},
+    {q:'취침 2시간 내 스마트폰이나 모니터를 사용하나요?', opts:[
+      {txt:'예',boost:{1:5}},{txt:'아니오',boost:{}}]}],
+  's04':[
+    {q:'불안이 주로 언제 가장 심한가요?', opts:[
+      {txt:'아침 기상 직후',boost:{1:6,5:4}},{txt:'오후 2~4시',boost:{2:5}},{txt:'저녁·자정 이후',boost:{1:8}}]},
+    {q:'고카페인 음료를 하루 2잔 이상 드시나요?', opts:[
+      {txt:'예',boost:{1:6,5:5}},{txt:'아니오',boost:{}}]}],
+  's05':[
+    {q:'두통이 언제 심해지나요?', opts:[
+      {txt:'모니터 사용 후',boost:{1:5}},{txt:'생리 전후',boost:{5:5}},{txt:'스트레스 받으면',boost:{1:7}}]},
+    {q:'뒷목·어깨 근육이 함께 굳어있나요?', opts:[
+      {txt:'예',boost:{1:5,3:4}},{txt:'아니오',boost:{}}]}],
+  's06':[
+    {q:'이명 외에 어지럼증도 있나요?', opts:[
+      {txt:'예',boost:{1:5,3:4}},{txt:'아니오',boost:{1:3}}]},
+    {q:'고혈압이나 이뇨제를 복용 중인가요?', opts:[
+      {txt:'예',boost:{3:6}},{txt:'아니오',boost:{}}]}],
+  's07':[
+    {q:'피로가 주로 언제 심한가요?', opts:[
+      {txt:'아침 기상 시',boost:{2:7}},{txt:'오후부터',boost:{2:5,5:3}},{txt:'종일',boost:{2:10}}]},
+    {q:'철분 수치가 낮다는 진단을 받은 적 있나요?', opts:[
+      {txt:'예',boost:{2:6,3:4}},{txt:'아니오',boost:{}}]}],
+  's08':[
+    {q:'오후 방전이 몇 시쯤 시작되나요?', opts:[
+      {txt:'오후 1~2시',boost:{2:5}},{txt:'오후 3~4시',boost:{2:7,5:5}},{txt:'오후 5시 이후',boost:{2:4}}]},
+    {q:'커피를 마시면 일시적으로 해소되나요?', opts:[
+      {txt:'예 (부신 자극 의존)',boost:{5:6}},{txt:'아니오',boost:{2:5}}]}],
+  's09':[
+    {q:'손발 냉증이 계절에 상관없이 지속적인가요?', opts:[
+      {txt:'예 (연중 내내)',boost:{2:7,3:5}},{txt:'겨울철에만',boost:{3:4}}]},
+    {q:'갑상선 기능 이상을 진단받은 적 있나요?', opts:[
+      {txt:'예 (저하증)',boost:{2:10}},{txt:'이상 없었음',boost:{3:5}},{txt:'미검사',boost:{2:5}}]}],
+  's10':[
+    {q:'주로 어디가 아프나요?', opts:[
+      {txt:'목·어깨',boost:{1:5,3:3}},{txt:'허리·등',boost:{3:5}},{txt:'전신 고루',boost:{2:7}}]},
+    {q:'고지혈증약(스타틴)을 드시고 나서 근육통이 생겼나요?', opts:[
+      {txt:'예 (CoQ10 고갈)',boost:{2:10}},{txt:'아니오',boost:{}}]}],
+  's11':[
+    {q:'체중 증가가 시작된 계기가 있나요?', opts:[
+      {txt:'출산 후',boost:{5:5,2:5}},{txt:'약 복용 후',boost:{2:7,4:4}},{txt:'이유 모름',boost:{2:6}}]},
+    {q:'공복혈당이나 당화혈색소가 높다는 진단을 받은 적 있나요?', opts:[
+      {txt:'예',boost:{2:8,4:5}},{txt:'아니오',boost:{}}]}],
+  's12':[
+    {q:'어떤 음식을 먹을 때 특히 심한가요?', opts:[
+      {txt:'고기·단백질',boost:{4:7}},{txt:'밀가루·빵',boost:{4:6,5:4}},{txt:'둘 다',boost:{4:10}}]},
+    {q:'현재 위산억제제(PPI)를 복용 중인가요?', opts:[
+      {txt:'예',boost:{4:8,5:5}},{txt:'아니오',boost:{}}]}],
+  's13':[
+    {q:'역류가 주로 언제 심한가요?', opts:[
+      {txt:'식후 30분',boost:{4:6}},{txt:'취침 시',boost:{4:7}},{txt:'공복 시',boost:{4:5}}]},
+    {q:'목에 뭔가 걸린 느낌(매핵기)이 지속되나요?', opts:[
+      {txt:'예',boost:{4:6,1:4}},{txt:'아니오',boost:{}}]}],
+  's14':[
+    {q:'가스가 특히 심해지는 음식이 있나요?', opts:[
+      {txt:'밀가루·빵류',boost:{4:6,5:3}},{txt:'콩류·식이섬유',boost:{4:5}},{txt:'유제품',boost:{4:6}}]},
+    {q:'SIBO(소장내세균과증식) 진단을 받은 적 있나요?', opts:[
+      {txt:'예',boost:{4:10}},{txt:'아니오',boost:{4:5}}]}],
+  's15':[
+    {q:'방귀·가스 냄새가 특히 지독한가요?', opts:[
+      {txt:'매우 지독 (썩은 달걀 냄새)',boost:{4:8,5:4}},{txt:'약간',boost:{4:5}}]},
+    {q:'항생제를 최근 1년 내 복용했나요?', opts:[
+      {txt:'예',boost:{4:8}},{txt:'아니오',boost:{}}]}],
+  's16':[
+    {q:'기름진 음식 후 설사가 얼마나 빨리 오나요?', opts:[
+      {txt:'30분 이내',boost:{5:8}},{txt:'1~2시간 내',boost:{4:5,5:4}},{txt:'몇 시간 후',boost:{4:4}}]},
+    {q:'담낭 절제술을 받은 적 있나요?', opts:[
+      {txt:'예',boost:{5:10,4:8}},{txt:'아니오',boost:{}}]}],
+  's17':[
+    {q:'어떤 패턴이 주로 나타나나요?', opts:[
+      {txt:'변비 위주',boost:{4:6}},{txt:'설사 위주',boost:{4:6}},{txt:'교대 반복',boost:{4:9}}]},
+    {q:'스트레스를 받으면 바로 배가 아프거나 설사를 하나요?', opts:[
+      {txt:'예 (장-뇌 축 교란)',boost:{4:7,1:4}},{txt:'아니오',boost:{}}]}],
+  's18':[
+    {q:'부종이 주로 어디에 나타나나요?', opts:[
+      {txt:'발목·종아리',boost:{3:7}},{txt:'얼굴·눈두덩',boost:{3:5,5:4}},{txt:'전신',boost:{3:10}}]},
+    {q:'이뇨제를 복용 중인가요?', opts:[
+      {txt:'예',boost:{3:8}},{txt:'아니오',boost:{}}]}],
+  's19':[
+    {q:'아침 강직이 얼마나 지속되나요?', opts:[
+      {txt:'30분 이내',boost:{3:4}},{txt:'1시간 이상',boost:{3:7}},{txt:'하루 종일',boost:{3:9,4:5}}]},
+    {q:'류마티스 관절염이나 자가면역 질환 진단을 받은 적 있나요?', opts:[
+      {txt:'예',boost:{4:8,5:6}},{txt:'아니오',boost:{}}]}],
+  's20':[
+    {q:'쥐가 주로 언제 나나요?', opts:[
+      {txt:'수면 중',boost:{3:7}},{txt:'운동 중',boost:{3:5}},{txt:'안정 시',boost:{3:8,2:4}}]},
+    {q:'마그네슘이나 칼슘을 따로 보충하고 있나요?', opts:[
+      {txt:'아니오 (미보충)',boost:{3:6}},{txt:'예 (보충 중)',boost:{}}]}],
+  's21':[
+    {q:'저림이 어디에 있나요?', opts:[
+      {txt:'손가락·손바닥',boost:{3:5,1:4}},{txt:'발끝·발바닥',boost:{1:7}},{txt:'두 곳 다',boost:{1:8,3:6}}]},
+    {q:'당뇨 약이나 메트포르민을 복용 중인가요?', opts:[
+      {txt:'예',boost:{1:10}},{txt:'아니오',boost:{}}]}],
+  's22':[
+    {q:'피부 증상이 어떤 상황에 악화되나요?', opts:[
+      {txt:'음식 섭취 후',boost:{4:7,5:5}},{txt:'스트레스 후',boost:{1:5,5:4}},{txt:'계절 변화',boost:{5:4}}]},
+    {q:'스테로이드 연고를 6개월 이상 사용한 적 있나요?', opts:[
+      {txt:'예',boost:{5:9}},{txt:'아니오',boost:{}}]}],
+  's23':[
+    {q:'구취가 언제 가장 심한가요?', opts:[
+      {txt:'기상 직후',boost:{5:5,4:5}},{txt:'식후',boost:{4:7}},{txt:'하루 내내',boost:{4:9,5:6}}]},
+    {q:'변비가 함께 있나요?', opts:[
+      {txt:'예',boost:{4:7,5:5}},{txt:'아니오',boost:{}}]}],
+  's24':[
+    {q:'어떤 음식에 반응이 오나요?', opts:[
+      {txt:'밀가루·글루텐',boost:{4:7,5:4}},{txt:'유제품',boost:{4:6}},{txt:'둘 다',boost:{4:9,5:6}}]},
+    {q:'피부 반응이 얼마만에 나타나나요?', opts:[
+      {txt:'30분 이내',boost:{4:8}},{txt:'수 시간 후',boost:{5:5}},{txt:'다음 날',boost:{5:6}}]}],
+  's25':[
+    {q:'눈 증상이 언제 심해지나요?', opts:[
+      {txt:'모니터 사용 후',boost:{1:4}},{txt:'건조한 환경',boost:{5:4}},{txt:'피로·수면 부족 시',boost:{2:5,5:5}}]},
+    {q:'간 기능 수치가 높다는 진단을 받은 적 있나요?', opts:[
+      {txt:'예',boost:{5:8}},{txt:'아니오',boost:{}}]}],
+  's26':[
+    {q:'생리통이 배란통과 함께 오나요?', opts:[
+      {txt:'예 (에스트로겐 우세)',boost:{5:7}},{txt:'생리 때만',boost:{5:5}}]},
+    {q:'자궁내막증이나 자궁근종 진단을 받은 적 있나요?', opts:[
+      {txt:'예',boost:{5:10,2:5}},{txt:'아니오',boost:{}}]}],
+  's27':[
+    {q:'생리 전 어떤 증상이 가장 심한가요?', opts:[
+      {txt:'감정 기복·우울',boost:{1:6,5:5}},{txt:'부종·체중 증가',boost:{3:5,5:4}},{txt:'두통·피로',boost:{1:5,2:4}}]},
+    {q:'최근 갑상선 수치를 확인했나요?', opts:[
+      {txt:'이상 있었음',boost:{2:9}},{txt:'정상',boost:{}},{txt:'미확인',boost:{2:4}}]}],
+  's28':[
+    {q:'무기력이 언제 시작됐나요?', opts:[
+      {txt:'서서히 (1년 이상)',boost:{5:5,2:4}},{txt:'갑자기 (수개월 내)',boost:{5:7}},{txt:'기억 안 남',boost:{5:5}}]},
+    {q:'탈모약(피나스테리드)이나 피임약을 복용한 적 있나요?', opts:[
+      {txt:'예',boost:{5:9,1:7}},{txt:'아니오',boost:{}}]}],
+  's29':[
+    {q:'야간 배뇨가 몇 번이나 되나요?', opts:[
+      {txt:'1회',boost:{5:4}},{txt:'2~3회',boost:{5:7}},{txt:'3회 이상',boost:{5:9}}]},
+    {q:'전립선 문제나 방광염을 진단받은 적 있나요?', opts:[
+      {txt:'예',boost:{5:8}},{txt:'아니오',boost:{}}]}],
+  's30':[
+    {q:'얼마나 오래 복용 중인가요?', opts:[
+      {txt:'3개월 이상',boost:{4:7,5:4}},{txt:'6개월 이상',boost:{4:9,5:6}},{txt:'1년 이상',boost:{4:12,5:8}}]},
+    {q:'복용 후 음식 알레르기나 새 소화 문제가 생겼나요?', opts:[
+      {txt:'예',boost:{4:8,5:6}},{txt:'아니오',boost:{}}]}],
+  's31':[
+    {q:'다리 부종이나 근육 경련이 함께 있나요?', opts:[
+      {txt:'예 (Mg·K 고갈 신호)',boost:{3:8}},{txt:'아니오',boost:{}}]},
+    {q:'고혈압 외에 당뇨나 고지혈증도 진단받았나요?', opts:[
+      {txt:'예',boost:{2:6,3:5}},{txt:'아니오',boost:{}}]}],
+  's32':[
+    {q:'복용 후 근육통이 생기거나 심해졌나요?', opts:[
+      {txt:'예 (CoQ10 고갈)',boost:{2:10}},{txt:'아니오',boost:{2:5}}]},
+    {q:'스타틴 복용 기간이 얼마나 됐나요?', opts:[
+      {txt:'1년 이내',boost:{2:5}},{txt:'1~3년',boost:{2:8}},{txt:'3년 이상',boost:{2:12}}]}],
+  's33':[
+    {q:'어떤 수술인가요?', opts:[
+      {txt:'담낭·쓸개 절제',boost:{4:10,5:8}},{txt:'위·장 절제',boost:{4:9}},{txt:'척추·디스크',boost:{3:6,1:4}}]},
+    {q:'수술 후 소화·흡수 능력이 달라졌나요?', opts:[
+      {txt:'예',boost:{4:8,5:6}},{txt:'아니오',boost:{}}]}],
+  's34':[
+    {q:'야식을 먹는 시간이 주로 언제인가요?', opts:[
+      {txt:'오후 10시 이후',boost:{1:5,4:4}},{txt:'자정 이후',boost:{1:8,4:6}},{txt:'새벽',boost:{1:10,5:6}}]},
+    {q:'수면 시간이 평균 5시간 이하인 날이 주 3회 이상인가요?', opts:[
+      {txt:'예',boost:{1:8,5:6}},{txt:'아니오',boost:{}}]}],
+  's35':[
+    {q:'취침 전 스마트폰·모니터 사용 시간은?', opts:[
+      {txt:'1시간',boost:{1:4}},{txt:'2시간',boost:{1:7}},{txt:'2시간 이상',boost:{1:10}}]},
+    {q:'잠들기 힘들거나 수면의 질이 나쁜가요?', opts:[
+      {txt:'예',boost:{1:7}},{txt:'아니오',boost:{}}]}],
+};
 
 // BCP 정밀 과거병력 체계 (8개 그룹)
 // [id, 한국어, 영어, 기본Axis, 기본점수, 후행Axis(없으면null), 후행점수]
@@ -1340,7 +1582,7 @@ const BCP_GROUP_CONTENT = {
     group:'A', clr:'#7C3AED', bg:'#F5F3FF', border:'#DDD6FE',
     name:'Group A — Axis 1 대뇌중추 폭주형',
     lacZones:['L01','L02','L11','L15','R01','R05','R13','R14'],
-    sxIds:['s1a','s1b','s1c','s1d'],
+    sxIds:['s01','s02','s03','s04','s05','s06'],
     genItems:[
       {title:'COMT / MAO-A 유전자 변이 (카테콜아민 대사 지연)',
        mech:'스트레스 호르몬(도파민·에피네프린·노르에피네프린)을 분해하는 COMT나 MAO-A 유전자에 활성 저하 변이가 있는 경우입니다.',
@@ -1365,7 +1607,7 @@ const BCP_GROUP_CONTENT = {
     group:'B', clr:'#1D4ED8', bg:'#EFF6FF', border:'#BFDBFE',
     name:'Group B — Axis 2 미토콘드리아 방전형',
     lacZones:['L12','R04','L06','R09'],
-    sxIds:['s2a','s2b','s2c','s2d'],
+    sxIds:['s07','s08','s09','s10','s11'],
     genItems:[
       {title:'모계 유전성 미토콘드리아 DNA(mtDNA) 돌연변이 및 복제수 부족',
        mech:'미토콘드리아는 자체 DNA를 가지며 어머니로부터만 유전됩니다. mtDNA 복구 효소 기능이 떨어지거나 세포당 미토콘드리아 개수가 적게 태어난 체질입니다.',
@@ -1390,7 +1632,7 @@ const BCP_GROUP_CONTENT = {
     group:'C', clr:'#059669', bg:'#ECFDF5', border:'#A7F3D0',
     name:'Group C — Axis 3 순환 동결·혈류 정체형',
     lacZones:['L03','L04','L05','L14','R02','R08','R11','R12'],
-    sxIds:['s3a','s3b','s3c','s3d'],
+    sxIds:['s18','s19','s20','s21'],
     genItems:[
       {title:'eNOS 유전자 변이 (혈관 이완 인자 생산 저하)',
        mech:'혈관 내피세포에서 강력한 혈관 이완 물질인 산화질소(NO)를 합성하는 eNOS 유전자에 변이가 있는 경우입니다.',
@@ -1415,7 +1657,7 @@ const BCP_GROUP_CONTENT = {
     group:'D', clr:'#D97706', bg:'#FFFBEB', border:'#FDE68A',
     name:'Group D — Axis 4 만성 저산증·소화 마비형',
     lacZones:['L06','L10','L13','R03','R09'],
-    sxIds:['s4a','s4b','s4c','s4d'],
+    sxIds:['s12','s13','s14','s15','s16','s17'],
     genItems:[
       {title:'ATP4A / ATP4B 유전자 변이 (위산 분비 펌프 결함)',
        mech:'위벽 세포에서 강산(pH 1.5~2.0)을 짜내기 위해 작동하는 수소-칼륨 양성자 펌프 단백질 유전자(ATP4A, ATP4B)에 변이가 있는 경우입니다.',
@@ -1440,7 +1682,7 @@ const BCP_GROUP_CONTENT = {
     group:'E', clr:'#DC2626', bg:'#FFF1F2', border:'#FECDD3',
     name:'Group E — Axis 5 간 해독 필터 마비형',
     lacZones:['L05','L07','L08','L09','R06','R07','R10'],
-    sxIds:['s5a','s5b','s5c','s5d'],
+    sxIds:['s22','s23','s24','s25','s26','s27','s28','s29'],
     genItems:[
       {title:'GST / UGT 유전자 변이 (Phase 2 포합 대사 효소 전멸)',
        mech:'간 해독 2단계의 핵심인 글루타치온 S-전달효소(GST)나 UDP-글루쿠론산 전이효소(UGT) 유전자의 활성이 선천적으로 저하되거나 결실(Null 변이)된 경우입니다.',
@@ -1943,7 +2185,7 @@ async function init() {
         fd.name = patient.name||''; fd.dob = patient.dob||''; fd.gender = patient.gender||'';
         fd.phone = patient.phone||''; fd.email = patient.email||''; fd.occupation = patient.occupation||'';
         fd.symptoms = visit.symptoms||[]; fd.symptomDuration = visit.symptomDuration||'none';
-        fd.painLevel = visit.painLevel||5; fd.painDesc = visit.painDesc||''; fd.sxFreeText = visit.sxFreeText||'';
+        fd.painLevel = visit.painLevel||5; fd.painDesc = visit.painDesc||''; fd.sxFreeText = visit.sxFreeText||''; fd.sxFollowups = visit.sxFollowups||{};
         fd.pastConditions = visit.pastConditions||[]; fd.otherConditions = visit.otherConditions||''; fd.pmhFreeText = visit.pmhFreeText||'';
         fd.hadSurgery  = visit.hadSurgery||'no'; fd.surgeries = visit.surgeries||[''];
         fd.surgeryIds     = visit.surgeryIds||[]; fd.surgFreeText = visit.surgFreeText||'';
@@ -2224,63 +2466,98 @@ function save1(){
 // ═══════════════════════════════════════════
 //  STEP 2 — 현재증상
 // ═══════════════════════════════════════════
-function r2(){
-  const AXIS_SX = [
-    {ax:1, icon:'🧠', clr:'#7C3AED', bg:'#F5F3FF', border:'#DDD6FE', name:'Axis 1 — 대뇌중추 / 자율신경 폭주',
-     desc:'HPA축 과부하, 뇌 신경염증, 중추신경 지휘권 마비 상태'},
-    {ax:2, icon:'🔋', clr:'#1D4ED8', bg:'#EFF6FF', border:'#BFDBFE', name:'Axis 2 — 미토콘드리아 / 세포 에너지 방전',
-     desc:'ATP 생산 붕괴, 갑상선 T4→T3 전환 장애, 전신 발전소 정전'},
-    {ax:3, icon:'🌊', clr:'#059669', bg:'#ECFDF5', border:'#A7F3D0', name:'Axis 3 — 말초 혈류 / 미세순환 동결',
-     desc:'NO 생산 중단, 모세혈관 폐색, 어혈 병리 고착, 조직 허혈'},
-    {ax:4, icon:'🥯', clr:'#D97706', bg:'#FFFBEB', border:'#FDE68A', name:'Axis 4 — 만성 저산증 / 소화기 마비',
-     desc:'위산 결핍, 담즙 분비 저하, SIBO, 장누수 상태'},
-    {ax:5, icon:'🟢', clr:'#DC2626', bg:'#FFF1F2', border:'#FECDD3', name:'Axis 5 — 간 배독 필터 / 담즙 정체',
-     desc:'Phase 2 대사 효소 고갈, 지용성 독소 역류, 수독 적취'},
-  ];
-  const buildAxisGroup = (meta) => {
-    const items = SYMPTOMS_BCP.filter(s=>s.ax===meta.ax);
-    const rows = items.map(s => {
-      const on = fd.symptoms.includes(s.id);
-      return `<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:9px;border:1.5px solid ${on?meta.clr:'#E2E8F0'};background:${on?meta.bg:'white'};cursor:pointer;transition:all .18s" class="sx-item" data-id="${s.id}">
-        <input type="checkbox" value="${s.id}" ${on?'checked':''} onchange="sxToggle(this)" style="margin-top:2px;accent-color:${meta.clr};flex-shrink:0">
-        <div style="min-width:0">
-          <div style="font-size:11.5px;font-weight:${on?'800':'600'};color:${on?meta.clr:'#1E293B'};line-height:1.35">${s.ko}</div>
-          ${s.ax2?`<div style="font-size:9.5px;color:#94A3B8;margin-top:2px">후행 Axis ${s.ax2} 연계 +${s.p2}점 반영</div>`:''}
-        </div>
-        ${on?`<span style="margin-left:auto;font-size:13px;color:${meta.clr};flex-shrink:0">✓</span>`:''}
-      </label>`;
-    }).join('');
-    return `<div style="margin-bottom:16px;padding:14px;border:1.5px solid ${meta.border};border-radius:12px;background:white">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-        <span style="font-size:18px">${meta.icon}</span>
-        <span style="font-size:11px;font-weight:800;color:${meta.clr}">${meta.name}</span>
+//  STEP 2 — 현재 증상 (7 시스템 · 꼬리물기)
+// ═══════════════════════════════════════════
+const SX_SYSTEMS = [
+  {id:'brain',  icon:'🧠', clr:'#7C3AED', bg:'#F5F3FF', border:'#DDD6FE',
+   name:'머리·정신·신경계', desc:'브레인 포그, 불면, 불안, 두통, 이명'},
+  {id:'energy', icon:'⚡', clr:'#1D4ED8', bg:'#EFF6FF', border:'#BFDBFE',
+   name:'전신 에너지·대사·체온', desc:'만성 피로, 오후 방전, 수족냉증, 근육통, 대사 저하'},
+  {id:'gi',     icon:'🫃', clr:'#D97706', bg:'#FFFBEB', border:'#FDE68A',
+   name:'소화기계', desc:'위무력, 역류, SIBO, 담즙 정체, 과민성 장'},
+  {id:'cv',     icon:'🫀', clr:'#059669', bg:'#ECFDF5', border:'#A7F3D0',
+   name:'사지 말초·순환·림프', desc:'부종, 관절 강직, 근육 경련, 말초 신경통'},
+  {id:'skin',   icon:'🛡️', clr:'#DC2626', bg:'#FFF1F2', border:'#FECDD3',
+   name:'피부·점막 면역', desc:'아토피, 구취, 장누수 알레르기, 안구 건조'},
+  {id:'endo',   icon:'🔬', clr:'#9333EA', bg:'#FDF4FF', border:'#E9D5FF',
+   name:'호르몬·비뇨생식기', desc:'생리통, PMS, 성욕 저하, 배뇨 장애'},
+  {id:'drug',   icon:'💊', clr:'#475569', bg:'#F8FAFC', border:'#CBD5E1',
+   name:'라이프스타일·약물', desc:'장기 복용 약물, 수술력, 야근·야식, 블루라이트'},
+];
+
+function _buildSxCard(s, sys) {
+  const on = fd.symptoms.includes(s.id);
+  const fups = FOLLOWUP_QS[s.id] || [];
+  const fupHtml = on && fups.length ? fups.map((q, qi) => {
+    const ans = (fd.sxFollowups||{})[`${s.id}_q${qi}`];
+    return `<div style="margin-top:8px;padding:8px 10px;background:white;border:1px solid ${sys.border};border-radius:8px">
+      <div style="font-size:11px;font-weight:700;color:${sys.clr};margin-bottom:6px">↳ ${q.q}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${q.opts.map((opt, oi) => `<button onclick="setSxFollowup('${s.id}',${qi},${oi})"
+          style="padding:4px 10px;border-radius:16px;border:1.5px solid ${ans===oi?sys.clr:'#CBD5E1'};
+          background:${ans===oi?sys.clr:'white'};color:${ans===oi?'white':'#475569'};
+          font-size:11px;font-weight:${ans===oi?'700':'500'};cursor:pointer;white-space:nowrap">${opt.txt}</button>`).join('')}
       </div>
-      <div style="font-size:10px;color:#64748B;margin-bottom:10px;padding-left:26px">${meta.desc}</div>
-      <div style="display:flex;flex-direction:column;gap:6px">${rows}</div>
+      ${ans!==undefined?`<div style="font-size:10px;color:${sys.clr};margin-top:4px;opacity:.7">✓ 선택됨 — BCP 분석에 반영됩니다</div>`:''}
+    </div>`;
+  }).join('') : '';
+
+  return `<div id="sx_wrap_${s.id}" style="border:1.5px solid ${on?sys.clr:'#E2E8F0'};border-radius:10px;padding:10px 12px;background:${on?sys.bg:'white'};transition:all .2s;margin-bottom:6px">
+    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer" data-id="${s.id}">
+      <input type="checkbox" value="${s.id}" ${on?'checked':''} onchange="sxToggle2(this,'${sys.clr}','${sys.bg}','${sys.border}')"
+        style="margin-top:3px;accent-color:${sys.clr};flex-shrink:0;width:16px;height:16px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:${on?'800':'600'};color:${on?sys.clr:'#1E293B'};line-height:1.4">${s.ko}</div>
+        <div style="font-size:10px;color:${on?sys.clr:'#94A3B8'};margin-top:2px;opacity:.8">${s.sub}</div>
+      </div>
+      ${on?`<span style="font-size:14px;color:${sys.clr};flex-shrink:0">✓</span>`:''}
+    </label>
+    <div id="sx_fup_${s.id}">${fupHtml}</div>
+  </div>`;
+}
+
+function r2(){
+  if (!fd.sxFollowups) fd.sxFollowups = {};
+  const buildSystem = (sys) => {
+    const items = SYMPTOMS_BCP.filter(s=>s.zone===sys.id);
+    const cnt = items.filter(s=>fd.symptoms.includes(s.id)).length;
+    return `<div style="margin-bottom:14px;background:white;border:1.5px solid ${sys.border};border-radius:14px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:${cnt>0?sys.bg:'white'};cursor:pointer"
+        onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+        <span style="font-size:20px">${sys.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:800;color:${sys.clr}">${sys.name}</div>
+          <div style="font-size:10px;color:#64748B">${sys.desc}</div>
+        </div>
+        ${cnt>0?`<span style="background:${sys.clr};color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">${cnt}선택</span>`:''}
+        <span style="color:#94A3B8;font-size:12px">▼</span>
+      </div>
+      <div style="padding:10px 12px;${cnt>0?'':'display:none'}">
+        ${items.map(s=>_buildSxCard(s,sys)).join('')}
+      </div>
     </div>`;
   };
+
   document.getElementById('app').innerHTML=`
   <div class="card">
     <div class="step-header">
       <div class="step-badge">STEP 2 / 8 &nbsp;·&nbsp; ${t('현재 증상','Current Symptoms')}</div>
-      <div class="step-title">${t('현재 증상 — BCP Layer 2','Current Symptoms — BCP Layer 2')}</div>
-      <div class="step-desc">${t('해당하는 증상을 모두 선택해 주세요. 선택한 증상은 BCP 5축 점수에 즉각 반영됩니다.','Select all current symptoms. Each triggers precise axis scoring in the BCP engine.')}</div>
+      <div class="step-title">현재 증상 — 7개 시스템 체크</div>
+      <div class="step-desc">해당하는 증상을 선택하면 꼬리물기 질문이 나와 BCP 분석을 정교하게 다듬습니다.</div>
     </div>
     <!-- 자유 증상 입력 + 자동 매칭 -->
-    <div style="margin-bottom:18px;background:#F0F9FF;border:1.5px solid #BAE6FD;border-radius:12px;padding:14px 16px">
-      <label class="form-label" style="color:#0369A1;margin-bottom:6px">
-        💬 증상을 자유롭게 적어주세요
-        <span style="font-size:10px;font-weight:400;color:#0284C7;margin-left:5px">문장으로 쓰면 아래 항목이 자동 추천됩니다</span>
+    <div style="margin-bottom:16px;background:#F0F9FF;border:1.5px solid #BAE6FD;border-radius:12px;padding:14px 16px">
+      <label class="form-label" style="color:#0369A1;margin-bottom:6px;display:block">
+        💬 증상을 자유롭게 문장으로 적어주세요
+        <span style="font-size:10px;font-weight:400;color:#0284C7;margin-left:5px">아래 카드가 자동 선택됩니다</span>
       </label>
-      <textarea id="f_sx_free" class="form-input" rows="3"
-        style="border-color:#BAE6FD;resize:vertical"
-        placeholder="예: 아침마다 머리가 아프고 어깨가 뭉쳐요. 밥 먹고 나면 너무 졸려서 일을 못하겠어요. 손발이 자주 저리고 배에 가스가 많이 찹니다."
+      <textarea id="f_sx_free" class="form-input" rows="3" style="border-color:#BAE6FD;resize:vertical"
+        placeholder="예: 아침마다 머리가 무겁고 기억력이 나빠졌어요. 밥 먹으면 배가 빵빵하고 오후만 되면 너무 피곤해요."
         oninput="matchSxKeywords(this.value)">${fd.sxFreeText||''}</textarea>
       <div id="sx-match-tags" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"></div>
     </div>
-
     <div id="sxGroups">
-      ${AXIS_SX.map(buildAxisGroup).join('')}
+      ${SX_SYSTEMS.map(buildSystem).join('')}
     </div>
     <div class="divider"></div>
     <div class="form-row">
@@ -2291,42 +2568,106 @@ function r2(){
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">${t('불편함 정도 (1 = 매우 가벼움, 10 = 매우 심함)','Severity (1 = Very Mild, 10 = Very Severe)')}</label>
+        <label class="form-label">불편함 정도 (1 = 가벼움, 10 = 매우 심함)</label>
         <div class="pain-val" id="painVal">${fd.painLevel}</div>
         <input type="range" class="pain-slider" min="1" max="10" value="${fd.painLevel}" id="painSlider"
           oninput="fd.painLevel=+this.value;document.getElementById('painVal').textContent=this.value">
-        <div class="pain-labels"><span>${t('1 (매우 가벼움)','1 (Very Mild)')}</span><span>${t('10 (매우 심함)','10 (Very Severe)')}</span></div>
+        <div class="pain-labels"><span>1 (가벼움)</span><span>10 (매우 심함)</span></div>
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">${t('증상 상세 설명 (선택)','Symptom Details (optional)')}</label>
-      <textarea class="form-input" id="f_pdesc" placeholder="${t('증상이 시작된 시기, 악화·완화 요인, 동반 증상 등을 자유롭게 기술해 주세요.','Describe onset, aggravating/relieving factors, associated symptoms, etc.')}">${fd.painDesc}</textarea>
+      <label class="form-label">증상 상세 설명 (선택)</label>
+      <textarea class="form-input" id="f_pdesc" placeholder="증상이 시작된 시기, 악화·완화 요인, 동반 증상 등을 적어주세요.">${fd.painDesc}</textarea>
     </div>
     <div class="nav">
-      <button class="btn-back" onclick="save2();step=1;renderStep()">← ${t('이전','Back')}</button>
-      <button class="btn-next" onclick="save2();next()">${t('다음 단계','Next')} →</button>
+      <button class="btn-back" onclick="save2();step=1;renderStep()">← 이전</button>
+      <button class="btn-next" onclick="save2();next()">다음 단계 →</button>
     </div>
   </div>`;
+
+  if (fd.sxFreeText) _doMatch(fd.sxFreeText);
 }
-function sxToggle(el) {
-  const label = el.closest('label');
-  const id = label.dataset.id;
-  const s = SYMPTOMS_BCP.find(x=>x.id===id);
-  if (!s) return;
-  const meta = [{ax:1,clr:'#7C3AED',bg:'#F5F3FF'},{ax:2,clr:'#1D4ED8',bg:'#EFF6FF'},{ax:3,clr:'#059669',bg:'#ECFDF5'},{ax:4,clr:'#D97706',bg:'#FFFBEB'},{ax:5,clr:'#DC2626',bg:'#FFF1F2'}].find(m=>m.ax===s.ax)||{};
+
+function sxToggle2(el, clr, bg, border) {
+  const id = el.closest('label').dataset.id;
   const on = el.checked;
-  label.style.borderColor = on ? meta.clr : '#E2E8F0';
-  label.style.background  = on ? meta.bg : 'white';
-  const icon = label.querySelector('span[style*="margin-left:auto"]');
-  if (on && !icon) {
-    const sp = document.createElement('span');
-    sp.style.cssText = `margin-left:auto;font-size:13px;color:${meta.clr};flex-shrink:0`;
-    sp.textContent = '✓';
-    label.appendChild(sp);
-  } else if (!on && icon) icon.remove();
-  label.querySelector('div > div').style.fontWeight = on ? '800' : '600';
-  label.querySelector('div > div').style.color = on ? meta.clr : '#1E293B';
+  if (on) { if (!fd.symptoms.includes(id)) fd.symptoms.push(id); }
+  else { fd.symptoms = fd.symptoms.filter(x=>x!==id); }
+  // update wrapper style
+  const wrap = document.getElementById('sx_wrap_'+id);
+  if (wrap) {
+    wrap.style.borderColor = on ? clr : '#E2E8F0';
+    wrap.style.background  = on ? bg : 'white';
+    const lbl = wrap.querySelector('label');
+    const txt = lbl?.querySelector('div > div');
+    const sub = lbl?.querySelector('div > div + div');
+    const chk = lbl?.querySelector('span');
+    if (txt)  { txt.style.fontWeight = on?'800':'600'; txt.style.color = on?clr:'#1E293B'; }
+    if (sub)  { sub.style.color = on?clr:'#94A3B8'; }
+    if (!on && chk && chk.textContent==='✓') chk.remove();
+    if (on && !lbl?.querySelector('span')) {
+      const sp = document.createElement('span');
+      sp.style.cssText=`font-size:14px;color:${clr};flex-shrink:0`; sp.textContent='✓';
+      lbl.appendChild(sp);
+    }
+    // show/hide followup section
+    const fupEl = document.getElementById('sx_fup_'+id);
+    if (fupEl) {
+      if (on) {
+        const sys = SX_SYSTEMS.find(s=>SYMPTOMS_BCP.find(x=>x.id===id)?.zone===s.id)||SX_SYSTEMS[0];
+        const s = SYMPTOMS_BCP.find(x=>x.id===id);
+        fupEl.innerHTML = _buildFupHtml(id, sys);
+      } else {
+        fupEl.innerHTML = '';
+      }
+    }
+  }
+  // expand that system section if collaps
+  const parent = el.closest('[id^="sxGroups"]')?.querySelector('[id]');
+  if (on) {
+    const wrapper = el.closest('div[style*="padding:10px"]');
+    if (wrapper) wrapper.style.display='block';
+  }
 }
+
+function _buildFupHtml(sid, sys) {
+  const fups = FOLLOWUP_QS[sid] || [];
+  if (!fups.length) return '';
+  return fups.map((q, qi) => {
+    const ans = (fd.sxFollowups||{})[`${sid}_q${qi}`];
+    return `<div style="margin-top:8px;padding:8px 10px;background:white;border:1px solid ${sys.border};border-radius:8px">
+      <div style="font-size:11px;font-weight:700;color:${sys.clr};margin-bottom:6px">↳ ${q.q}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${q.opts.map((opt, oi) => `<button onclick="setSxFollowup('${sid}',${qi},${oi})"
+          style="padding:4px 10px;border-radius:16px;border:1.5px solid ${ans===oi?sys.clr:'#CBD5E1'};
+          background:${ans===oi?sys.clr:'white'};color:${ans===oi?'white':'#475569'};
+          font-size:11px;font-weight:${ans===oi?'700':'500'};cursor:pointer;white-space:nowrap">${opt.txt}</button>`).join('')}
+      </div>
+      ${ans!==undefined?`<div style="font-size:10px;color:${sys.clr};margin-top:4px;opacity:.7">✓ 선택됨 — BCP 분석에 반영됩니다</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function setSxFollowup(sid, qi, optIdx) {
+  if (!fd.sxFollowups) fd.sxFollowups = {};
+  const prev = fd.sxFollowups[`${sid}_q${qi}`];
+  // undo previous boost
+  if (prev !== undefined) {
+    const pq = FOLLOWUP_QS[sid]?.[qi]; const popt = pq?.opts?.[prev];
+    if (popt?.boost) Object.entries(popt.boost).forEach(([ax, v]) => {
+      const axKey = 'axis'+ax;
+      if (fd.scores?.[axKey] !== undefined) fd.scores[axKey] = Math.max(0, fd.scores[axKey] - v);
+    });
+  }
+  fd.sxFollowups[`${sid}_q${qi}`] = optIdx;
+  // re-render followup section only
+  const s = SYMPTOMS_BCP.find(x=>x.id===sid);
+  const sys = SX_SYSTEMS.find(sy=>sy.id===s?.zone)||SX_SYSTEMS[0];
+  const fupEl = document.getElementById('sx_fup_'+sid);
+  if (fupEl) fupEl.innerHTML = _buildFupHtml(sid, sys);
+}
+
+// 키워드 자동 매칭
 let _sxMatchTimer = null;
 function matchSxKeywords(text) {
   clearTimeout(_sxMatchTimer);
@@ -2339,43 +2680,62 @@ function _doMatch(text) {
   SYMPTOM_KEYWORDS.forEach(({ids, kw}) => {
     if (kw.some(k => text.includes(k))) ids.forEach(id => matched.add(id));
   });
-  // 자동 체크
   matched.forEach(id => {
     if (!fd.symptoms.includes(id)) {
       fd.symptoms.push(id);
       const cb = document.querySelector(`#sxGroups input[value="${id}"]`);
-      if (cb && !cb.checked) { cb.checked = true; sxToggle(cb); }
+      if (cb && !cb.checked) {
+        cb.checked = true;
+        const s = SYMPTOMS_BCP.find(x=>x.id===id);
+        const sys = SX_SYSTEMS.find(sy=>sy.id===s?.zone)||SX_SYSTEMS[0];
+        // expand section
+        const sect = cb.closest('[style*="display:none"]');
+        if (sect) sect.style.display='block';
+        sxToggle2(cb, sys.clr, sys.bg, sys.border);
+      }
     }
   });
-  // 매칭 태그 표시
   if (tags) {
     if (matched.size === 0) {
-      tags.innerHTML = '<span style="font-size:10px;color:#0284C7;opacity:.7">아직 매칭된 항목이 없습니다. 계속 입력해 보세요.</span>';
+      tags.innerHTML = '<span style="font-size:10px;color:#0284C7;opacity:.7">아직 매칭된 항목이 없습니다.</span>';
     } else {
       tags.innerHTML = '<span style="font-size:10px;font-weight:700;color:#0369A1;margin-right:4px">자동 추천:</span>' +
         [...matched].map(id => {
-          const item = SYMPTOMS_BCP.find(x => x.id === id);
+          const item = SYMPTOMS_BCP.find(x=>x.id===id);
           if (!item) return '';
           return `<span style="font-size:10px;background:#0369A1;color:white;padding:2px 8px;border-radius:20px;cursor:pointer"
-            onclick="removeSxMatch('${id}')" title="클릭하면 해제">✓ ${item.ko.split('(')[0].trim().slice(0,12)} ×</span>`;
+            onclick="removeSxMatch('${id}')" title="클릭하면 해제">✓ ${item.sub||item.ko.slice(0,10)} ×</span>`;
         }).filter(Boolean).join('');
     }
   }
 }
 function removeSxMatch(id) {
-  fd.symptoms = fd.symptoms.filter(x => x !== id);
+  fd.symptoms = fd.symptoms.filter(x=>x!==id);
   const cb = document.querySelector(`#sxGroups input[value="${id}"]`);
-  if (cb && cb.checked) { cb.checked = false; sxToggle(cb); }
+  if (cb && cb.checked) {
+    const s = SYMPTOMS_BCP.find(x=>x.id===id);
+    const sys = SX_SYSTEMS.find(sy=>sy.id===s?.zone)||SX_SYSTEMS[0];
+    cb.checked = false; sxToggle2(cb, sys.clr, sys.bg, sys.border);
+  }
   _doMatch(document.getElementById('f_sx_free')?.value || '');
+}
+
+// 하위 호환: 이전 sxToggle 함수 (다른 곳에서 호출 시)
+function sxToggle(el) {
+  const id = el.closest('label')?.dataset?.id;
+  if (!id) return;
+  const s = SYMPTOMS_BCP.find(x=>x.id===id);
+  const sys = SX_SYSTEMS.find(sy=>sy.id===s?.zone)||SX_SYSTEMS[0];
+  sxToggle2(el, sys.clr, sys.bg, sys.border);
 }
 
 function save2(){
   fd.symptoms=[...document.querySelectorAll('#sxGroups input:checked')].map(x=>x.value);
-  fd.symptomDuration=document.getElementById('f_dur').value;
-  fd.painLevel=+document.getElementById('painSlider').value;
-  fd.painDesc=document.getElementById('f_pdesc').value.trim();
+  fd.symptomDuration=document.getElementById('f_dur')?.value||fd.symptomDuration;
+  fd.painLevel=+(document.getElementById('painSlider')?.value||fd.painLevel);
+  fd.painDesc=document.getElementById('f_pdesc')?.value.trim()||fd.painDesc;
   fd.sxFreeText=(document.getElementById('f_sx_free')?.value||'').trim();
-  fd.extraSymptoms=fd.sxFreeText; // 자유입력 = 기타 증상 통합
+  fd.extraSymptoms=fd.sxFreeText;
 }
 
 // ═══════════════════════════════════════════
@@ -4215,12 +4575,12 @@ const HTT_QUESTIONS = [
   {id:'htt_n1', zone:'🧠 머리·신경', axis:1,
    q:'밤에 누우면 심장이 뛰고 생각이 꼬리를 물어 잠들기 어렵나요?',
    eg:'"새벽 3시 전에 잠들기가 거의 없어요"',
-   trigger:(sc,drugs,sx)=> sc.axis1>=20 || drugs.some(d=>['ssri','benzo','caffeine','adhd_med'].includes(d)) || sx.some(s=>['s1a','s1b'].includes(s)),
+   trigger:(sc,drugs,sx)=> sc.axis1>=20 || drugs.some(d=>['ssri','benzo','caffeine','adhd_med'].includes(d)) || sx.some(s=>['s03','s01'].includes(s)),
    chain:'SSRI_B6_고갈_사슬', boost:5},
   {id:'htt_n2', zone:'🧠 머리·신경', axis:1,
    q:'최근 단어가 잘 기억 안 나거나 책을 읽어도 방금 읽은 내용이 기억 안 나나요?',
    eg:'"브레인 포그가 심해서 회의 중에 멍해져요"',
-   trigger:(sc,drugs,sx)=> sc.axis1>=18 || drugs.includes('metformin') || sx.includes('s1b'),
+   trigger:(sc,drugs,sx)=> sc.axis1>=18 || drugs.includes('metformin') || sx.includes('s01'),
    chain:'메트포르민_B12_고갈_사슬', boost:6},
   {id:'htt_n3', zone:'🧠 머리·신경', axis:1,
    q:'공부하거나 업무 중에 잡생각이 제어 안 되고 가슴이 두근거려 집중을 못 하나요?',
@@ -4242,29 +4602,29 @@ const HTT_QUESTIONS = [
   {id:'htt_g1', zone:'🫃 소화기', axis:4,
    q:'식후 30분 내에 명치가 얹힌 듯 답답하고, 특히 고기 먹으면 소화가 안 되나요?',
    eg:'"밥을 조금만 먹어도 배가 불러요"',
-   trigger:(sc,drugs,sx)=> sc.axis4>=18 || drugs.some(d=>['ppi','benzo'].includes(d)) || sx.some(s=>['s4a','s4b'].includes(s)),
+   trigger:(sc,drugs,sx)=> sc.axis4>=18 || drugs.some(d=>['ppi','benzo'].includes(d)) || sx.some(s=>['s12','s15'].includes(s)),
    chain:'벤조_H2_위무력_사슬', boost:6},
   {id:'htt_g2', zone:'🫃 소화기', axis:4,
    q:'밥을 조금 먹었는데도 윗배가 터질 것 같고 가스가 차서 숨쉬기 불편한가요?',
    eg:'"배에 가스가 꽉 차서 횡격막을 누르는 것 같아요"',
-   trigger:(sc,drugs,sx)=> sc.axis4>=20 || drugs.includes('benzo') || sx.includes('s4c'),
+   trigger:(sc,drugs,sx)=> sc.axis4>=20 || drugs.includes('benzo') || sx.includes('s14'),
    chain:'장누수_독소_사슬', boost:5},
   {id:'htt_g3', zone:'🫃 소화기', axis:4,
    q:'밀가루나 유제품을 먹으면 피부가 뒤집어지거나 배가 빵빵해지고 설사를 하나요?',
    eg:'"빵 먹고 나면 피부가 가렵고 배가 부글부글해요"',
-   trigger:(sc,drugs,sx)=> sc.axis4>=18 || drugs.includes('nsaid') || sx.some(s=>['s4a','s4d'].includes(s)),
+   trigger:(sc,drugs,sx)=> sc.axis4>=18 || drugs.includes('nsaid') || sx.some(s=>['s12','s24'].includes(s)),
    chain:'NSAIDs_장벽_갑상선_사슬', boost:6},
   {id:'htt_g4', zone:'🫃 소화기', axis:4,
    q:'아침에 일어나면 구취가 심하고 음식이 위에 한참 머물러 있는 느낌이 드나요?',
    eg:'"아침마다 입이 썩은 맛이 나고 위가 꽉 차 있어요"',
-   trigger:(sc,drugs,sx)=> sc.axis4>=15 || drugs.includes('benzo') || sx.includes('s4b'),
+   trigger:(sc,drugs,sx)=> sc.axis4>=15 || drugs.includes('benzo') || sx.includes('s23'),
    chain:'벤조_H2_위무력_사슬', boost:5},
 
   // ── 순환·림프 (CV) ────────────────────────────────────
   {id:'htt_c1', zone:'🫀 순환·림프', axis:3,
    q:'양말 자국이 저녁에 심하게 남거나, 가만히 있어도 다리에 쥐가 자주 나나요?',
    eg:'"저녁되면 다리가 당기고 밤에 쥐가 자주 나요"',
-   trigger:(sc,drugs,sx)=> sc.axis3>=18 || drugs.includes('diuretic') || sx.some(s=>['s3a','s3b'].includes(s)),
+   trigger:(sc,drugs,sx)=> sc.axis3>=18 || drugs.includes('diuretic') || sx.some(s=>['s18','s20'].includes(s)),
    chain:'이뇨제_미네랄_약탈_사슬', boost:6},
   {id:'htt_c2', zone:'🫀 순환·림프', axis:3,
    q:'아침에 얼굴이나 손이 호빵처럼 붓고, 겨드랑이나 사타구니가 단단하게 뭉치나요?',
@@ -4281,7 +4641,7 @@ const HTT_QUESTIONS = [
   {id:'htt_m1', zone:'⚡ 에너지·대사', axis:2,
    q:'온몸의 근육이 욱신거리거나 남들보다 추위를 유독 심하게 타나요?',
    eg:'"여름에도 손발이 차갑고 근육통이 만성이에요"',
-   trigger:(sc,drugs,sx)=> sc.axis2>=18 || drugs.includes('statin') || sx.some(s=>['s2a','s2b'].includes(s)),
+   trigger:(sc,drugs,sx)=> sc.axis2>=18 || drugs.includes('statin') || sx.some(s=>['s07','s10'].includes(s)),
    chain:'스타틴_CoQ10_전멸_사슬', boost:7},
   {id:'htt_m2', zone:'⚡ 에너지·대사', axis:2,
    q:'자고 일어나도 전혀 충전이 안 되고 좀비 같은 피로가 하루 종일 지속되나요?',
@@ -4291,14 +4651,14 @@ const HTT_QUESTIONS = [
   {id:'htt_m3', zone:'⚡ 에너지·대사', axis:2,
    q:'오후 2~3시만 되면 극심한 피로가 몰려오고 단것이 폭발적으로 당기나요?',
    eg:'"점심 먹고 나면 책상에 엎드려 자야 버텨요"',
-   trigger:(sc,drugs,sx)=> drugs.includes('caffeine') || sc.axis2>=18 || sx.includes('s5b'),
+   trigger:(sc,drugs,sx)=> drugs.includes('caffeine') || sc.axis2>=18 || sx.includes('s08'),
    chain:'카페인_부신_고갈_사슬', boost:6},
 
   // ── 호르몬·해독 (Endocrine/Detox) ───────────────────
   {id:'htt_h1', zone:'🔬 호르몬·해독', axis:5,
    q:'생리 주기가 몇 달씩 건너뛰거나, 생리혈이 덩어리지고 PMS가 극심한가요?',
    eg:'"생리 전 2주가 지옥이에요. 기분 기복이 폭발해요"',
-   trigger:(sc,drugs,sx)=> fd.gender==='F' && (sc.axis5>=18 || drugs.some(d=>['steroid','ssri'].includes(d)) || sx.some(s=>['s5a','s5c'].includes(s))),
+   trigger:(sc,drugs,sx)=> fd.gender==='F' && (sc.axis5>=18 || drugs.some(d=>['steroid','ssri'].includes(d)) || sx.some(s=>['s26','s27'].includes(s))),
    chain:'스테로이드_부신_억제_사슬', boost:7},
   {id:'htt_h2', zone:'🔬 호르몬·해독', axis:5,
    q:'피부에 스테로이드 연고를 장기간 발랐거나 경구 스테로이드를 복용한 적 있나요?',
@@ -4757,7 +5117,7 @@ function toggleCheck(el,key){const v=el.value,arr=fd[key],idx=arr.indexOf(v);if(
 function getInitFd(){
   return{
     name:'',dob:'',gender:'',phone:'',email:'',occupation:'',
-    symptoms:[],symptomDuration:'none',painLevel:5,painDesc:'',sxFreeText:'',
+    symptoms:[],sxFollowups:{},symptomDuration:'none',painLevel:5,painDesc:'',sxFreeText:'',
     pastConditions:[],otherConditions:'',pmhFreeText:'',
     hadSurgery:'no',surgeries:[''],surgFreeText:'',
     medications:[{name:'',dose:'',period:''}], medicationPhoto:null,
@@ -5717,6 +6077,19 @@ function scoreAxes() {
   if (ls.smoking!=='none') a5+=18; if (ls.alcohol!=='none') a5+=15;
   if (f && f.entropy>5.5) a1+=12; if (f && f.density<0.35) a2+=15;
   if (f && f.darkRatio>0.25) a3+=15; if (f && f.yellowRatio>0.12) a5+=15;
+  // 꼬리물기 후속 질문 부스트 반영
+  const fup = fd.sxFollowups || {};
+  Object.entries(fup).forEach(([key, optIdx]) => {
+    const parts = key.split('_q');
+    if (parts.length < 2) return;
+    const sid = parts[0], qi = parseInt(parts[1]);
+    const qs = FOLLOWUP_QS[sid]; if (!qs) return;
+    const q = qs[qi]; if (!q) return;
+    const opt = q.opts[optIdx]; if (!opt || !opt.boost) return;
+    const b = opt.boost;
+    if (b[1]) a1 += b[1]; if (b[2]) a2 += b[2]; if (b[3]) a3 += b[3];
+    if (b[4]) a4 += b[4]; if (b[5]) a5 += b[5];
+  });
 
   // ── Stage 4: 교차검증 — 증상+홍채 병소 동시 확인 시 신뢰도 부스트 ──────
   const isc0 = typeof calcIrisScores === 'function' ? calcIrisScores() : {1:0,2:0,3:0,4:0,5:0};
@@ -6237,11 +6610,7 @@ function generatePersonalizedDominoReport() {
   });
 
   // ── 증상 요약 ────────────────────────────────────────────────────────
-  const SX_KO = {s1a:'불면·두근거림',s1b:'브레인포그',s1c:'두통·이명·어지럼증',s1d:'목·어깨 긴장',
-                 s2a:'좀비 피로',s2b:'식후 극심한 식곤증',s2c:'전신 근육통',s2d:'체중증가·부종',
-                 s3a:'수족냉증',s3b:'상열하한',s3c:'가슴 답답·부정맥',s3d:'사지 저림·쥐',
-                 s4a:'식후 복부 팽만·SIBO',s4b:'가스·트림·구취',s4c:'역류성 식도염',s4d:'만성 변비/설사',
-                 s5a:'만성 두드러기·피부발진',s5b:'극소량 음주 숙취',s5c:'눈 침침·황달',s5d:'아침 부종'};
+  const SX_KO = Object.fromEntries(SYMPTOMS_BCP.map(s=>[s.id, s.sub||s.ko.slice(0,14)]));
   const topSxList = sx.slice(0,3).map(id => SX_KO[id]||id).filter(Boolean).join(' · ');
 
   // ── 축별 개인화 서술 ─────────────────────────────────────────────────
@@ -6249,8 +6618,8 @@ function generatePersonalizedDominoReport() {
     1: () => {
       let t = '교감신경의 만성 과활성으로 인체가 <em>\'생존 모드\'</em>에 진입하면서 위장관 혈류가 강제 차단되고 소화 효소 분비가 억제됩니다.';
       if (bt.wreathType === 'narrow') t += ' 홍채 자율신경선 협착(Narrow ANW) 소견은 이 교감신경 과항진이 <strong>COMT 지연형 선천 소인</strong>임을 시사합니다.';
-      if (sx.includes('s1a')||sx.includes('s1b')) t += ' 불면·브레인포그 등 신경 과부하 자각증상이 이를 뒷받침합니다.';
-      if (sx.includes('s1d')) t += ' 뒷목·어깨의 신경성 근육 강직은 교감신경 과활성의 신체화 표현입니다.';
+      if (sx.includes('s03')||sx.includes('s01')) t += ' 불면·브레인포그 등 신경 과부하 자각증상이 이를 뒷받침합니다.';
+      if (sx.includes('s05')) t += ' 뒷목 긴장성 두통은 교감신경 과활성의 신체화 표현입니다.';
       return t;
     },
     2: () => {
@@ -6258,8 +6627,8 @@ function generatePersonalizedDominoReport() {
       if (dc.includes('statin')) t += ` <strong>${medNameMap.statin||'스타틴'}</strong> 복용으로 메발로네이트 경로가 차단되어 CoQ10이 전멸 상태 — 미토콘드리아 전자전달계가 강제 셧다운됩니다.`;
       if (dc.includes('diuretic')||dc.includes('betablocker')) t += ' 약물에 의한 마그네슘·CoQ10 지속 고갈이 에너지 방전 속도를 가속합니다.';
       if (dc.includes('ssri')) t += ` <strong>${medNameMap.ssri||'항우울제'}</strong>의 장기 복용으로 세로토닌 전구체(5-HTP)와 B6가 고갈되어 신경전달 회로가 약해집니다.`;
-      if (sx.includes('s2a')) t += ' 아무리 자도 납덩이처럼 무거운 좀비 피로가 미토콘드리아 ATP 방전의 직접적 표현입니다.';
-      if (sx.includes('s2b')) t += ' 식후 극심한 식곤증은 소화에 남은 에너지를 모두 소진하는 미토콘드리아 임계 방전 신호입니다.';
+      if (sx.includes('s07')) t += ' 아무리 자도 납덩이처럼 무거운 좀비 피로가 미토콘드리아 ATP 방전의 직접적 표현입니다.';
+      if (sx.includes('s10')) t += ' 전신 근육·관절통은 CoQ10 고갈로 인한 세포 방전의 신체화 신호입니다.';
       return t;
     },
     3: () => {
@@ -6268,9 +6637,9 @@ function generatePersonalizedDominoReport() {
       if (surgeryParts.some(s=>/척추|디스크|허리|요추/i.test(s))) t += ' 척추·디스크 이력으로 복강 쪽 림프 배수관이 눌려 하반신 울혈이 고착화되기 쉬운 환경입니다.';
       if (dc.includes('diuretic')) t += ` <strong>${medNameMap.diuretic||'이뇨제'}</strong> 복용으로 마그네슘·칼륨이 소변으로 약탈되어 말초 평활근 강직이 가중됩니다.`;
       if (dc.includes('betablocker')) t += ` <strong>${medNameMap.betablocker||'베타차단제'}</strong>는 심박수를 낮추면서 동시에 말초 혈류를 더욱 제한합니다.`;
-      if (sx.includes('s3a')) t += ' 수족냉증은 말초 순환 차단의 가장 직접적인 신체 신호입니다.';
-      if (sx.includes('s3b')) t += ' 얼굴은 달아오르고 배·손발은 차가운 상열하한은 체간-말초 혈류 편재의 표현입니다.';
-      if (sx.includes('s3d')) t += ' 사지 저림과 근육 경련은 말초 저산소증과 마그네슘 고갈의 복합 신호입니다.';
+      if (sx.includes('s09')) t += ' 수족냉증은 말초 순환 차단의 가장 직접적인 신체 신호입니다.';
+      if (sx.includes('s18')) t += ' 저녁 발목·종아리 부종은 림프 울혈과 Mg·K 고갈의 직접적인 신체 신호입니다.';
+      if (sx.includes('s20')||sx.includes('s21')) t += ' 사지 저림과 근육 경련은 말초 저산소증과 마그네슘 고갈의 복합 신호입니다.';
       return t;
     },
     4: () => {
@@ -6279,9 +6648,9 @@ function generatePersonalizedDominoReport() {
       if (ppiName) t += ` <strong>${ppiName}</strong> 장기 복용으로 위산(HCl)이 전멸, 아연(Zn)·비타민 B12가 세포 수준에서 강제 약탈당했습니다. 소장 연동운동이 마비되어 SIBO 메탄가스 적취 상태가 됩니다. 식후 가슴이 막히는 것은 팽창된 가스가 횡격막을 밀어 올리기 때문입니다.`;
       if (pmh.includes('pmh_sx1')) t += ' 담낭 절제 이력으로 담즙 분비가 불규칙해져 지방 소화와 지용성 독소 배출이 구조적으로 마비되었습니다.';
       if (dc.includes('nsaid')) t += ` <strong>${medNameMap.nsaid||'소염진통제'}</strong> 복용으로 장 상피 프로스타글란딘이 파괴되어 장 투과성이 더욱 가중됩니다.`;
-      if (sx.includes('s4a')||sx.includes('s4b')) t += ' 식후 배가 터질 것 같은 가스 팽만, 조기 포만감이 장 붕괴의 직접적 자각 신호입니다.';
-      if (sx.includes('s4c')) t += ' 역류성 식도염 증상은 위산 부족으로 인한 하부 식도 괄약근 이완(역설적 역류)입니다.';
-      if (sx.includes('s4d')) t += ' 만성 변비 또는 묽은 변의 교대는 장내 균총 붕괴와 SIBO의 대표 패턴입니다.';
+      if (sx.includes('s12')||sx.includes('s14')) t += ' 식후 배가 터질 것 같은 가스 팽만, 조기 포만감이 장 붕괴의 직접적 자각 신호입니다.';
+      if (sx.includes('s13')) t += ' 역류성 식도염 증상은 위산 부족으로 인한 하부 식도 괄약근 이완(역설적 역류)입니다.';
+      if (sx.includes('s17')) t += ' 만성 변비 또는 묽은 변의 교대는 장내 균총 붕괴와 SIBO의 대표 패턴입니다.';
       return t;
     },
     5: () => {
@@ -6289,9 +6658,9 @@ function generatePersonalizedDominoReport() {
       if (dc.includes('ppi')) t += ' 위산 소실로 단백질이 아미노산으로 분해되지 않아 <strong>글루타치온·타우린의 원료 공급 자체가 차단</strong>된 상태입니다. 간 Phase 2 해독이 구조적으로 불가능해집니다.';
       if (bt.color === 'brown') t += ' 갈색 홍채(GST/UGT1A1 유전형)는 간 2차 해독 효소 활성이 기저적으로 낮아 독소 중간체 부담이 배가됩니다.';
       if (pmh.includes('pmh_sx1')) t += ' 담낭 절제로 담즙 흐름이 차단되어 지용성 독소의 장간 순환 해독 경로가 구조적으로 마비됩니다.';
-      if (sx.includes('s5b')) t += ' 소량 음주에도 극심한 숙취는 간 Phase 1·2 해독 용량 포화의 직접적 신호입니다.';
-      if (sx.includes('s5c')) t += ' 눈의 침침함·황달 양상은 담즙 대사 정체의 안과적 표현입니다.';
-      if (sx.includes('s5d')) t += ' 아침 얼굴·손발 부종은 미처 처리 못한 독소와 체액이 간질액에 정체된 수독 상태입니다.';
+      if (sx.includes('s22')||sx.includes('s24')) t += ' 피부 발진·음식 알레르기 반응은 장누수와 간 해독 과포화의 피부 표현입니다.';
+      if (sx.includes('s25')) t += ' 눈의 건조·충혈은 담즙 대사 정체 및 간 해독 부담의 안과적 표현입니다.';
+      if (sx.includes('s23')) t += ' 아침 구취·구강 건조는 미처 처리 못한 독소와 SIBO 가스 역류의 신호입니다.';
       return t;
     },
   };
@@ -6612,7 +6981,7 @@ function buildVisitData() {
     overallScore: overall, scores: fd.scores,
     reportId: fd.reportId || generateReportId(),
     date: new Date().toISOString().slice(0,10),
-    symptoms: fd.symptoms, symptomDuration: fd.symptomDuration,
+    symptoms: fd.symptoms, sxFollowups: fd.sxFollowups||{}, symptomDuration: fd.symptomDuration,
     painLevel: fd.painLevel, painDesc: fd.painDesc, sxFreeText: fd.sxFreeText||'',
     pastConditions: fd.pastConditions, otherConditions: fd.otherConditions, pmhFreeText: fd.pmhFreeText||'',
     hadSurgery: fd.hadSurgery, surgeries: fd.surgeries, surgFreeText: fd.surgFreeText||'',

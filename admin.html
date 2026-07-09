@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>LUDIA HEALTH — 관리자</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A1628">
+<link rel="apple-touch-icon" href="ludia-logo.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LUDIA">
 <style>
 :root{
   --navy-dark:#0A1628;--navy-mid:#1E3A5F;--navy-light:#2E5C8A;
@@ -215,8 +224,21 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="admin-wrap">
     <aside class="sidebar" id="sidebar">
       <div class="sb-label">메인 메뉴</div>
-      <div class="sb-link" id="sb-dashboard" onclick="navigate('dashboard')"><span class="sb-icon">📊</span> 대시보드</div>
-      <div class="sb-link" id="sb-patients" onclick="navigate('patients')"><span class="sb-icon">👥</span> 환자 목록</div>
+      <div class="sb-link" id="sb-dashboard" onclick="navigate('dashboard')" style="display:none"><span class="sb-icon">📊</span> 대시보드</div>
+      <div class="sb-link" id="sb-patients" onclick="navigate('patients')"><span class="sb-icon">🧑‍⚕️</span> 환자 관리</div>
+      <div class="sb-link" id="sb-intake" onclick="navigate('intake')"><span class="sb-icon">📝</span> 상담 신청 <span id="intakeBadge" style="display:none;margin-left:auto;background:#EF4444;color:white;font-size:9px;font-weight:800;padding:1px 6px;border-radius:10px"></span></div>
+
+      <!-- 최종관리자 전용 메뉴 -->
+      <div id="super-menu" style="display:none">
+        <div class="sb-div"></div>
+        <div class="sb-label" style="color:#C4B5FD">최종관리자</div>
+        <div class="sb-link" id="sb-members" onclick="navigate('members')"><span class="sb-icon">👤</span> 회원 관리</div>
+        <div class="sb-link" id="sb-diagnose" onclick="location.href='index.html'"><span class="sb-icon">🔬</span> 진단하기</div>
+        <div class="sb-link" id="sb-reports" onclick="navigate('reports')"><span class="sb-icon">📄</span> 전체 리포트</div>
+        <div class="sb-link" id="sb-ai" onclick="navigate('ai')"><span class="sb-icon">🤖</span> AI 학습</div>
+        <div class="sb-link" id="sb-iris" onclick="navigate('iris')"><span class="sb-icon">👁</span> 홍채 데이터셋</div>
+      </div>
+
       <div class="sb-div"></div>
       <div class="sb-label">시스템</div>
       <div class="sb-link" id="sb-settings" onclick="navigate('settings')"><span class="sb-icon">⚙️</span> 설정</div>
@@ -240,7 +262,8 @@ tbody tr:last-child td{border-bottom:none;}
 // ═══════════════════════════════════════
 //  AUTH (session-based)
 // ═══════════════════════════════════════
-const adminSession = JSON.parse(sessionStorage.getItem('ludia_session') || 'null');
+const adminSession = JSON.parse(sessionStorage.getItem('ludia_session') || localStorage.getItem('ludia_session') || 'null');
+if (adminSession) sessionStorage.setItem('ludia_session', JSON.stringify(adminSession));
 if (!adminSession || (adminSession.role !== 'admin' && adminSession.role !== 'super_admin')) { location.href = 'login.html'; }
 const _IS_SUPER_ADMIN = adminSession && adminSession.role === 'super_admin';
 // 최종 관리자 뱃지 표시
@@ -261,7 +284,75 @@ const IS_SUPER = !!(adminSession && (adminSession.isSuperAdmin || adminSession.r
 
 function doLogout() {
   sessionStorage.removeItem('ludia_session');
-  location.href = 'login.html';
+  localStorage.removeItem('ludia_session');
+  fetch('api.php', {method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({action:'logout'})}).finally(()=>{ location.href='login.html'; });
+}
+
+// ═══════════════════════════════════════
+//  API 클라이언트 & 데이터 캐시
+// ═══════════════════════════════════════
+const _LOCAL_MODE = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+async function apiPost(action, data = {}) {
+  // 로컬 환경: api.php 없이 빈 성공 목 반환
+  if (_LOCAL_MODE) {
+    const LOCAL_MOCK = {
+      get_patients: {patients: []},
+      get_intake:   {intake: []},
+      list_admins:  {admins: []},
+      list_invite_codes: {codes: []},
+      save_visit: {success: true, visitId: Date.now()},
+      get_patient: {patient: null},
+      get_visits:  {visits: []},
+      delete_patient: {success: true},
+      delete_intake:  {success: true},
+      deliver_report:    {success: true},
+      forward_patient:   {success: true},
+      save_intake_memo:  {success: true},
+      get_intake_photos: {success: true, photos: {left:'', right:''}},
+    };
+    return LOCAL_MOCK[action] || {success: true};
+  }
+  try {
+    const resp = await fetch('api.php', {
+      method: 'POST', credentials: 'include',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action, ...data})
+    });
+    if (resp.status === 401) { sessionStorage.removeItem('ludia_session'); localStorage.removeItem('ludia_session'); location.href = 'login.html'; return {}; }
+    return await resp.json();
+  } catch(e) { return {error: '네트워크 오류: ' + e.message}; }
+}
+
+let _patients = [], _adminUsers = [], _intake = [], _inviteCodes = [], _dataLoaded = false;
+
+async function loadData() {
+  try {
+    const [pr, ir] = await Promise.all([apiPost('get_patients'), apiPost('get_intake')]);
+    if (pr.error) {
+      const el = document.getElementById('content');
+      if (el) el.innerHTML = `<div style="padding:60px;text-align:center;font-family:inherit"><div style="font-size:32px;margin-bottom:12px">⚙️</div><div style="font-size:16px;font-weight:700;color:var(--navy-dark);margin-bottom:8px">서버 DB 설정이 필요합니다</div><div style="font-size:13px;color:var(--text-light);line-height:1.8">1. config.php를 FTP로 서버에 업로드하세요<br>2. https://ludiahealth.com/setup.php 에 접속하여 DB를 초기화하세요<br>3. setup.php를 서버에서 삭제하세요<br><br><em style="font-size:11px">오류: ${pr.error}</em></div></div>`;
+      return;
+    }
+    _patients = pr.patients || [];
+    _intake   = ir.intake   || [];
+    if (IS_SUPER) {
+      const [ur, cr] = await Promise.all([apiPost('list_admins'), apiPost('list_invite_codes')]);
+      _adminUsers  = ur.admins || [];
+      _inviteCodes = cr.codes  || [];
+    }
+    _dataLoaded = true;
+    updateIntakeBadge();
+  } catch(e) {
+    console.error('데이터 로드 실패:', e);
+    const el = document.getElementById('content');
+    if (el) el.innerHTML = `<div style="padding:60px;text-align:center;color:var(--text-light)">데이터 로드 실패: ${e.message}<br><button onclick="location.reload()" style="margin-top:12px;padding:8px 16px;background:var(--blue-primary);color:white;border:none;border-radius:8px;cursor:pointer">새로고침</button></div>`;
+  }
+}
+
+async function reloadData() {
+  _dataLoaded = false;
+  await loadData();
 }
 
 // Show admin name in sidebar & header badge
@@ -272,25 +363,22 @@ window.addEventListener('DOMContentLoaded', () => {
   if (nameEl  && adminSession) nameEl.textContent  = adminSession.name || '';
   if (initEl  && adminSession) initEl.textContent  = (adminSession.name||'A')[0];
   if (badgeEl && adminSession) badgeEl.textContent = IS_SUPER
-    ? `슈퍼관리자 · ${adminSession.name||''}`
+    ? `최종관리자 · ${adminSession.name||''}`
     : `관리자 · ${adminSession.name||''}`;
+  // 최종관리자 전용 메뉴 표시 / 대시보드 링크 표시
+  if (IS_SUPER) {
+    const superMenu = document.getElementById('super-menu');
+    if (superMenu) superMenu.style.display = 'block';
+    const dbLink = document.getElementById('sb-dashboard');
+    if (dbLink) dbLink.style.display = '';
+  }
+  // 상담 신청 뱃지
+  setTimeout(updateIntakeBadge, 100);
   // Auto-assign uniqueId to existing records that don't have one
   ensureUniqueIds();
 });
 
-function ensureUniqueIds() {
-  try {
-    const records = JSON.parse(localStorage.getItem('ludia_records') || '[]');
-    let changed = false;
-    records.forEach((p, i) => {
-      if (!p.uniqueId) {
-        p.uniqueId = 'LUD-' + String(i + 1).padStart(3, '0');
-        changed = true;
-      }
-    });
-    if (changed) localStorage.setItem('ludia_records', JSON.stringify(records));
-  } catch(e) {}
-}
+function ensureUniqueIds() {} // server-side에서 관리
 
 // ═══════════════════════════════════════
 //  CONFIG & STATE
@@ -316,73 +404,92 @@ const STATUS_COLORS = {normal:'#10B981',good:'#3B82F6',caution:'#F59E0B',needs_c
 const SYMPTOM_KO = {headache:'두통/어지러움',eye:'눈 이상',ent:'귀·코·목',chest:'흉통/호흡곤란',abdominal:'복통/소화불량',joint:'관절/근육통',fatigue:'피로/무기력',sleep:'수면장애',weight:'체중변화',skin:'피부이상',urinary:'비뇨기',psych:'심리증상'};
 const GENDER_KO = {male:'남성',female:'여성',other:'기타'};
 
+// BCP 증상 ID → 한국어 라벨
+const SX_LABELS = {
+  s1a:'불면·심계항진', s1b:'브레인포그·집중력 저하', s1c:'극도 피로·에너지 소진', s1d:'만성 불안·공황',
+  s2a:'체중 조절 실패', s2b:'혈당 불안정·당 갈망', s2c:'갑상선 이상', s2d:'만성 염증·통증',
+  s3a:'수족냉증·혈액순환 저하', s3b:'심혈관 이상 증상', s3c:'호흡기 문제', s3d:'부종·정맥 문제',
+  s4a:'소화불량·과민성장', s4b:'만성 설사·변비', s4c:'식품 불내성·알레르기', s4d:'장누수·복부 팽만',
+  s5a:'화학물질 과민반응', s5b:'숙취 극심·약물 부작용', s5c:'피부 발진·습진·건선', s5d:'호르몬 불균형'
+};
+// PMH ID → 한국어 라벨
+const PMH_LABELS = {
+  pmh_cv1:'협심증·심근경색', pmh_cv2:'고혈압', pmh_cv3:'부정맥·심방세동',
+  pmh_met1:'갑상선 기능 이상', pmh_met2:'당뇨·인슐린 저항성', pmh_met3:'비만·지방간',
+  pmh_gi1:'위염·역류성 식도염', pmh_gi2:'과민성 장 증후군', pmh_gi3:'염증성 장질환(크론·UC)', pmh_gi4:'간 질환·담낭 이상',
+  pmh_neuro1:'우울증·불안장애', pmh_neuro2:'편두통·신경통', pmh_neuro3:'자가면역 질환',
+  pmh_resp1:'천식·기관지염', pmh_resp2:'COPD·폐질환',
+  pmh_ms1:'관절염·류마티스', pmh_ms2:'골다공증', pmh_ms3:'척추 질환·디스크',
+  pmh_repr1:'자궁내막증·PCOS', pmh_repr2:'전립선 비대·전립선염', pmh_repr3:'갱년기 증후군',
+  pmh_uro1:'신장 질환·신부전', pmh_uro2:'요로 질환·방광염',
+  pmh_derm1:'습진·아토피', pmh_derm2:'건선'
+};
+const SX_AXIS_LABEL = {s1:'Axis 1 신경-내분비', s2:'Axis 2 세포에너지-대사', s3:'Axis 3 미세환경-순환', s4:'Axis 4 장-뇌/점막 면역', s5:'Axis 5 해독-메틸화'};
+
+// 환자 목록 필터 상태
+let _ptFilterCat = null;  // null | 'sx' | 'dx'
+let _ptFilterId  = null;  // specific ID string
+
+// 홍채 데이터셋 필터 상태
+let _irisFilterCat = null;
+let _irisFilterId  = null;
+let _irisGroupBy   = false; // group irises by selected tag
+
 
 // ═══════════════════════════════════════
 //  DATA
 // ═══════════════════════════════════════
-function getAllRecords() { try { return JSON.parse(localStorage.getItem('ludia_records') || '[]'); } catch(e) { return []; } }
-function getRecords() {
-  const all = getAllRecords();
-  if (IS_SUPER) return all;
-  // Regular admin: only sees patients they created
-  return all.filter(p => p.createdBy === adminSession.userId);
-}
-function saveRecordsData(r) { localStorage.setItem('ludia_records', JSON.stringify(r)); }
-function getPatient(id) { return getRecords().find(p => p.id === id); }
+function getAllRecords() { return _patients; }
+function getRecords()    { return _patients; }  // API already filters by admin for non-super
+function saveRecordsData(r) {}  // no-op — writes go through API
+function getPatient(id) { return _patients.find(p => p.id === id); }
 function getVisit(pid, vid) { const p = getPatient(pid); return p?.visits?.find(v => v.id === vid); }
 
-function saveAdminNote(pid, vid, note) {
-  const records = getRecords();
-  const p = records.find(r => r.id === pid);
-  if (!p) return;
-  const v = p.visits.find(v => v.id === vid);
-  if (!v) return;
+async function saveAdminNote(pid, vid, note) {
+  const p = _patients.find(r => r.id === pid); if (!p) return;
+  const v = (p.visits||[]).find(v => v.id === vid); if (!v) return;
   v.adminNotes = note;
-  saveRecordsData(records);
+  await apiPost('save_visit', { patient_id: pid, visit: {...v} });
 }
 
-function deleteVisit(pid, vid) {
+async function deleteVisit(pid, vid) {
   if (!confirm('이 방문 기록을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.')) return;
-  const records = getRecords();
-  const p = records.find(r => r.id === pid);
-  if (!p) return;
-  p.visits = p.visits.filter(v => v.id !== vid);
-  if (p.visits.length === 0) {
+  const p = _patients.find(r => r.id === pid); if (!p) return;
+  const remaining = (p.visits||[]).filter(v => v.id !== vid);
+  await apiPost('delete_visit', { id: vid, patient_id: pid });
+  if (remaining.length === 0) {
     if (confirm('방문 기록이 없습니다. 환자 정보도 함께 삭제하시겠습니까?')) {
-      const idx = records.findIndex(r => r.id === pid);
-      if (idx >= 0) records.splice(idx, 1);
-      saveRecordsData(records);
-      navigate('patients');
-      return;
+      await apiPost('delete_patient', { id: pid });
+      await reloadData(); navigate('patients'); return;
     }
   }
-  saveRecordsData(records);
-  navigate('patient', pid);
+  await reloadData(); navigate('patient', pid);
 }
 
-function deletePatient(pid) {
+async function deletePatient(pid) {
   if (!confirm('이 환자의 모든 기록을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.')) return;
-  const records = getRecords().filter(r => r.id !== pid);
-  saveRecordsData(records);
-  navigate('patients');
+  await apiPost('delete_patient', { id: pid });
+  await reloadData(); navigate('patients');
 }
 
 // ═══════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════
 function navigate(page, patientId, visitId) {
-  curPage = page;
-  curPatientId = patientId || null;
-  curVisitId = visitId || null;
+  curPage = page; curPatientId = patientId || null; curVisitId = visitId || null;
   if (page !== 'patient') { cmpSel = []; updateCmpFab(); }
-  updateSidebar();
+  closeSidebar(); updateSidebar(); window.scrollTo(0, 0);
+  if (!_dataLoaded) {
+    const el = document.getElementById('content');
+    if (el) el.innerHTML = '<div style="padding:80px;text-align:center;color:var(--text-light);font-size:15px;font-family:inherit">⏳ 데이터를 불러오는 중...</div>';
+    loadData().then(() => { updateSidebar(); renderContent(); });
+    return;
+  }
   renderContent();
-  closeSidebar();
-  window.scrollTo(0, 0);
 }
 
 function updateSidebar() {
-  ['dashboard','patients','settings'].forEach(p => {
+  ['dashboard','patients','intake','members','reports','ai','iris','settings'].forEach(p => {
     const el = document.getElementById('sb-' + p);
     if (el) el.classList.toggle('active', curPage === p || (p === 'patients' && (curPage === 'patient' || curPage === 'report' || curPage === 'compare')));
   });
@@ -454,6 +561,26 @@ function getThisMonthCount(records) {
   return count;
 }
 
+function getThisWeekPatients(records) {
+  const now = new Date();
+  const day = now.getDay(); // 0=일, 1=월 ... 6=토
+  const mon = new Date(now); mon.setDate(now.getDate() - ((day + 6) % 7)); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
+  return records.filter(p => { const d = new Date(p.createdAt||0); return d >= mon && d <= sun; }).length;
+}
+
+function getThisMonthPatients(records) {
+  const now = new Date();
+  return records.filter(p => {
+    const d = new Date(p.createdAt||0);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+}
+
+function getRecentPatients(records, n = 8) {
+  return [...records].sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||'')).slice(0, n);
+}
+
 function getRecentVisits(records, n = 5) {
   const all = [];
   records.forEach(p => p.visits?.forEach(v => all.push({...v, patientName: p.name, patientId: p.id})));
@@ -467,20 +594,29 @@ function renderContent() {
   const el = document.getElementById('content');
   if (!el) return;
   switch (curPage) {
-    case 'dashboard': el.innerHTML = renderDashboard(); break;
+    case 'dashboard': if (!IS_SUPER) { navigate('patients'); return; } el.innerHTML = renderDashboard(); break;
     case 'patients':  el.innerHTML = renderPatients();  break;
     case 'patient':   el.innerHTML = renderPatientDetail(); break;
     case 'report':    el.innerHTML = renderReportView(); break;
     case 'compare':   el.innerHTML = renderComparison(); break;
     case 'settings':  el.innerHTML = renderSettings(); break;
+    case 'intake':    el.innerHTML = renderIntake(); break;
+    case 'members':   el.innerHTML = IS_SUPER ? renderMembers()  : renderDashboard(); break;
+    case 'reports':   el.innerHTML = IS_SUPER ? renderReports()  : renderDashboard(); break;
+    case 'ai':        el.innerHTML = IS_SUPER ? renderAIPanel()  : renderDashboard(); break;
+    case 'iris':      el.innerHTML = IS_SUPER ? renderIrisDataset() : renderDashboard(); setTimeout(attachIrisFilters,0); break;
     default: el.innerHTML = renderDashboard();
   }
   if (curPage === 'patients') {
     setTimeout(() => {
       const si = document.getElementById('searchInput');
       if (si) si.addEventListener('input', e => { searchQ = e.target.value; renderPatientsTable(); });
+      renderPatientsFilterItems();
       renderPatientsTable();
     }, 0);
+  }
+  if (curPage === 'ai') {
+    setTimeout(() => adminLoadCasesFromDB(), 0);
   }
 }
 
@@ -488,73 +624,123 @@ function renderContent() {
 //  DASHBOARD
 // ═══════════════════════════════════════
 function renderDashboard() {
-  const records = getRecords();
-  const totalPatients = records.length;
-  const thisMonth = getThisMonthCount(records);
+  const records = getAllRecords();
+  const totalPt  = records.length;
+  const weekPt   = getThisWeekPatients(records);
+  const monthPt  = getThisMonthPatients(records);
   const allVisits = records.flatMap(p => p.visits || []);
-  const totalVisits = allVisits.length;
-  const avgScore = totalVisits > 0 ? Math.round(allVisits.reduce((s, v) => s + getOverall(v), 0) / totalVisits) : 0;
-  const recent = getRecentVisits(records, 5);
+  const totalVis  = allVisits.length;
+  const monthVis  = getThisMonthCount(records);
+  const avgScore  = totalVis > 0 ? Math.round(allVisits.reduce((s,v) => s + getOverall(v), 0) / totalVis) : 0;
+  const recentPts = getRecentPatients(records, 6);
+  const recentVis = getRecentVisits(records, 5);
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const day = now.getDay();
+  const mon = new Date(now); mon.setDate(now.getDate() - ((day+6)%7));
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+  const weekRange = `${mon.getMonth()+1}/${mon.getDate()} – ${sun.getMonth()+1}/${sun.getDate()}`;
 
   return `
-    <div class="pg-title">대시보드</div>
-    <div class="pg-desc">${new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'})}</div>
-    <div class="stats-row">
-      <div class="stat-card stat-blue">
-        <div class="stat-lbl">총 환자 수</div>
-        <div class="stat-num">${totalPatients}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 명</span></div>
-        <div class="stat-sub">등록된 환자</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
+      <div class="pg-title" style="margin-bottom:0">대시보드</div>
+      <div style="font-size:12px;color:var(--text-light)">${dateStr}</div>
+    </div>
+    <div class="pg-desc" style="margin-bottom:18px">루디아헬스 운영 현황</div>
+
+    <!-- 환자 등록 통계 (메인 3개) -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px">
+      <div class="stat-card" style="border-top:3px solid var(--blue-primary);text-align:center;padding:20px 16px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:8px;letter-spacing:.4px">이번 주 환자 등록</div>
+        <div style="font-size:44px;font-weight:900;color:var(--blue-primary);line-height:1">${weekPt}</div>
+        <div style="font-size:11px;color:var(--text-light);margin-top:8px">${weekRange}</div>
       </div>
-      <div class="stat-card stat-green">
-        <div class="stat-lbl">이번 달 방문</div>
-        <div class="stat-num">${thisMonth}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 회</span></div>
-        <div class="stat-sub">이번 달 진단</div>
+      <div class="stat-card" style="border-top:3px solid #059669;text-align:center;padding:20px 16px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:8px;letter-spacing:.4px">이번 달 환자 등록</div>
+        <div style="font-size:44px;font-weight:900;color:#059669;line-height:1">${monthPt}</div>
+        <div style="font-size:11px;color:var(--text-light);margin-top:8px">${now.getMonth()+1}월</div>
       </div>
-      <div class="stat-card stat-orange">
-        <div class="stat-lbl">전체 방문 횟수</div>
-        <div class="stat-num">${totalVisits}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 회</span></div>
-        <div class="stat-sub">누적 진단 횟수</div>
-      </div>
-      <div class="stat-card stat-navy">
-        <div class="stat-lbl">평균 건강 점수</div>
-        <div class="stat-num" style="color:${sColor(avgScore)}">${avgScore || '–'}</div>
-        <div class="stat-sub">전체 평균</div>
+      <div class="stat-card" style="border-top:3px solid var(--navy-mid);text-align:center;padding:20px 16px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:8px;letter-spacing:.4px">전체 환자 수</div>
+        <div style="font-size:44px;font-weight:900;color:var(--navy-dark);line-height:1">${totalPt}</div>
+        <div style="font-size:11px;color:var(--text-light);margin-top:8px">누적 등록</div>
       </div>
     </div>
+
+    <!-- 보조 통계 -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+      <div class="stat-card stat-green" style="padding:14px 16px">
+        <div class="stat-lbl">이번 달 진단</div>
+        <div class="stat-num" style="font-size:26px">${monthVis}<span style="font-size:13px;font-weight:400;color:var(--text-light)"> 회</span></div>
+      </div>
+      <div class="stat-card stat-orange" style="padding:14px 16px">
+        <div class="stat-lbl">전체 방문 횟수</div>
+        <div class="stat-num" style="font-size:26px">${totalVis}<span style="font-size:13px;font-weight:400;color:var(--text-light)"> 회</span></div>
+      </div>
+      <div class="stat-card stat-navy" style="padding:14px 16px">
+        <div class="stat-lbl">평균 건강 점수</div>
+        <div class="stat-num" style="font-size:26px;color:${sColor(avgScore)}">${avgScore || '–'}</div>
+      </div>
+    </div>
+
+    <!-- 최근 등록 환자 -->
+    <div class="tbl-card" style="margin-bottom:16px">
+      <div class="tbl-hdr">
+        <div class="tbl-card-title">최근 등록 환자</div>
+        <button class="act-btn" onclick="navigate('patients')">전체 보기 →</button>
+      </div>
+      ${recentPts.length === 0 ? `
+        <div class="empty" style="padding:28px 0">
+          <div class="empty-ico">🧑‍⚕️</div>
+          <div class="empty-tit">등록된 환자 없음</div>
+          <div class="empty-dsc">관리자가 환자를 등록하면 여기에 표시됩니다.</div>
+        </div>` : `
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th>환자코드</th><th>이름</th><th>성별/나이</th><th>등록 관리자</th><th>등록일</th><th>방문</th><th>작업</th>
+        </tr></thead>
+        <tbody>
+          ${recentPts.map(p => `
+            <tr style="cursor:pointer" onclick="navigate('patient','${p.id}')">
+              <td><span style="font-size:10px;font-weight:700;color:var(--blue-primary);background:var(--blue-bg);padding:2px 7px;border-radius:4px">${p.uniqueId||'–'}</span></td>
+              <td><strong>${p.name||'–'}</strong></td>
+              <td style="font-size:12px;color:var(--text-light)">${({male:'남',female:'여'})[p.gender]||'–'} / ${calcAge(p.dob)||'–'}세</td>
+              <td style="font-size:12px;color:var(--text-light)">${p.createdByName||'–'}</td>
+              <td style="font-size:12px;color:var(--text-light)">${fmtDateShort(p.createdAt?.slice(0,10)||'')}</td>
+              <td style="text-align:center">${(p.visits||[]).length}회</td>
+              <td><button class="act-btn" onclick="event.stopPropagation();navigate('patient','${p.id}')">상세</button></td>
+            </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+
+    <!-- 최근 방문 기록 -->
+    ${recentVis.length > 0 ? `
     <div class="tbl-card">
       <div class="tbl-hdr">
         <div class="tbl-card-title">최근 방문 기록</div>
-        <button class="act-btn" onclick="navigate('patients')">전체 보기 →</button>
+        <a href="index.html" class="act-btn" style="text-decoration:none">→ 진단 시작하기</a>
       </div>
-      ${recent.length === 0 ? `
-        <div class="empty"><div class="empty-ico">📋</div>
-        <div class="empty-tit">방문 기록 없음</div>
-        <div class="empty-dsc">진단 시스템에서 환자 기록을 저장하면<br>여기에 표시됩니다.</div>
-        <div style="margin-top:18px"><a href="index.html" class="btn-prim" style="text-decoration:none;padding:10px 22px">→ 진단 시작하기</a></div></div>
-      ` : `
       <div class="tbl-wrap"><table>
         <thead><tr>
-          <th>환자명</th>${IS_SUPER ? '<th>등록 관리자</th>' : ''}<th>방문일</th><th>점수</th><th>주요 증상</th><th>작업</th>
+          <th>환자명</th><th>등록 관리자</th><th>방문일</th><th>점수</th><th>작업</th>
         </tr></thead>
         <tbody>
-          ${recent.map(v => {
+          ${recentVis.map(v => {
             const sc = getOverall(v);
-            const syms = (v.symptoms || []).slice(0,2).map(s => SYMPTOM_KO[s] || s).join(', ');
-            const regBy = v.registeredBy?.name || '–';
             const rptDone = !!v.reportBy;
-            return `<tr ${IS_SUPER ? `onclick="window.open('index.html?record=${v.patientId}&visit=${v.id}&iris=true','_blank')"` : (rptDone ? `onclick="window.open('index.html?record=${v.patientId}&visit=${v.id}','_blank')"` : '')} style="${(IS_SUPER || rptDone) ? 'cursor:pointer' : ''}">
-              <td><strong>${v.patientName || '–'}</strong>${(rptDone && !IS_SUPER) || (rptDone && IS_SUPER) ? '<span style="font-size:9px;font-weight:800;color:#059669;background:#D1FAE5;padding:1px 6px;border-radius:4px;margin-left:4px">리포트 완성</span>' : ''}</td>
-              ${IS_SUPER ? `<td style="font-size:12px;color:var(--text-light)">${regBy}</td>` : ''}
-              <td>${fmtDateShort(v.date)}</td>
+            return `<tr style="cursor:pointer" onclick="location.href='index.html?record=${v.patientId}&visit=${v.id}&iris=true'">
+              <td><strong>${v.patientName||'–'}</strong>${rptDone?'<span style="font-size:9px;font-weight:800;color:#059669;background:#D1FAE5;padding:1px 6px;border-radius:4px;margin-left:4px">완성</span>':''}</td>
+              <td style="font-size:12px;color:var(--text-light)">${v.registeredBy?.name||'–'}</td>
+              <td style="font-size:12px;color:var(--text-light)">${fmtDateShort(v.date)}</td>
               <td><span class="scr-badge scr-${sClass(sc)}">${sc}</span></td>
-              <td style="color:var(--text-light);font-size:12px">${syms || '–'}</td>
-              <td>${IS_SUPER ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="event.stopPropagation();window.open('index.html?record=${v.patientId}&visit=${v.id}&iris=true','_blank')">🔬 리포트 작성</button>` : (rptDone ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="event.stopPropagation();window.open('index.html?record=${v.patientId}&visit=${v.id}','_blank')">리포트 보기</button>` : '–')}</td>
+              <td><button class="act-btn" onclick="event.stopPropagation();navigate('report','${v.patientId}','${v.id}')">리포트</button></td>
             </tr>`;
-            
           }).join('')}
         </tbody>
-      </table></div>`}
-    </div>`;
+      </table></div>
+    </div>` : ''}`;
 }
 
 // ═══════════════════════════════════════
@@ -562,25 +748,132 @@ function renderDashboard() {
 // ═══════════════════════════════════════
 function renderPatients() {
   return `
-    <div class="pg-title">환자 목록</div>
-    <div class="pg-desc">등록된 모든 환자 기록을 확인하고 관리합니다.</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div>
+        <div class="pg-title" style="margin-bottom:2px">환자 관리</div>
+        <div class="pg-desc" style="margin-bottom:0">등록된 환자를 관리하고 리포트를 확인합니다.</div>
+      </div>
+      <button class="btn-prim" onclick="openAddPatient()" style="flex-shrink:0;display:flex;align-items:center;gap:6px;padding:10px 18px;font-size:13px">
+        <span style="font-size:16px">+</span> 환자 추가
+      </button>
+    </div>
+
+    <!-- 필터 바 -->
+    <div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:12px 16px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:var(--text-light);flex-shrink:0">필터</span>
+        <button id="ptfbtn_sx" onclick="setPtFilterCat('sx')"
+          style="padding:5px 13px;border-radius:20px;border:1.5px solid ${_ptFilterCat==='sx'?'var(--blue-primary)':'#CBD5E1'};
+            background:${_ptFilterCat==='sx'?'var(--blue-bg)':'white'};color:${_ptFilterCat==='sx'?'var(--blue-primary)':'var(--text-mid)'};
+            font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">
+          🩺 증상별
+        </button>
+        <button id="ptfbtn_dx" onclick="setPtFilterCat('dx')"
+          style="padding:5px 13px;border-radius:20px;border:1.5px solid ${_ptFilterCat==='dx'?'var(--blue-primary)':'#CBD5E1'};
+            background:${_ptFilterCat==='dx'?'var(--blue-bg)':'white'};color:${_ptFilterCat==='dx'?'var(--blue-primary)':'var(--text-mid)'};
+            font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">
+          🏥 질병별
+        </button>
+        ${_ptFilterId ? `<button onclick="clearPtFilter()"
+          style="padding:5px 10px;border-radius:20px;border:1.5px solid #FCA5A5;background:#FEF2F2;color:#DC2626;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">
+          ✕ 필터 해제
+        </button>` : ''}
+      </div>
+      <div id="pt-filter-items" style="${_ptFilterCat?'':'display:none'}margin-top:10px;display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+
     <div class="tbl-card">
       <div class="tbl-hdr">
         <div class="tbl-card-title" id="ptCount">환자 ${getRecords().length}명</div>
-        <input class="srch" id="searchInput" placeholder="이름 또는 연락처 검색..." value="${searchQ}">
+        <input class="srch" id="searchInput" placeholder="이름, 연락처, 환자코드 검색..." value="${searchQ}">
       </div>
       <div id="patientsTable"></div>
-    </div>`;
+    </div>`
+    + addPatientModal();
+}
+
+function setPtFilterCat(cat) {
+  if (_ptFilterCat === cat) { _ptFilterCat = null; _ptFilterId = null; }
+  else { _ptFilterCat = cat; _ptFilterId = null; }
+  renderPatientsFilterItems();
+  renderPatientsTable();
+  // update category button styles
+  ['sx','dx'].forEach(c => {
+    const b = document.getElementById('ptfbtn_' + c);
+    if (!b) return;
+    const on = _ptFilterCat === c;
+    b.style.borderColor = on ? 'var(--blue-primary)' : '#CBD5E1';
+    b.style.background  = on ? 'var(--blue-bg)'      : 'white';
+    b.style.color       = on ? 'var(--blue-primary)'  : 'var(--text-mid)';
+  });
+}
+
+function clearPtFilter() {
+  _ptFilterCat = null; _ptFilterId = null;
+  renderPatientsFilterItems();
+  renderPatientsTable();
+  ['sx','dx'].forEach(c => {
+    const b = document.getElementById('ptfbtn_' + c);
+    if (!b) return;
+    b.style.borderColor='#CBD5E1'; b.style.background='white'; b.style.color='var(--text-mid)';
+  });
+}
+
+function renderPatientsFilterItems() {
+  const wrap = document.getElementById('pt-filter-items');
+  if (!wrap) return;
+  if (!_ptFilterCat) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+
+  const records = getRecords();
+  let items = [];
+  if (_ptFilterCat === 'sx') {
+    // collect all unique symptom IDs across all visits
+    const counts = {};
+    records.forEach(p => (p.visits||[]).forEach(v => (v.symptoms||[]).forEach(id => { counts[id] = (counts[id]||0)+1; })));
+    items = Object.entries(SX_LABELS).filter(([id]) => counts[id]).map(([id,label]) => ({id, label, count: counts[id]||0}));
+    // group by axis
+    const axisOrder = ['s1','s2','s3','s4','s5'];
+    items.sort((a,b) => axisOrder.indexOf(a.id.slice(0,2)) - axisOrder.indexOf(b.id.slice(0,2)));
+  } else {
+    const counts = {};
+    records.forEach(p => (p.visits||[]).forEach(v => (v.pastConditions||[]).forEach(id => { counts[id] = (counts[id]||0)+1; })));
+    items = Object.entries(PMH_LABELS).filter(([id]) => counts[id]).map(([id,label]) => ({id, label, count: counts[id]||0}));
+  }
+
+  wrap.innerHTML = items.map(({id,label,count}) => {
+    const on = _ptFilterId === id;
+    return `<button onclick="setPtFilterId('${id}')"
+      style="padding:4px 11px;border-radius:16px;border:1.5px solid ${on?'var(--blue-primary)':'#CBD5E1'};
+        background:${on?'var(--blue-primary)':'white'};color:${on?'white':'var(--text-mid)'};
+        font-size:11px;font-weight:${on?700:500};cursor:pointer;font-family:inherit;white-space:nowrap">
+      ${label} <span style="opacity:.7;font-size:10px">(${count})</span>
+    </button>`;
+  }).join('') || '<span style="font-size:12px;color:var(--text-light)">데이터 없음</span>';
+}
+
+function setPtFilterId(id) {
+  _ptFilterId = (_ptFilterId === id) ? null : id;
+  renderPatientsFilterItems();
+  renderPatientsTable();
 }
 
 function renderPatientsTable() {
   const records = getRecords();
   const q = searchQ.toLowerCase();
-  const filtered = q ? records.filter(p => (p.name||'').toLowerCase().includes(q) || (p.phone||'').includes(q)) : records;
+  let filtered = q ? records.filter(p => (p.name||'').toLowerCase().includes(q) || (p.phone||'').includes(q)) : records;
+  // 증상/질병 필터 적용
+  if (_ptFilterId) {
+    filtered = filtered.filter(p => (p.visits||[]).some(v => {
+      if (_ptFilterCat === 'sx')  return (v.symptoms||[]).includes(_ptFilterId);
+      if (_ptFilterCat === 'dx')  return (v.pastConditions||[]).includes(_ptFilterId);
+      return false;
+    }));
+  }
 
   const el = document.getElementById('patientsTable');
   const countEl = document.getElementById('ptCount');
-  if (countEl) countEl.textContent = `환자 ${filtered.length}명`;
+  if (countEl) countEl.textContent = `환자 ${filtered.length}명${_ptFilterId ? ` (필터: ${(SX_LABELS[_ptFilterId]||PMH_LABELS[_ptFilterId]||_ptFilterId)})` : ''}`;
 
   if (!el) return;
   if (filtered.length === 0) {
@@ -608,7 +901,7 @@ function renderPatientsTable() {
     const hasReport = visits.some(v => v.reportBy);
     const adminName = p.createdByName || '–';
     const _destUrl = IS_SUPER && last ? `index.html?record=${p.id}&visit=${last.id}&iris=true` : null;
-    return `<tr onclick="${_destUrl ? `window.open('${_destUrl}','_blank')` : `navigate('patient','${p.id}')`}" style="cursor:pointer">
+    return `<tr onclick="${_destUrl ? `location.href='${_destUrl}'` : `navigate('patient','${p.id}')`}" style="cursor:pointer">
       <td>
         <span style="font-size:10px;font-weight:700;color:var(--blue-primary);background:var(--blue-bg);padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:3px">${p.uniqueId||'–'}</span><br>
         <strong>${p.name || '–'}</strong>
@@ -623,7 +916,10 @@ function renderPatientsTable() {
       <td>${lastScore != null ? `<span class="scr-badge scr-${sClass(lastScore)}">${lastScore}</span>` : '–'}</td>
       <td>${trendHtml}</td>
       <td>${visits.length}회</td>
-      <td><button class="act-btn" onclick="event.stopPropagation();navigate('patient','${p.id}')">상세 보기</button></td>
+      <td style="display:flex;gap:5px;align-items:center">
+        <button class="act-btn" onclick="event.stopPropagation();navigate('patient','${p.id}')">상세</button>
+        <button class="act-btn" onclick="event.stopPropagation();openEditPatient('${p.id}')" style="background:#F0FDF4;color:#059669;border-color:#6EE7B7">수정</button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -663,9 +959,69 @@ function renderPatientDetail() {
           <div class="vcb-num">${visits.length}</div>
           <div class="vcb-lbl">총 방문</div>
         </div>
-        <button class="btn-danger" onclick="deletePatient('${p.id}')">삭제</button>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          ${IS_SUPER ? `<button class="btn-prim" style="font-size:12px;padding:7px 14px" onclick="location.href='index.html?record=${p.id}'">🔬 리포트 작성</button>` : ''}
+          <button class="btn-sec" style="font-size:12px;padding:7px 14px" onclick="openEditPatient('${p.id}')">✏️ 정보 수정</button>
+          <button class="btn-danger" onclick="deletePatient('${p.id}')">삭제</button>
+        </div>
       </div>
     </div>
+
+    <!-- 등록 정보 카드 (설문지 + 홍채사진) -->
+    ${p.survey || p.irisPhotos ? `
+    <div style="display:grid;grid-template-columns:${p.irisPhotos?.left || p.irisPhotos?.right ? '1fr 1fr' : '1fr'};gap:14px;margin-bottom:18px">
+      ${p.survey ? `
+      <div class="tbl-card" style="margin-bottom:0">
+        <div style="font-size:13px;font-weight:800;color:var(--navy-dark);margin-bottom:12px">📋 초기 설문지</div>
+        ${p.survey.symptoms?.length ? `<div style="margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:4px">주요 증상</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">${p.survey.symptoms.map(s => `<span style="font-size:11px;padding:2px 8px;background:#EFF6FF;color:var(--navy-mid);border-radius:5px;font-weight:600">${({'headache':'두통/어지러움','eye':'눈 이상','ent':'귀·코·목','chest':'흉통/호흡','abdominal':'복통/소화','joint':'관절/근육','fatigue':'피로','sleep_sym':'수면장애','weight':'체중변화','skin':'피부','urinary':'비뇨기','psych':'심리적 불안'})[s]||s}</span>`).join('')}</div>
+        </div>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:12px;margin-bottom:8px">
+          ${p.survey.sleep   ? `<div><span style="color:var(--text-light)">수면</span> <strong>${({lt5h:'5h미만',lt6h:'5~6h','6to8h':'6~8h',gt8h:'8h+'})[p.survey.sleep]||p.survey.sleep}</strong></div>` : ''}
+          ${p.survey.stress  ? `<div><span style="color:var(--text-light)">스트레스</span> <strong>${({low:'낮음',moderate:'보통',high:'높음',very_high:'매우높음'})[p.survey.stress]||p.survey.stress}</strong></div>` : ''}
+          ${p.survey.vasScore != null ? `<div><span style="color:var(--text-light)">VAS</span> <strong>${p.survey.vasScore}/10</strong></div>` : ''}
+          ${p.survey.smoking && p.survey.smoking !== 'none' ? `<div><span style="color:var(--text-light)">흡연</span> <strong>${({yes:'흡연중',ex:'금연'})[p.survey.smoking]||p.survey.smoking}</strong></div>` : ''}
+        </div>
+        ${p.survey.medications?.length ? `<div style="margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:4px">복용 약물</div>
+          ${p.survey.medications.map(m => `<div style="font-size:11px;padding:3px 0;border-bottom:1px solid #F1F5F9;color:var(--navy-dark)">💊 ${m.name}${m.period?' <span style="color:var(--text-light)">('+m.period+')</span>':''}</div>`).join('')}
+        </div>` : ''}
+        ${p.survey.surgeries?.length ? `<div style="margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:4px">수술력</div>
+          ${p.survey.surgeries.map(s => `<div style="font-size:11px;padding:3px 0;border-bottom:1px solid #F1F5F9;color:var(--navy-dark)">🔪 ${s.name}${s.year?' <span style="color:var(--text-light)">('+s.year+'년)</span>':''}</div>`).join('')}
+        </div>` : ''}
+        ${p.survey.pastHistory?.length ? `<div style="margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:4px">과거력</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">${p.survey.pastHistory.map(h => `<span style="font-size:11px;padding:2px 8px;background:#F5F3FF;color:#7C3AED;border-radius:5px;font-weight:600">${({'pmh_htn':'고혈압','pmh_dm':'당뇨','pmh_lipid':'고지혈증','pmh_thyroid':'갑상선','pmh_gerd':'역류성식도염','pmh_gastric':'위염/위궤양','pmh_liver':'간질환','pmh_renal':'신장질환','pmh_cardiac':'심장질환','pmh_neuro':'뇌졸중/신경계','pmh_auto':'자가면역','pmh_cancer':'암병력'})[h]||h}</span>`).join('')}</div>
+        </div>` : ''}
+        ${p.survey.memo ? `<div style="font-size:11px;color:var(--text-light);background:#F8FAFC;padding:7px 9px;border-radius:6px;line-height:1.6">${p.survey.memo}</div>` : ''}
+        ${p.survey.surveyPhoto ? `<div style="margin-top:10px"><div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:5px">종이 설문지</div><img src="${p.survey.surveyPhoto}" style="width:100%;border-radius:7px;border:1px solid #E2E8F0;cursor:pointer" onclick="window.open(this.src)"></div>` : ''}
+      </div>` : ''}
+
+      ${(p.irisPhotos?.left || p.irisPhotos?.right) ? `
+      <div class="tbl-card" style="margin-bottom:0">
+        <div style="font-size:13px;font-weight:800;color:var(--navy-dark);margin-bottom:12px">👁 홍채 사진</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          ${['left','right'].map(side => {
+            const label = side === 'left' ? '좌안' : '우안';
+            const photos = p.irisPhotos[side];
+            const arr = Array.isArray(photos) ? photos : (photos ? [photos] : []);
+            if (!arr.length) return `<div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:5px;text-align:center">${label}</div>
+              <div style="aspect-ratio:1;background:#F8FAFC;border-radius:8px;border:1px dashed #CBD5E1;display:flex;align-items:center;justify-content:center;font-size:24px;color:#CBD5E1">👁</div>
+            </div>`;
+            return `<div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:5px;text-align:center">${label} (${arr.length}장)</div>
+              <img src="${arr[0]}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:2px solid #BFDBFE;cursor:pointer;margin-bottom:${arr.length>1?'6px':'0'}" onclick="window.open(this.src)">
+              ${arr.length > 1 ? `<div style="display:grid;grid-template-columns:repeat(${Math.min(arr.length-1,4)},1fr);gap:4px">
+                ${arr.slice(1).map((url,i) => `<img src="${url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;border:1px solid #E2E8F0;cursor:pointer" onclick="window.open(this.src)">`).join('')}
+              </div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+    </div>` : ''}
 
     ${visits.length >= 2 ? `
     <div class="chart-card">
@@ -689,7 +1045,7 @@ function renderPatientDetail() {
         const dateParts = (v.date || '').split('-');
         const syms = (v.symptoms || []).slice(0,3).map(s => SYMPTOM_KO[s] || s);
         const isInCmp = cmpSel.some(x => x.vid === v.id);
-        return `<div class="vc"${IS_SUPER ? ` onclick="window.open('index.html?record=${p.id}&visit=${v.id}&iris=true','_blank')" style="cursor:pointer"` : ''}>
+        return `<div class="vc"${IS_SUPER ? ` onclick="location.href='index.html?record=${p.id}&visit=${v.id}&iris=true'" style="cursor:pointer"` : ''}>
           <div class="vc-date-col">
             <div class="vc-day">${dateParts[2] || '–'}</div>
             <div class="vc-ym">${dateParts[0] || ''}/${dateParts[1] || ''}</div>
@@ -713,15 +1069,17 @@ function renderPatientDetail() {
             </div>
           </div>
           <div class="vc-actions">
-            ${IS_SUPER ? `<button class="act-btn" onclick="event.stopPropagation();window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트</button>` : (v.reportBy ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="window.open('index.html?record=${p.id}&visit=${v.id}','_blank')">리포트 보기</button>` : '')}
-            ${IS_SUPER ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="event.stopPropagation();window.open('index.html?record=${p.id}&visit=${v.id}&iris=true','_blank')">🔬 홍채 진단</button>` : ''}
-            ${IS_SUPER ? `<button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="event.stopPropagation();window.open('index.html?record=${p.id}&visit=${v.id}&edit=true','_blank')">✏️ 수정</button>` : ''}
+            ${IS_SUPER ? `<button class="act-btn" onclick="event.stopPropagation();location.href='index.html?record=${p.id}&visit=${v.id}'">리포트</button>` : (v.reportBy ? `<button class="act-btn" style="background:#ECFDF5;color:#059669;border-color:#6EE7B7" onclick="location.href='index.html?record=${p.id}&visit=${v.id}'">리포트 보기</button>` : '')}
+            ${v.reportBy ? `<button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD;font-weight:700" onclick="event.stopPropagation();printReport('${p.id}','${v.id}')">🖨 출력</button>` : ''}
+            ${IS_SUPER ? `<button class="act-btn" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE;font-weight:700" onclick="event.stopPropagation();location.href='index.html?record=${p.id}&visit=${v.id}&iris=true'">🔬 홍채 진단</button>` : ''}
+            ${IS_SUPER ? `<button class="act-btn" style="background:#F0F9FF;color:#0369A1;border-color:#BAE6FD" onclick="event.stopPropagation();location.href='index.html?record=${p.id}&visit=${v.id}&edit=true'">✏️ 수정</button>` : ''}
             <button class="act-btn-danger" onclick="event.stopPropagation();deleteVisit('${p.id}','${v.id}')">삭제</button>
             ${visits.length >= 2 ? `<label class="cmp-check"><input type="checkbox" ${isInCmp?'checked':''} onchange="toggleCmp('${p.id}','${v.id}',this)"> 비교 선택</label>` : ''}
           </div>
         </div>`;
       }).join('')}
-    </div>`}`;
+    </div>`}`
+    + addPatientModal();
 }
 
 // ═══════════════════════════════════════
@@ -1107,35 +1465,1565 @@ function renderComparison() {
 // ═══════════════════════════════════════
 //  SETTINGS
 // ═══════════════════════════════════════
+// ═══════════════════════════════════════
+//  회원 관리 (최종관리자 전용)
+// ═══════════════════════════════════════
+function simpleHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
+  return (h >>> 0).toString(36);
+}
+
+async function createAdminAccount() {
+  const name  = (document.getElementById('newAdminName').value  || '').trim();
+  const email = (document.getElementById('newAdminEmail').value || '').trim().toLowerCase();
+  const pw    = (document.getElementById('newAdminPw').value    || '').trim();
+  const phone = (document.getElementById('newAdminPhone').value || '').replace(/\D/g,'');
+  if (!name||!email||!pw||!phone){alert('이름, 이메일, 비밀번호, 핸드폰 번호를 모두 입력해주세요.');return;}
+  if (pw.length<6){alert('비밀번호는 6자 이상이어야 합니다.');return;}
+  if (phone.length<7){alert('핸드폰 번호를 올바르게 입력해주세요.');return;}
+  const result = await apiPost('create_admin', {name, email, password:pw, phone});
+  if (!result.success){alert('생성 실패: '+(result.error||'알 수 없는 오류'));return;}
+  const ac = result.admin?.admin_code || '';
+  await reloadData();
+  alert(`관리자 계정 생성 완료!\n이름: ${name}\n이메일: ${email}\n관리자 코드: ${ac}`);
+  navigate('members');
+}
+
+async function deleteAdmin(uid) {
+  if (!confirm('이 관리자 계정을 삭제하시겠습니까?')) return;
+  const result = await apiPost('delete_admin', {id: uid});
+  if (!result.success){alert('삭제 실패: '+(result.error||''));return;}
+  await reloadData(); navigate('members');
+}
+
+function renderMembers() {
+  const users   = _adminUsers;
+  const members = users.filter(u => u.role === 'member');
+  const admins  = users.filter(u => u.role === 'admin');
+  const codes   = _inviteCodes;
+
+  const memberRows = members.length === 0
+    ? `<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:24px">등록된 회원 없음</td></tr>`
+    : members.map(u => {
+        const record = getAllRecords().find(r => r.memberId === u.id || r.uniqueId === u.uniqueId);
+        return `<tr>
+          <td><strong>${u.name || '–'}</strong></td>
+          <td style="font-size:12px;color:var(--text-light)">${u.email || '–'}</td>
+          <td style="font-size:12px">${u.uniqueId || '–'}</td>
+          <td style="font-size:12px;color:var(--text-light)">${(u.createdAt||u.joinedAt||'').slice(0,10) || '–'}</td>
+          <td>${record ? `<button class="act-btn" onclick="navigate('patient','${record.id}')">기록 보기</button>` : '<span style="font-size:11px;color:var(--text-light)">기록 없음</span>'}</td>
+        </tr>`;
+      }).join('');
+
+  const adminRows = admins.length === 0
+    ? `<tr><td colspan="5" style="text-align:center;color:var(--text-light);padding:20px">등록된 관리자 없음 — 아래에서 직접 추가하세요</td></tr>`
+    : admins.map(u => `<tr>
+        <td><strong>${u.name || '–'}</strong></td>
+        <td style="font-size:12px;color:var(--text-light)">${u.email || '–'}</td>
+        <td style="font-size:12px"><code>${u.admin_code || u.adminCode || '–'}</code></td>
+        <td style="font-size:12px;color:var(--text-light)">${(u.created_at||u.createdAt||'').slice(0,10)||'–'}</td>
+        <td style="font-size:12px;color:var(--text-light)">${(()=>{ try{ return getRecordsFor(u.id).length; }catch(e){ return 0; } })()}명 담당
+          <button onclick="deleteAdmin('${u.id}')" style="margin-left:8px;padding:2px 7px;border:1px solid #FCA5A5;border-radius:5px;background:white;color:var(--danger);font-size:10px;cursor:pointer">삭제</button>
+        </td>
+      </tr>`).join('');
+
+  return `
+    <div class="pg-title">회원 관리</div>
+    <div class="pg-desc">가입된 회원과 관리자 계정을 통합 관리합니다.</div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px">
+      <div class="stat-card stat-blue"><div class="stat-lbl">전체 회원</div><div class="stat-num">${members.length}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 명</span></div></div>
+      <div class="stat-card stat-navy"><div class="stat-lbl">관리자</div><div class="stat-num">${admins.length}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 명</span></div></div>
+      <div class="stat-card stat-green"><div class="stat-lbl">미사용 초대코드</div><div class="stat-num">${codes.filter(c=>!c.used).length}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 개</span></div></div>
+    </div>
+
+    <!-- 관리자 직접 추가 -->
+    <div class="tbl-card" style="margin-bottom:18px;border:1.5px solid #DDD6FE">
+      <div class="tbl-hdr" style="background:#F5F3FF">
+        <div class="tbl-card-title" style="color:#7C3AED">🛡️ 관리자 계정 직접 추가</div>
+      </div>
+      <div style="padding:16px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <input id="newAdminName"  type="text"     placeholder="이름 *" style="padding:8px 11px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+        <input id="newAdminPhone" type="tel"      placeholder="핸드폰 번호 * (관리자 코드 자동 생성)" style="padding:8px 11px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+        <input id="newAdminEmail" type="email"    placeholder="이메일 *" style="padding:8px 11px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+        <input id="newAdminPw"    type="password" placeholder="비밀번호 * (6자 이상)" style="padding:8px 11px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+      </div>
+      <div style="padding:0 18px 16px">
+        <button onclick="createAdminAccount()" style="padding:9px 22px;background:linear-gradient(135deg,#7C3AED,#4C1D95);color:white;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ 관리자 계정 생성</button>
+      </div>
+    </div>
+
+    <div class="tbl-card" style="margin-bottom:18px">
+      <div class="tbl-hdr">
+        <div class="tbl-card-title">🛡️ 관리자 목록</div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>이름</th><th>이메일</th><th>관리자코드</th><th>생성일</th><th>담당 환자</th></tr></thead>
+        <tbody>${adminRows}</tbody>
+      </table></div>
+    </div>
+
+    <div class="tbl-card">
+      <div class="tbl-hdr">
+        <div class="tbl-card-title">👤 회원 목록</div>
+        <button class="btn-prim" onclick="navigate('settings')" style="font-size:12px;padding:6px 14px">+ 초대코드 발급</button>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>이름</th><th>이메일</th><th>고유번호</th><th>가입일</th><th>작업</th></tr></thead>
+        <tbody>${memberRows}</tbody>
+      </table></div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+//  전체 리포트 (최종관리자 전용)
+// ═══════════════════════════════════════
+function renderReports() {
+  const records = getAllRecords();
+  const allVisits = records.flatMap(p =>
+    (p.visits || []).map(v => ({ ...v, patientName: p.name, patientId: p.id }))
+  ).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const rows = allVisits.length === 0
+    ? `<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:24px">리포트 없음</td></tr>`
+    : allVisits.map(v => {
+        const sc = getOverall(v);
+        const done = !!v.reportBy;
+        return `<tr style="cursor:pointer" onclick="location.href='index.html?record=${v.patientId}&visit=${v.id}${done?"":"&iris=true"}'">
+          <td><strong>${v.patientName || '–'}</strong></td>
+          <td style="font-size:12px;color:var(--text-light)">${v.registeredBy?.name || '–'}</td>
+          <td style="font-size:12px">${fmtDateShort(v.date)}</td>
+          <td><span class="scr-badge scr-${sClass(sc)}">${sc}</span></td>
+          <td>${done
+            ? '<span style="font-size:10px;font-weight:800;color:#059669;background:#D1FAE5;padding:2px 8px;border-radius:4px">완성</span>'
+            : '<span style="font-size:10px;font-weight:700;color:#D97706;background:#FEF3C7;padding:2px 8px;border-radius:4px">미완성</span>'}</td>
+          <td><button class="act-btn" onclick="event.stopPropagation();location.href='index.html?record=${v.patientId}&visit=${v.id}&iris=true'" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE">열기</button></td>
+        </tr>`;
+      }).join('');
+
+  const doneCount = allVisits.filter(v => !!v.reportBy).length;
+
+  return `
+    <div class="pg-title">전체 리포트</div>
+    <div class="pg-desc">모든 환자의 진단 리포트를 통합 조회합니다.</div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px">
+      <div class="stat-card stat-blue"><div class="stat-lbl">전체 진단 수</div><div class="stat-num">${allVisits.length}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 건</span></div></div>
+      <div class="stat-card stat-green"><div class="stat-lbl">완성된 리포트</div><div class="stat-num">${doneCount}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 건</span></div></div>
+      <div class="stat-card stat-orange"><div class="stat-lbl">미완성 리포트</div><div class="stat-num">${allVisits.length - doneCount}<span style="font-size:14px;font-weight:400;color:var(--text-light)"> 건</span></div></div>
+    </div>
+
+    <div class="tbl-card">
+      <div class="tbl-hdr"><div class="tbl-card-title">📄 리포트 목록</div></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>환자명</th><th>담당 관리자</th><th>진단일</th><th>점수</th><th>상태</th><th>작업</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+//  AI 학습 (최종관리자 전용)
+// ═══════════════════════════════════════
+// ═══════════════════════════════════════
+//  IRIS DATASET
+// ═══════════════════════════════════════
+function renderIrisDataset() {
+  // 전체 홍채 목록 수집
+  const records = getRecords();
+  const allIrises = []; // {patientId, patientName, visitId, date, side, src, sxIds, dxIds, axisScores}
+  records.forEach(p => {
+    (p.visits||[]).forEach(v => {
+      const base = {
+        patientId: p.id, patientName: p.name||'–', visitId: v.id,
+        date: v.date||'', sxIds: v.symptoms||[], dxIds: v.pastConditions||[],
+        axisScores: v.scores||null
+      };
+      if (v.leftEyePhoto)  allIrises.push({...base, side:'L', src: v.leftEyePhoto});
+      if (v.rightEyePhoto) allIrises.push({...base, side:'R', src: v.rightEyePhoto});
+      // also check irisPhotos (patient-level)
+      const lp = Array.isArray(p.irisPhotos?.left)  ? p.irisPhotos.left[0]  : p.irisPhotos?.left;
+      const rp = Array.isArray(p.irisPhotos?.right) ? p.irisPhotos.right[0] : p.irisPhotos?.right;
+      if (lp && !v.leftEyePhoto)  allIrises.push({...base, side:'L', src: lp});
+      if (rp && !v.rightEyePhoto) allIrises.push({...base, side:'R', src: rp});
+    });
+  });
+
+  // 필터 적용
+  let shown = allIrises;
+  if (_irisFilterId) {
+    shown = allIrises.filter(ir => {
+      if (_irisFilterCat === 'sx') return ir.sxIds.includes(_irisFilterId);
+      if (_irisFilterCat === 'dx') return ir.dxIds.includes(_irisFilterId);
+      return true;
+    });
+  }
+
+  // 증상 카운트 (필터 버튼 뱃지용)
+  const sxCounts = {}, dxCounts = {};
+  allIrises.forEach(ir => {
+    ir.sxIds.forEach(id => { sxCounts[id] = (sxCounts[id]||0)+1; });
+    ir.dxIds.forEach(id => { dxCounts[id] = (dxCounts[id]||0)+1; });
+  });
+
+  // 그룹핑: _irisGroupBy가 true면 선택한 태그별로 섹션 분리
+  let gallery = '';
+  if (_irisGroupBy && _irisFilterCat && !_irisFilterId) {
+    const labels = _irisFilterCat === 'sx' ? SX_LABELS : PMH_LABELS;
+    const counts  = _irisFilterCat === 'sx' ? sxCounts : dxCounts;
+    Object.entries(labels).filter(([id]) => counts[id]).forEach(([id, label]) => {
+      const group = allIrises.filter(ir => (_irisFilterCat==='sx' ? ir.sxIds : ir.dxIds).includes(id));
+      gallery += `<div style="margin-bottom:28px">
+        <div style="font-size:13px;font-weight:800;color:var(--navy-dark);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--border)">
+          ${label} <span style="font-size:11px;font-weight:400;color:var(--text-light)">${group.length}장</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+          ${group.map(ir => irisCard(ir)).join('')}
+        </div>
+      </div>`;
+    });
+  } else {
+    gallery = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+      ${shown.length ? shown.map(ir => irisCard(ir)).join('') : '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-light)">해당 조건의 홍채 이미지가 없습니다</div>'}
+    </div>`;
+  }
+
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="pg-title" style="margin-bottom:2px">👁 홍채 데이터셋</div>
+        <div class="pg-desc" style="margin-bottom:0">환자 홍채 이미지를 증상·질병별로 분류하여 딥러닝 학습 데이터를 구축합니다. 총 <strong>${allIrises.length}장</strong></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="_irisGroupBy=!_irisGroupBy;navigate('iris')"
+          style="padding:7px 14px;border-radius:8px;border:1.5px solid ${_irisGroupBy?'var(--blue-primary)':'#CBD5E1'};
+            background:${_irisGroupBy?'var(--blue-bg)':'white'};color:${_irisGroupBy?'var(--blue-primary)':'var(--text-mid)'};
+            font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          묶어보기 ${_irisGroupBy?'ON':'OFF'}
+        </button>
+        <button onclick="exportIrisDataset()" style="padding:7px 14px;border-radius:8px;border:1.5px solid #CBD5E1;background:white;color:var(--text-mid);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          📥 라벨 CSV 내보내기
+        </button>
+      </div>
+    </div>
+
+    <!-- 필터 패널 -->
+    <div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:12px 16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:${_irisFilterCat?'10px':'0'}">
+        <span style="font-size:11px;font-weight:700;color:var(--text-light);flex-shrink:0">필터</span>
+        <button id="irisfbtn_all" onclick="setIrisFilter(null,null)"
+          style="padding:5px 13px;border-radius:20px;border:1.5px solid ${!_irisFilterCat?'var(--blue-primary)':'#CBD5E1'};
+            background:${!_irisFilterCat?'var(--blue-bg)':'white'};color:${!_irisFilterCat?'var(--blue-primary)':'var(--text-mid)'};
+            font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">전체 (${allIrises.length})</button>
+        <button id="irisfbtn_sx" onclick="setIrisFilter('sx',null)"
+          style="padding:5px 13px;border-radius:20px;border:1.5px solid ${_irisFilterCat==='sx'?'var(--blue-primary)':'#CBD5E1'};
+            background:${_irisFilterCat==='sx'?'var(--blue-bg)':'white'};color:${_irisFilterCat==='sx'?'var(--blue-primary)':'var(--text-mid)'};
+            font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🩺 증상별</button>
+        <button id="irisfbtn_dx" onclick="setIrisFilter('dx',null)"
+          style="padding:5px 13px;border-radius:20px;border:1.5px solid ${_irisFilterCat==='dx'?'var(--blue-primary)':'#CBD5E1'};
+            background:${_irisFilterCat==='dx'?'var(--blue-bg)':'white'};color:${_irisFilterCat==='dx'?'var(--blue-primary)':'var(--text-mid)'};
+            font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🏥 질병별</button>
+        ${_irisFilterId ? `<button onclick="setIrisFilter(_irisFilterCat,null)"
+          style="padding:5px 10px;border-radius:20px;border:1.5px solid #FCA5A5;background:#FEF2F2;color:#DC2626;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✕ 필터 해제</button>` : ''}
+      </div>
+      <div id="iris-filter-items" style="${_irisFilterCat?'':'display:none'}display:flex;flex-wrap:wrap;gap:6px">
+        ${_irisFilterCat ? renderIrisFilterItems(sxCounts, dxCounts) : ''}
+      </div>
+    </div>
+
+    <!-- 갤러리 -->
+    <div class="tbl-card">
+      <div style="font-size:13px;font-weight:700;color:var(--navy-dark);margin-bottom:12px">
+        ${_irisFilterId ? `${SX_LABELS[_irisFilterId]||PMH_LABELS[_irisFilterId]} — ${shown.length}장` : `전체 ${shown.length}장`}
+      </div>
+      ${gallery}
+    </div>`;
+}
+
+function renderIrisFilterItems(sxCounts, dxCounts) {
+  const counts = _irisFilterCat === 'sx' ? sxCounts : dxCounts;
+  const labels = _irisFilterCat === 'sx' ? SX_LABELS : PMH_LABELS;
+  return Object.entries(labels).filter(([id]) => counts[id]).map(([id,label]) => {
+    const on = _irisFilterId === id;
+    return `<button onclick="setIrisFilter('${_irisFilterCat}','${id}')"
+      style="padding:4px 11px;border-radius:16px;border:1.5px solid ${on?'var(--blue-primary)':'#CBD5E1'};
+        background:${on?'var(--blue-primary)':'white'};color:${on?'white':'var(--text-mid)'};
+        font-size:11px;font-weight:${on?700:500};cursor:pointer;font-family:inherit;white-space:nowrap">
+      ${label} <span style="opacity:.7;font-size:10px">(${counts[id]})</span>
+    </button>`;
+  }).join('');
+}
+
+function irisCard(ir) {
+  const sxTags = ir.sxIds.slice(0,3).map(id => SX_LABELS[id]||id).join('·');
+  const dxTags = ir.dxIds.slice(0,2).map(id => PMH_LABELS[id]||id).join('·');
+  return `<div style="border:1.5px solid #E2E8F0;border-radius:10px;overflow:hidden;cursor:pointer;transition:box-shadow .15s"
+    onclick="location.href='index.html?record=${ir.patientId}&visit=${ir.visitId}&iris=true'"
+    onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow=''">
+    <div style="position:relative;aspect-ratio:1;background:#0A1628;overflow:hidden">
+      <img src="${ir.src}" alt="홍채" style="width:100%;height:100%;object-fit:cover;display:block"
+        onerror="this.style.display='none'">
+      <div style="position:absolute;top:5px;left:5px;background:rgba(0,0,0,.6);color:white;font-size:9px;font-weight:800;
+        padding:2px 6px;border-radius:5px">${ir.side==='L'?'좌':'우'}</div>
+      <div style="position:absolute;bottom:5px;right:5px;background:rgba(10,22,40,.7);color:#93C5FD;font-size:9px;
+        padding:2px 6px;border-radius:5px">${fmtDateShort(ir.date)}</div>
+    </div>
+    <div style="padding:7px 8px;background:white">
+      <div style="font-size:11px;font-weight:700;color:var(--navy-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ir.patientName}</div>
+      ${sxTags ? `<div style="font-size:9.5px;color:#0369A1;margin-top:2px;line-height:1.3;overflow:hidden;max-height:28px">${sxTags}</div>` : ''}
+      ${dxTags ? `<div style="font-size:9.5px;color:#7C3AED;margin-top:1px;line-height:1.3;overflow:hidden;max-height:20px">${dxTags}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function setIrisFilter(cat, id) {
+  _irisFilterCat = cat; _irisFilterId = id;
+  navigate('iris');
+}
+
+function attachIrisFilters() { /* filter buttons are rendered inline via onclick */ }
+
+function exportIrisDataset() {
+  const records = getRecords();
+  const rows = [['patient_id','patient_name','visit_id','date','side','symptoms','diseases','axis1','axis2','axis3','axis4','axis5']];
+  records.forEach(p => {
+    (p.visits||[]).forEach(v => {
+      ['L','R'].forEach(side => {
+        const src = side==='L' ? v.leftEyePhoto : v.rightEyePhoto;
+        if (!src) return;
+        const sc = v.scores||{};
+        rows.push([
+          p.id, p.name||'', v.id, v.date||'', side,
+          (v.symptoms||[]).map(id=>SX_LABELS[id]||id).join('|'),
+          (v.pastConditions||[]).map(id=>PMH_LABELS[id]||id).join('|'),
+          sc.axis1||'', sc.axis2||'', sc.axis3||'', sc.axis4||'', sc.axis5||''
+        ]);
+      });
+    });
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv);
+  a.download = 'ludia_iris_dataset_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+function renderAIPanel() {
+  return `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="pg-title" style="margin-bottom:2px">🤖 AI 케이스 데이터베이스</div>
+        <div class="pg-desc" style="margin-bottom:0">보고서를 완성할 때마다 케이스가 자동 저장됩니다. 쌓인 케이스는 유사 환자 추천 및 딥러닝 학습에 활용됩니다.</div>
+      </div>
+      <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:var(--blue-primary);color:white;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;flex-shrink:0">
+        🔬 진단 시스템 열기
+      </a>
+    </div>
+
+    <!-- 케이스 현황 카드 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px" id="ai-stat-cards">
+      <div style="padding:18px;background:white;border-radius:12px;border:1px solid #E2E8F0;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:var(--blue-primary);margin-bottom:6px">📦 저장된 케이스</div>
+        <div style="font-size:32px;font-weight:900;color:var(--navy-dark)" id="ai-case-count">–</div>
+        <div style="font-size:10px;color:var(--text-light);margin-top:2px">보고서 완성 기준</div>
+      </div>
+      <div style="padding:18px;background:white;border-radius:12px;border:1px solid #E2E8F0;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:6px">✅ 유사 케이스 추천</div>
+        <div style="font-size:32px;font-weight:900;color:var(--navy-dark)">ON</div>
+        <div style="font-size:10px;color:var(--text-light);margin-top:2px">항상 작동 (PHP·MySQL)</div>
+      </div>
+      <div style="padding:18px;background:white;border-radius:12px;border:1px solid #E2E8F0;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:#7C3AED;margin-bottom:6px">🧠 딥러닝 학습</div>
+        <div style="font-size:18px;font-weight:900;color:#94A3B8">준비 중</div>
+        <div style="font-size:10px;color:var(--text-light);margin-top:2px">케이스 100개 이상 시 활성화</div>
+      </div>
+    </div>
+
+    <!-- 목표 진행률 -->
+    <div class="tbl-card" style="margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:4px">딥러닝 학습 목표</div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:14px">케이스가 100개 이상 쌓이면 홍채 패턴 딥러닝 모델 학습을 시작할 수 있습니다.</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+        <div style="flex:1;height:10px;background:#F1F5F9;border-radius:10px;overflow:hidden">
+          <div id="ai-progress-bar" style="height:100%;background:linear-gradient(90deg,var(--blue-primary),#7C3AED);border-radius:10px;width:0%;transition:width .8s ease"></div>
+        </div>
+        <span id="ai-progress-label" style="font-size:12px;font-weight:700;color:var(--navy-dark);white-space:nowrap">0 / 100</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-light)">현재 <strong id="ai-case-count2">0</strong>개 저장 · 목표까지 <strong id="ai-case-remaining">100</strong>개 남음</div>
+    </div>
+
+    <!-- 최근 케이스 목록 -->
+    <div class="tbl-card">
+      <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:12px">최근 저장 케이스</div>
+      <div id="ai-cases-list"><div style="text-align:center;padding:24px;color:var(--text-light);font-size:13px">불러오는 중...</div></div>
+    </div>`;
+}
+
+async function adminLoadCasesFromDB() {
+  const axClr = {1:'#7C3AED',2:'#1D4ED8',3:'#059669',4:'#D97706',5:'#DC2626'};
+  const GOAL = 100;
+  try {
+    const res = await apiPost('get_similar_cases', { axis1:0,axis2:0,axis3:0,axis4:0,axis5:0, path_number:0, top_n:500 });
+    const cases = res.cases || [];
+    const n = cases.length;
+    const pct = Math.min(100, Math.round(n / GOAL * 100));
+
+    const cnt  = document.getElementById('ai-case-count');
+    const cnt2 = document.getElementById('ai-case-count2');
+    const rem  = document.getElementById('ai-case-remaining');
+    const bar  = document.getElementById('ai-progress-bar');
+    const lbl  = document.getElementById('ai-progress-label');
+    if (cnt)  cnt.textContent  = n;
+    if (cnt2) cnt2.textContent = n;
+    if (rem)  rem.textContent  = Math.max(0, GOAL - n);
+    if (bar)  bar.style.width  = pct + '%';
+    if (lbl)  lbl.textContent  = `${n} / ${GOAL}`;
+
+    const listEl = document.getElementById('ai-cases-list');
+    if (!listEl) return;
+    if (!cases.length) {
+      listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-light);font-size:13px">보고서를 완성하면 케이스가 여기에 쌓입니다.</div>`;
+      return;
+    }
+    listEl.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:2px solid #F1F5F9">
+        <th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text-light);font-weight:600">날짜</th>
+        <th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text-light);font-weight:600">주요 경로</th>
+        <th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-light);font-weight:600">A1</th>
+        <th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-light);font-weight:600">A2</th>
+        <th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-light);font-weight:600">A3</th>
+        <th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-light);font-weight:600">A4</th>
+        <th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-light);font-weight:600">A5</th>
+      </tr></thead>
+      <tbody>${cases.slice(0,50).map(c => {
+        const ax = c.path_number ? String(c.path_number) : '–';
+        const primary = ax[0] || '?';
+        return `<tr style="border-bottom:1px solid #F8FAFC">
+          <td style="padding:6px 10px;font-size:11px;color:var(--text-light)">${(c.created_at||'').slice(0,10)}</td>
+          <td style="padding:6px 10px">
+            <span style="font-size:10px;font-weight:800;color:${axClr[primary]||'#64748B'};background:${axClr[primary]||'#64748B'}18;padding:2px 8px;border-radius:4px">
+              경로 ${ax}
+            </span>
+          </td>
+          ${[1,2,3,4,5].map(i => `<td style="padding:6px 10px;text-align:center;font-size:11px;font-weight:700;color:${axClr[i]}">${c['axis'+i]!=null ? Math.round(c['axis'+i]) : '–'}</td>`).join('')}
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    ${cases.length > 50 ? `<div style="text-align:center;padding:10px;font-size:11px;color:var(--text-light)">최근 50개 표시 (전체 ${cases.length}개)</div>` : ''}`;
+  } catch(e) {
+    const listEl = document.getElementById('ai-cases-list');
+    if (listEl) listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-light);font-size:13px">케이스 로드 실패</div>`;
+  }
+}
+
+function getRecordsFor(userId) {
+  return getAllRecords().filter(p => p.createdBy === userId);
+}
+
+// ═══════════════════════════════════════
+//  환자 추가 모달
+// ═══════════════════════════════════════
+let _addStep = 1;
+let _addData = {};
+let _irisStream = null;
+
+function addPatientModal() {
+  return `
+  <div id="addPatientModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;overflow-y:auto;padding:24px 16px">
+    <div style="max-width:580px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+
+      <!-- 헤더 -->
+      <div style="background:var(--navy-dark);padding:18px 24px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div id="addModalTitle" style="font-size:16px;font-weight:800;color:white">환자 추가</div>
+          <div id="addStepLabel" style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">1단계 · 기본 정보</div>
+        </div>
+        <button onclick="closeAddPatient()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:22px;cursor:pointer;line-height:1">✕</button>
+      </div>
+
+      <!-- 스텝 바 -->
+      <div style="display:flex;background:#0D1E38">
+        ${['기본정보','설문지','홍채사진'].map((s,i) => `
+          <div id="addStepTab${i+1}" style="flex:1;padding:10px;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.35);border-bottom:3px solid transparent;cursor:pointer" onclick="goAddStep(${i+1})">${i+1}. ${s}</div>
+        `).join('')}
+      </div>
+
+      <!-- STEP 1: 기본 정보 -->
+      <div id="addStep1" style="padding:24px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="grid-column:1/-1">
+            <label style="font-size:11px;font-weight:700;color:var(--navy-mid);display:block;margin-bottom:5px">이름 <span style="color:var(--danger)">*</span></label>
+            <input id="af_name" type="text" placeholder="홍길동" style="${_inputStyle()}">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--navy-mid);display:block;margin-bottom:5px">핸드폰 번호 <span style="color:var(--danger)">*</span></label>
+            <input id="af_phone" type="tel" placeholder="010-0000-0000" style="${_inputStyle()}">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--navy-mid);display:block;margin-bottom:5px">생년월일</label>
+            <input id="af_dob" type="date" style="${_inputStyle()}">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--navy-mid);display:block;margin-bottom:5px">성별</label>
+            <select id="af_gender" style="${_inputStyle()}">
+              <option value="">선택</option>
+              <option value="male">남성</option>
+              <option value="female">여성</option>
+              <option value="other">기타</option>
+            </select>
+          </div>
+          <div style="grid-column:1/-1">
+            <label style="font-size:11px;font-weight:700;color:var(--navy-mid);display:block;margin-bottom:5px">주소 (선택)</label>
+            <input id="af_addr" type="text" placeholder="시/구/동" style="${_inputStyle()}">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--navy-mid);display:block;margin-bottom:5px">직업 (선택)</label>
+            <input id="af_job" type="text" placeholder="직업" style="${_inputStyle()}">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--navy-mid);display:block;margin-bottom:5px">이메일 (선택)</label>
+            <input id="af_email" type="email" placeholder="example@email.com" style="${_inputStyle()}">
+          </div>
+        </div>
+        <div style="margin-top:18px;padding:14px;background:#F0F9FF;border-radius:8px;border-left:3px solid var(--blue-primary)">
+          <div style="font-size:11px;font-weight:700;color:var(--navy-mid);margin-bottom:4px">환자 코드</div>
+          <div style="font-size:18px;font-weight:900;color:var(--navy-dark);font-family:monospace" id="af_code_preview">저장 시 자동 생성</div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:20px">
+          <button onclick="goAddStep(2)" class="btn-prim">다음 → 설문지</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: 설문지 -->
+      <div id="addStep2" style="padding:24px;display:none">
+        <div style="display:flex;gap:10px;margin-bottom:18px">
+          <button id="surveyTabForm" onclick="switchSurveyTab('form')" style="flex:1;padding:9px;border-radius:8px;border:2px solid var(--navy-mid);background:var(--navy-mid);color:white;font-size:12px;font-weight:700;cursor:pointer">📝 직접 입력</button>
+          <button id="surveyTabPhoto" onclick="switchSurveyTab('photo')" style="flex:1;padding:9px;border-radius:8px;border:2px solid #E2E8F0;background:white;color:var(--text-light);font-size:12px;font-weight:700;cursor:pointer">📷 사진 업로드</button>
+        </div>
+
+        <!-- 직접 입력 폼 -->
+        <div id="surveyFormTab" style="max-height:60vh;overflow-y:auto;padding-right:4px">
+
+          <!-- ① 현재 주요 증상 -->
+          <div style="font-size:11px;font-weight:800;color:var(--navy-mid);margin-bottom:8px;letter-spacing:.3px">① 현재 주요 증상 (복수 선택)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+            ${[
+              ['두통/어지러움','headache'],['눈 이상','eye'],
+              ['귀·코·목 불편','ent'],['흉통/호흡곤란','chest'],
+              ['복통/소화불량','abdominal'],['관절/근육통','joint'],
+              ['피로/무기력','fatigue'],['수면장애','sleep_sym'],
+              ['체중 변화','weight'],['피부 이상','skin'],
+              ['비뇨기 문제','urinary'],['심리적 불안','psych'],
+            ].map(([lbl, key]) => `
+              <div class="sym-chip" id="chip_${key}" onclick="toggleSym('${key}',this)"
+                style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;user-select:none;transition:all .15s">
+                <span class="sym-dot" id="dot_${key}"
+                  style="width:13px;height:13px;border-radius:50%;border:2px solid #CBD5E1;flex-shrink:0;transition:all .15s"></span>
+                <span style="font-size:12px;font-weight:600;color:var(--navy-dark)">${lbl}</span>
+              </div>`).join('')}
+          </div>
+
+          <!-- ② 생활습관 -->
+          <div style="font-size:11px;font-weight:800;color:var(--navy-mid);margin-bottom:8px">② 생활습관</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+            <div>
+              <label style="font-size:10px;font-weight:700;color:var(--text-light);display:block;margin-bottom:4px">수면 시간</label>
+              <select id="af_sleep" style="${_inputStyle('sm')}">
+                <option value="">선택</option>
+                <option value="lt5h">5시간 미만</option>
+                <option value="lt6h">5~6시간</option>
+                <option value="6to8h">6~8시간</option>
+                <option value="gt8h">8시간 이상</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10px;font-weight:700;color:var(--text-light);display:block;margin-bottom:4px">스트레스 수준</label>
+              <select id="af_stress" style="${_inputStyle('sm')}">
+                <option value="">선택</option>
+                <option value="low">낮음</option>
+                <option value="moderate">보통</option>
+                <option value="high">높음</option>
+                <option value="very_high">매우 높음</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10px;font-weight:700;color:var(--text-light);display:block;margin-bottom:4px">운동 빈도</label>
+              <select id="af_exercise" style="${_inputStyle('sm')}">
+                <option value="">선택</option>
+                <option value="daily">매일</option>
+                <option value="3times">주 3회 이상</option>
+                <option value="rarely">거의 안 함</option>
+                <option value="none">전혀 안 함</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10px;font-weight:700;color:var(--text-light);display:block;margin-bottom:4px">흡연</label>
+              <select id="af_smoking" style="${_inputStyle('sm')}">
+                <option value="none">비흡연</option>
+                <option value="ex">금연</option>
+                <option value="yes">흡연 중</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10px;font-weight:700;color:var(--text-light);display:block;margin-bottom:4px">음주</label>
+              <select id="af_alcohol" style="${_inputStyle('sm')}">
+                <option value="none">음주 안 함</option>
+                <option value="monthly">월 1~2회</option>
+                <option value="weekly">주 1~2회</option>
+                <option value="daily">거의 매일</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10px;font-weight:700;color:var(--text-light);display:block;margin-bottom:4px">주관적 통증 (VAS 0~10)</label>
+              <div style="display:flex;align-items:center;gap:8px;padding-top:6px">
+                <input type="range" min="0" max="10" value="5" id="af_vas"
+                  oninput="document.getElementById('af_vas_val').textContent=this.value" style="flex:1">
+                <span id="af_vas_val" style="font-size:15px;font-weight:900;color:var(--navy-dark);min-width:18px">5</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ③ 복용 약물 -->
+          <div style="font-size:11px;font-weight:800;color:var(--navy-mid);margin-bottom:8px">③ 복용 약물</div>
+          <div id="med_list" style="margin-bottom:8px"></div>
+          <button type="button" onclick="addMedRow()" style="width:100%;padding:8px;border:1.5px dashed #CBD5E1;border-radius:8px;background:none;font-size:12px;color:var(--text-light);cursor:pointer;font-weight:600;margin-bottom:16px">+ 약물 추가</button>
+
+          <!-- ④ 과거 수술력 -->
+          <div style="font-size:11px;font-weight:800;color:var(--navy-mid);margin-bottom:8px">④ 과거 수술력</div>
+          <div id="surg_list" style="margin-bottom:8px"></div>
+          <button type="button" onclick="addSurgRow()" style="width:100%;padding:8px;border:1.5px dashed #CBD5E1;border-radius:8px;background:none;font-size:12px;color:var(--text-light);cursor:pointer;font-weight:600;margin-bottom:16px">+ 수술력 추가</button>
+
+          <!-- ⑤ 과거력 (질환) -->
+          <div style="font-size:11px;font-weight:800;color:var(--navy-mid);margin-bottom:8px">⑤ 과거력 (기저질환)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+            ${[
+              ['고혈압','pmh_htn'],['당뇨','pmh_dm'],
+              ['고지혈증','pmh_lipid'],['갑상선 질환','pmh_thyroid'],
+              ['역류성 식도염','pmh_gerd'],['위염/위궤양','pmh_gastric'],
+              ['간 질환','pmh_liver'],['신장 질환','pmh_renal'],
+              ['심장 질환','pmh_cardiac'],['뇌졸중/신경계','pmh_neuro'],
+              ['자가면역 질환','pmh_auto'],['암 병력','pmh_cancer'],
+            ].map(([lbl, key]) => `
+              <div class="pmh-chip" id="pmhchip_${key}" onclick="togglePmh('${key}',this)"
+                style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid #E2E8F0;border-radius:8px;cursor:pointer;user-select:none;transition:all .15s">
+                <span class="pmh-dot" id="pmhdot_${key}"
+                  style="width:13px;height:13px;border-radius:50%;border:2px solid #CBD5E1;flex-shrink:0;transition:all .15s"></span>
+                <span style="font-size:12px;font-weight:600;color:var(--navy-dark)">${lbl}</span>
+              </div>`).join('')}
+          </div>
+          <div>
+            <label style="font-size:10px;font-weight:700;color:var(--text-light);display:block;margin-bottom:4px">기타 과거력 / 메모</label>
+            <textarea id="af_memo" rows="2" placeholder="기타 특이사항, 가족력 등..." style="${_inputStyle()} resize:vertical;height:60px"></textarea>
+          </div>
+        </div>
+
+        <!-- 사진 업로드 탭 -->
+        <div id="surveyPhotoTab" style="display:none;text-align:center">
+          <div style="border:2px dashed #CBD5E1;border-radius:12px;padding:32px 20px;cursor:pointer;background:#F8FAFC" onclick="document.getElementById('af_survey_photo').click()">
+            <div style="font-size:36px;margin-bottom:10px">📄</div>
+            <div style="font-size:14px;font-weight:700;color:var(--navy-mid);margin-bottom:4px">종이 설문지 사진 업로드</div>
+            <div style="font-size:12px;color:var(--text-light)">클릭하거나 사진을 여기에 끌어다 놓으세요</div>
+            <input type="file" id="af_survey_photo" accept="image/*" style="display:none" onchange="previewSurveyPhoto(this)">
+          </div>
+          <div id="survey_photo_preview" style="margin-top:14px"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:20px">
+          <button onclick="goAddStep(1)" class="btn-sec">← 이전</button>
+          <button onclick="goAddStep(3)" class="btn-prim">다음 → 홍채 사진</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: 홍채 사진 -->
+      <div id="addStep3" style="padding:24px;display:none">
+
+        <!-- L/R 프리뷰 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+          <!-- 좌안 -->
+          <div>
+            <div style="font-size:12px;font-weight:800;color:var(--navy-mid);margin-bottom:8px;text-align:center">👁 좌안 (Left)</div>
+            <div id="iris_L_box" style="aspect-ratio:1;border:2px dashed #CBD5E1;border-radius:12px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative">
+              <img id="iris_L_img" style="width:100%;height:100%;object-fit:cover;display:none">
+              <div id="iris_L_placeholder" style="text-align:center;padding:16px">
+                <div style="font-size:32px">👁</div>
+                <div style="font-size:11px;color:var(--text-light);margin-top:6px">촬영/업로드</div>
+              </div>
+              <div id="iris_L_badge" style="display:none;position:absolute;top:6px;right:6px;background:var(--navy-dark);color:white;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px"></div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <button onclick="openIrisCapture('L')" style="flex:1;padding:7px;font-size:11px;border:1px solid #E2E8F0;border-radius:6px;background:white;cursor:pointer;font-weight:600">📷 카메라</button>
+              <button onclick="document.getElementById('af_iris_L').click()" style="flex:1;padding:7px;font-size:11px;border:1px solid #E2E8F0;border-radius:6px;background:white;cursor:pointer;font-weight:600">🖼 업로드</button>
+              <input type="file" id="af_iris_L" accept="image/*" multiple style="display:none" onchange="setIrisPhoto('L',this)">
+            </div>
+          </div>
+          <!-- 우안 -->
+          <div>
+            <div style="font-size:12px;font-weight:800;color:var(--navy-mid);margin-bottom:8px;text-align:center">👁 우안 (Right)</div>
+            <div id="iris_R_box" style="aspect-ratio:1;border:2px dashed #CBD5E1;border-radius:12px;background:#F8FAFC;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative">
+              <img id="iris_R_img" style="width:100%;height:100%;object-fit:cover;display:none">
+              <div id="iris_R_placeholder" style="text-align:center;padding:16px">
+                <div style="font-size:32px">👁</div>
+                <div style="font-size:11px;color:var(--text-light);margin-top:6px">촬영/업로드</div>
+              </div>
+              <div id="iris_R_badge" style="display:none;position:absolute;top:6px;right:6px;background:var(--navy-dark);color:white;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px"></div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <button onclick="openIrisCapture('R')" style="flex:1;padding:7px;font-size:11px;border:1px solid #E2E8F0;border-radius:6px;background:white;cursor:pointer;font-weight:600">📷 카메라</button>
+              <button onclick="document.getElementById('af_iris_R').click()" style="flex:1;padding:7px;font-size:11px;border:1px solid #E2E8F0;border-radius:6px;background:white;cursor:pointer;font-weight:600">🖼 업로드</button>
+              <input type="file" id="af_iris_R" accept="image/*" multiple style="display:none" onchange="setIrisPhoto('R',this)">
+            </div>
+          </div>
+        </div>
+
+        <!-- 카메라 뷰 (다중 촬영) -->
+        <div id="irisCamBox" style="display:none;margin-bottom:14px;background:#0A1628;border-radius:12px;overflow:hidden">
+          <!-- 헤더 -->
+          <div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div style="min-width:0">
+              <div style="font-size:12px;font-weight:700;color:white" id="irisCamLabel">카메라</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:1px">Space 또는 버튼으로 연속 촬영 가능</div>
+            </div>
+            <!-- 카메라 장치 선택 -->
+            <select id="irisCamSelect" onchange="switchCameraDevice(this.value)"
+              style="flex:1;max-width:200px;padding:5px 8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:7px;color:white;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;outline:none">
+              <option value="" style="background:#0A1628">카메라 불러오는 중…</option>
+            </select>
+            <button onclick="closeIrisCamera()" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:18px;line-height:1;flex-shrink:0">✕</button>
+          </div>
+          <!-- 비디오 -->
+          <div style="position:relative">
+            <video id="irisCamVideo" autoplay playsinline style="width:100%;max-height:260px;display:block;object-fit:cover"></video>
+            <!-- 캡처 플래시 -->
+            <div id="irisCamFlash" style="position:absolute;inset:0;background:white;opacity:0;pointer-events:none;transition:opacity .05s"></div>
+          </div>
+          <!-- 썸네일 스트립 -->
+          <div id="irisCamStrip" style="display:flex;gap:6px;padding:8px 10px;overflow-x:auto;min-height:62px;background:#071020;align-items:center;scrollbar-width:thin;scrollbar-color:#1E3A5F transparent">
+            <div id="irisCamStripEmpty" style="font-size:11px;color:rgba(255,255,255,.3);width:100%;text-align:center;pointer-events:none">촬영된 사진 없음</div>
+          </div>
+          <!-- 컨트롤 -->
+          <div style="padding:10px 12px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap">
+            <kbd style="font-size:10px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.08);padding:2px 7px;border-radius:4px;border:1px solid rgba(255,255,255,.15);font-family:monospace">Space</kbd>
+            <button onclick="captureIris()" style="padding:10px 24px;background:white;border:none;border-radius:8px;font-size:13px;font-weight:800;color:var(--navy-dark);cursor:pointer;letter-spacing:.3px">📸 촬영</button>
+            <button onclick="closeIrisCamera()" style="padding:10px 18px;background:#059669;border:none;border-radius:8px;font-size:12px;font-weight:700;color:white;cursor:pointer">✓ 완료</button>
+          </div>
+          <canvas id="irisCamCanvas" style="display:none"></canvas>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <button onclick="goAddStep(2)" class="btn-sec">← 이전</button>
+          <button onclick="saveNewPatient()" class="btn-prim" style="background:#059669;border-color:#059669">✓ 환자 등록 완료</button>
+        </div>
+      </div>
+
+    </div>
+  </div>`;
+}
+
+function _inputStyle(size) {
+  const pad = size === 'sm' ? '7px 10px' : '9px 12px';
+  return `width:100%;padding:${pad};border:1px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;`;
+}
+
+// ── 증상 토글 ───────────────────────────────────────────────────────
+const _symSelected = new Set();
+function toggleSym(key, el) {
+  if (_symSelected.has(key)) {
+    _symSelected.delete(key);
+    el.style.borderColor = '#E2E8F0';
+    el.style.background  = '';
+    const dot = document.getElementById('dot_' + key);
+    if (dot) { dot.style.background = ''; dot.style.borderColor = '#CBD5E1'; }
+  } else {
+    _symSelected.add(key);
+    el.style.borderColor = 'var(--navy-mid)';
+    el.style.background  = '#EFF6FF';
+    const dot = document.getElementById('dot_' + key);
+    if (dot) { dot.style.background = 'var(--navy-mid)'; dot.style.borderColor = 'var(--navy-mid)'; }
+  }
+}
+
+// ── 과거력 토글 ─────────────────────────────────────────────────────
+const _pmhSelected = new Set();
+function togglePmh(key, el) {
+  if (_pmhSelected.has(key)) {
+    _pmhSelected.delete(key);
+    el.style.borderColor = '#E2E8F0';
+    el.style.background  = '';
+    const dot = document.getElementById('pmhdot_' + key);
+    if (dot) { dot.style.background = ''; dot.style.borderColor = '#CBD5E1'; }
+  } else {
+    _pmhSelected.add(key);
+    el.style.borderColor = '#7C3AED';
+    el.style.background  = '#F5F3FF';
+    const dot = document.getElementById('pmhdot_' + key);
+    if (dot) { dot.style.background = '#7C3AED'; dot.style.borderColor = '#7C3AED'; }
+  }
+}
+
+// ── 복용 약물 동적 행 ────────────────────────────────────────────────
+let _medCount = 0;
+function addMedRow() {
+  _medCount++;
+  const id = 'med_' + _medCount;
+  const row = document.createElement('div');
+  row.id = id;
+  row.style.cssText = 'display:grid;grid-template-columns:1fr auto auto;gap:6px;margin-bottom:6px;align-items:center';
+  row.innerHTML = `
+    <input type="text" placeholder="약물명 (예: 메트포르민 500mg, 1일2회)"
+      style="${_inputStyle('sm')}margin-bottom:0">
+    <input type="text" placeholder="복용 기간" id="${id}_period"
+      style="${_inputStyle('sm')}margin-bottom:0;width:100px">
+    <button type="button" onclick="document.getElementById('${id}').remove()"
+      style="padding:7px 10px;border:1px solid #FCA5A5;border-radius:7px;background:none;color:#DC2626;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>`;
+  document.getElementById('med_list').appendChild(row);
+}
+
+// ── 과거 수술력 동적 행 ──────────────────────────────────────────────
+let _surgCount = 0;
+function addSurgRow() {
+  _surgCount++;
+  const id = 'surg_' + _surgCount;
+  const row = document.createElement('div');
+  row.id = id;
+  row.style.cssText = 'display:grid;grid-template-columns:1fr auto auto;gap:6px;margin-bottom:6px;align-items:center';
+  row.innerHTML = `
+    <input type="text" placeholder="수술명 (예: 충수절제술, 제왕절개)"
+      style="${_inputStyle('sm')}margin-bottom:0">
+    <input type="text" placeholder="연도" id="${id}_year"
+      style="${_inputStyle('sm')}margin-bottom:0;width:80px">
+    <button type="button" onclick="document.getElementById('${id}').remove()"
+      style="padding:7px 10px;border:1px solid #FCA5A5;border-radius:7px;background:none;color:#DC2626;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>`;
+  document.getElementById('surg_list').appendChild(row);
+}
+
+// ── 약물/수술 데이터 수집 ────────────────────────────────────────────
+function collectMeds() {
+  const rows = document.querySelectorAll('[id^="med_"]:not([id*="_period"])');
+  return Array.from(rows).map(row => {
+    const inputs = row.querySelectorAll('input[type="text"]');
+    return { name: inputs[0]?.value?.trim() || '', period: inputs[1]?.value?.trim() || '' };
+  }).filter(m => m.name);
+}
+function collectSurg() {
+  const rows = document.querySelectorAll('[id^="surg_"]:not([id*="_year"])');
+  return Array.from(rows).map(row => {
+    const inputs = row.querySelectorAll('input[type="text"]');
+    return { name: inputs[0]?.value?.trim() || '', year: inputs[1]?.value?.trim() || '' };
+  }).filter(s => s.name);
+}
+
+// ── 모달 열기/닫기 ──────────────────────────────────────────────────
+let _editPatientId = null;
+let _editPatient   = null;
+
+function openAddPatient() {
+  _editPatientId = null;
+  _editPatient   = null;
+  _addStep = 1;
+  _addData = {};
+  _symSelected.clear();
+  _pmhSelected.clear();
+  _medCount = 0;
+  _surgCount = 0;
+  _irisCaptures = { L: [], R: [] };
+  document.getElementById('addModalTitle').textContent = '환자 추가';
+  document.getElementById('addPatientModal').style.display = 'block';
+  goAddStep(1);
+}
+
+function openEditPatient(pid) {
+  const p = getAllRecords().find(r => r.id === pid);
+  if (!p) { alert('환자 정보를 찾을 수 없습니다.'); return; }
+  _editPatientId = pid;
+  _editPatient   = p;
+  _addStep = 1;
+  _addData = { surveyPhoto: p.survey?.surveyPhoto || null };
+  _symSelected.clear();
+  _pmhSelected.clear();
+  _medCount = 0;
+  _surgCount = 0;
+  _irisCaptures = {
+    L: Array.isArray(p.irisPhotos?.left)  ? [...p.irisPhotos.left]  : (p.irisPhotos?.left  ? [p.irisPhotos.left]  : []),
+    R: Array.isArray(p.irisPhotos?.right) ? [...p.irisPhotos.right] : (p.irisPhotos?.right ? [p.irisPhotos.right] : []),
+  };
+  document.getElementById('addModalTitle').textContent = '환자 정보 수정';
+  document.getElementById('addPatientModal').style.display = 'block';
+  goAddStep(1);
+}
+
+function closeAddPatient() {
+  _editPatientId = null;
+  _editPatient   = null;
+  document.getElementById('addPatientModal').style.display = 'none';
+  closeIrisCamera();
+}
+
+// ── 수정 모드 단계별 데이터 채우기 ──────────────────────────────────
+function _prefillStep(n) {
+  const p = _editPatient; if (!p) return;
+  if (n === 1) {
+    document.getElementById('af_name').value  = p.name  || '';
+    document.getElementById('af_phone').value = p.phone || '';
+    document.getElementById('af_dob').value   = p.dob   || '';
+    document.getElementById('af_gender').value    = p.gender     || '';
+    document.getElementById('af_addr').value      = p.address    || '';
+    document.getElementById('af_job').value       = p.occupation || '';
+    document.getElementById('af_email').value     = p.email      || '';
+    document.getElementById('af_code_preview').textContent = p.uniqueId || '–';
+  } else if (n === 2) {
+    const s = p.survey || {};
+    // 증상 칩 선택
+    (s.symptoms || []).forEach(key => {
+      const el = document.getElementById('chip_' + key);
+      if (el && !_symSelected.has(key)) toggleSym(key, el);
+    });
+    // 생활습관 드롭다운
+    ['sleep','stress','exercise','smoking','alcohol'].forEach(k => {
+      const el = document.getElementById('af_' + k);
+      if (el && s[k]) el.value = s[k];
+    });
+    // VAS
+    const vas = document.getElementById('af_vas');
+    if (vas && s.vasScore != null) { vas.value = s.vasScore; const vv = document.getElementById('af_vas_val'); if (vv) vv.textContent = s.vasScore; }
+    // 복용 약물
+    (s.medications || []).forEach(m => {
+      addMedRow();
+      const rows = document.querySelectorAll('#med_list > div');
+      const row = rows[rows.length - 1]; if (!row) return;
+      const inp = row.querySelectorAll('input[type="text"]');
+      if (inp[0]) inp[0].value = m.name   || '';
+      if (inp[1]) inp[1].value = m.period || '';
+    });
+    // 수술력
+    (s.surgeries || []).forEach(sv => {
+      addSurgRow();
+      const rows = document.querySelectorAll('#surg_list > div');
+      const row = rows[rows.length - 1]; if (!row) return;
+      const inp = row.querySelectorAll('input[type="text"]');
+      if (inp[0]) inp[0].value = sv.name || '';
+      if (inp[1]) inp[1].value = sv.year || '';
+    });
+    // 과거력 칩
+    (s.pastHistory || []).forEach(key => {
+      const el = document.getElementById('pmhchip_' + key);
+      if (el && !_pmhSelected.has(key)) togglePmh(key, el);
+    });
+    // 메모
+    const memo = document.getElementById('af_memo');
+    if (memo) memo.value = s.memo || '';
+    // 설문지 사진
+    if (s.surveyPhoto) {
+      const prev = document.getElementById('survey_photo_preview');
+      if (prev) prev.innerHTML = `<img src="${s.surveyPhoto}" style="max-width:100%;border-radius:8px;border:1px solid #E2E8F0">`;
+    }
+  } else if (n === 3) {
+    _updateIrisPreview('L');
+    _updateIrisPreview('R');
+  }
+}
+
+// ── 스텝 이동 ───────────────────────────────────────────────────────
+const STEP_LABELS = ['','기본 정보','설문지','홍채 사진'];
+function goAddStep(n) {
+  _addStep = n;
+  document.getElementById('addStepLabel').textContent = `${n}단계 · ${STEP_LABELS[n]}`;
+  [1,2,3].forEach(i => {
+    document.getElementById('addStep'+i).style.display = i === n ? 'block' : 'none';
+    const tab = document.getElementById('addStepTab'+i);
+    tab.style.color = i === n ? 'white' : 'rgba(255,255,255,.35)';
+    tab.style.borderBottomColor = i === n ? 'var(--blue-primary)' : 'transparent';
+  });
+  if (_editPatient) _prefillStep(n);
+}
+
+// ── 설문지 탭 전환 ──────────────────────────────────────────────────
+function switchSurveyTab(tab) {
+  const isForm = tab === 'form';
+  document.getElementById('surveyFormTab').style.display = isForm ? 'block' : 'none';
+  document.getElementById('surveyPhotoTab').style.display = isForm ? 'none' : 'block';
+  document.getElementById('surveyTabForm').style.background  = isForm ? 'var(--navy-mid)' : 'white';
+  document.getElementById('surveyTabForm').style.color       = isForm ? 'white' : 'var(--text-light)';
+  document.getElementById('surveyTabForm').style.borderColor = isForm ? 'var(--navy-mid)' : '#E2E8F0';
+  document.getElementById('surveyTabPhoto').style.background  = isForm ? 'white' : 'var(--navy-mid)';
+  document.getElementById('surveyTabPhoto').style.color       = isForm ? 'var(--text-light)' : 'white';
+  document.getElementById('surveyTabPhoto').style.borderColor = isForm ? '#E2E8F0' : 'var(--navy-mid)';
+}
+
+// ── 설문지 사진 프리뷰 ──────────────────────────────────────────────
+function previewSurveyPhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _addData.surveyPhoto = e.target.result;
+    document.getElementById('survey_photo_preview').innerHTML =
+      `<img src="${e.target.result}" style="max-width:100%;border-radius:8px;border:1px solid #E2E8F0">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── 홍채 사진 업로드 (다중 파일 지원) ───────────────────────────────
+function setIrisPhoto(side, input) {
+  const files = Array.from(input.files); if (!files.length) return;
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      _irisCaptures[side].push(e.target.result);
+      loaded++;
+      if (loaded === files.length) {
+        _updateIrisPreview(side);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+// ── 홍채 카메라 (다중 촬영) ──────────────────────────────────────────
+let _irisSide    = 'L';
+let _facingMode  = 'environment';
+let _irisCaptures = { L: [], R: [] };  // 각 안에 캡처된 이미지 배열
+
+function _irisSpaceHandler(e) {
+  if (e.code === 'Space' && document.getElementById('irisCamBox')?.style.display !== 'none') {
+    e.preventDefault();
+    captureIris();
+  }
+}
+
+async function openIrisCapture(side) {
+  _irisSide = side;
+  const label = side === 'L' ? '👁 좌안 (Left) — 연속 촬영' : '👁 우안 (Right) — 연속 촬영';
+  document.getElementById('irisCamLabel').textContent = label;
+  document.getElementById('irisCamBox').style.display = 'block';
+  _refreshStrip();
+  document.addEventListener('keydown', _irisSpaceHandler);
+  await startCamera();
+}
+
+let _selectedDeviceId = '';
+
+async function _populateCameraList() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+    const sel = document.getElementById('irisCamSelect');
+    if (!sel) return;
+    sel.innerHTML = '';
+    videoDevices.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `카메라 ${i + 1}`;
+      opt.style.background = '#0A1628';
+      if (d.deviceId === _selectedDeviceId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    if (!_selectedDeviceId && videoDevices.length) {
+      _selectedDeviceId = videoDevices[0].deviceId;
+      sel.value = _selectedDeviceId;
+    }
+  } catch(e) {}
+}
+
+async function startCamera() {
+  try {
+    if (_irisStream) _irisStream.getTracks().forEach(t => t.stop());
+    const constraints = { video: { width: { ideal: 1920 }, height: { ideal: 1920 } } };
+    if (_selectedDeviceId) constraints.video.deviceId = { exact: _selectedDeviceId };
+    _irisStream = await navigator.mediaDevices.getUserMedia(constraints);
+    document.getElementById('irisCamVideo').srcObject = _irisStream;
+    // 권한 허용 후 장치 목록 재조회 (레이블 표시됨)
+    await _populateCameraList();
+  } catch(e) {
+    alert('카메라 접근 실패. 브라우저 권한을 허용해주세요.\n오류: ' + e.message);
+    closeIrisCamera();
+  }
+}
+
+async function switchCameraDevice(deviceId) {
+  _selectedDeviceId = deviceId;
+  await startCamera();
+}
+
+function captureIris() {
+  const video  = document.getElementById('irisCamVideo');
+  const canvas = document.getElementById('irisCamCanvas');
+  canvas.width  = video.videoWidth  || 1280;
+  canvas.height = video.videoHeight || 1280;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+  _irisCaptures[_irisSide].push(dataUrl);
+  _refreshStrip();
+  _updateIrisPreview(_irisSide);
+
+  // 플래시 효과
+  const flash = document.getElementById('irisCamFlash');
+  if (flash) {
+    flash.style.opacity = '0.7';
+    setTimeout(() => { flash.style.opacity = '0'; }, 80);
+  }
+}
+
+function _refreshStrip() {
+  const strip = document.getElementById('irisCamStrip');
+  const empty = document.getElementById('irisCamStripEmpty');
+  if (!strip) return;
+  const caps = _irisCaptures[_irisSide];
+  // 기존 썸네일 제거
+  strip.querySelectorAll('.iris-thumb').forEach(el => el.remove());
+  if (caps.length === 0) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  caps.forEach((url, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'iris-thumb';
+    wrap.style.cssText = 'position:relative;flex-shrink:0;cursor:pointer';
+    wrap.innerHTML = `
+      <img src="${url}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:2px solid ${i === caps.length-1 ? '#60A5FA' : 'rgba(255,255,255,.2)'}">
+      <span style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:#DC2626;border-radius:50%;font-size:10px;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;border:1px solid #0A1628"
+        onclick="deleteIrisCapture(${i})">✕</span>
+      <span style="position:absolute;bottom:2px;left:2px;font-size:9px;color:white;background:rgba(0,0,0,.5);padding:0 3px;border-radius:2px;font-weight:700">${i+1}</span>`;
+    strip.appendChild(wrap);
+  });
+  // 스크롤 맨 오른쪽
+  strip.scrollLeft = strip.scrollWidth;
+}
+
+function deleteIrisCapture(idx) {
+  _irisCaptures[_irisSide].splice(idx, 1);
+  _refreshStrip();
+  _updateIrisPreview(_irisSide);
+}
+
+function _updateIrisPreview(side) {
+  const caps  = _irisCaptures[side];
+  const img   = document.getElementById('iris_' + side + '_img');
+  const ph    = document.getElementById('iris_' + side + '_placeholder');
+  const badge = document.getElementById('iris_' + side + '_badge');
+  if (caps.length === 0) {
+    if (img)   { img.src = ''; img.style.display = 'none'; }
+    if (ph)    ph.style.display = 'block';
+    if (badge) badge.style.display = 'none';
+  } else {
+    if (img)   { img.src = caps[caps.length - 1]; img.style.display = 'block'; }
+    if (ph)    ph.style.display = 'none';
+    if (badge) { badge.textContent = caps.length + '장'; badge.style.display = 'block'; }
+  }
+}
+
+function closeIrisCamera() {
+  document.removeEventListener('keydown', _irisSpaceHandler);
+  if (_irisStream) { _irisStream.getTracks().forEach(t => t.stop()); _irisStream = null; }
+  const box = document.getElementById('irisCamBox');
+  if (box) box.style.display = 'none';
+}
+
+// ── 환자 저장 / 수정 ────────────────────────────────────────────────
+async function saveNewPatient() {
+  const name  = (document.getElementById('af_name')?.value || '').trim();
+  const phone = (document.getElementById('af_phone')?.value || '').trim();
+  if (!name)  { alert('이름을 입력해주세요.');       goAddStep(1); return; }
+  if (!phone) { alert('핸드폰 번호를 입력해주세요.'); goAddStep(1); return; }
+
+  const surveySnapshot = {
+    symptoms:    Array.from(_symSelected),
+    sleep:       document.getElementById('af_sleep')?.value    || '',
+    stress:      document.getElementById('af_stress')?.value   || '',
+    exercise:    document.getElementById('af_exercise')?.value || '',
+    smoking:     document.getElementById('af_smoking')?.value  || 'none',
+    alcohol:     document.getElementById('af_alcohol')?.value  || 'none',
+    vasScore:    parseInt(document.getElementById('af_vas')?.value || '5'),
+    medications: collectMeds(),
+    surgeries:   collectSurg(),
+    pastHistory: Array.from(_pmhSelected),
+    memo:        document.getElementById('af_memo')?.value || '',
+    surveyPhoto: _addData.surveyPhoto || null,
+  };
+  const irisSnapshot = {
+    left:  _irisCaptures.L.length ? _irisCaptures.L : null,
+    right: _irisCaptures.R.length ? _irisCaptures.R : null,
+  };
+
+  const existing = _editPatientId ? _patients.find(r => r.id === _editPatientId) : null;
+  const patientData = {
+    id:         _editPatientId || undefined,
+    name, phone,
+    dob:        document.getElementById('af_dob')?.value    || '',
+    gender:     document.getElementById('af_gender')?.value || '',
+    address:    document.getElementById('af_addr')?.value   || '',
+    occupation: document.getElementById('af_job')?.value    || '',
+    email:      document.getElementById('af_email')?.value  || '',
+    survey:     surveySnapshot,
+    irisPhotos: {
+      left:  irisSnapshot.left  ?? existing?.irisPhotos?.left  ?? null,
+      right: irisSnapshot.right ?? existing?.irisPhotos?.right ?? null,
+    },
+  };
+
+  const result = await apiPost('save_patient', { patient: patientData });
+  if (!result.success) { alert('저장 실패: ' + (result.error || '')); return; }
+
+  const savedId = result.id;
+  await reloadData();
+  closeAddPatient();
+  if (_editPatientId) {
+    navigate('patient', savedId);
+    setTimeout(() => alert(`✓ 수정 완료!\n이름: ${name}`), 150);
+  } else {
+    const saved = _patients.find(p => p.id === savedId);
+    navigate('patients');
+    setTimeout(() => alert(`✓ 환자 등록 완료!\n환자 코드: ${saved?.unique_id || ''}\n이름: ${name}`), 200);
+  }
+}
+
+// ── 환자 상세에서 리포트 출력 ───────────────────────────────────────
+function printReport(pid, vid) {
+  const url = `index.html?record=${pid}&visit=${vid}&print=1`;
+  const w = window.open(url, '_blank');
+  if (!w) { alert('팝업 차단 해제 후 다시 시도해주세요.'); return; }
+  w.addEventListener('load', () => setTimeout(() => w.print(), 800));
+}
+
+// ═══════════════════════════════════════════
+//  INTAKE — 상담 신청 목록
+// ═══════════════════════════════════════════
+function getIntakeList() { return _intake; }
+
+function updateIntakeBadge() {
+  const n = _intake.filter(i => i.status === 'new').length;
+  const badge = document.getElementById('intakeBadge');
+  if (!badge) return;
+  badge.style.display = n > 0 ? 'inline-block' : 'none';
+  if (n > 0) badge.textContent = n;
+}
+
+async function setIntakeStatus(id, status) {
+  await apiPost('set_intake_status', {id, status});
+  const item = _intake.find(i => i.id === id);
+  if (item) item.status = status;
+  updateIntakeBadge();
+  renderContent();
+}
+
+async function deleteIntake(id) {
+  if (!confirm('이 신청을 삭제하시겠습니까?')) return;
+  await apiPost('delete_intake', {id});
+  _intake = _intake.filter(i => i.id !== id);
+  updateIntakeBadge();
+  renderContent();
+}
+
+// ── 최종관리자: 진단 시작 (홍채사진 포함) ──────────────────────────────────
+async function startDiagFromIntake(id) {
+  const item = _intake.find(i => i.id === id);
+  if (!item) return;
+  // 홍채사진이 있으면 별도 fetch
+  if (item.hasPhotos && !_LOCAL_MODE) {
+    try {
+      const r = await apiPost('get_intake_photos', {id});
+      if (r.photos) item.adminPhotos = r.photos;
+    } catch(e) {}
+  }
+  await setIntakeStatus(id, 'diagnosing');
+  sessionStorage.setItem('ludia_from_intake', JSON.stringify(item));
+  location.href = 'index.html?from_intake=1';
+}
+
+function openIntakeReport(patientId, visitId) {
+  const params = new URLSearchParams({record: patientId, report_only: '1'});
+  if (visitId) params.set('visit', visitId);
+  location.href = 'index.html?' + params.toString();
+}
+
+// ── 일반관리자: 메모·사진 토글 ──────────────────────────────────────────────
+const _intakePhotos = {};  // { [id]: { left: dataUrl, right: dataUrl } }
+
+function toggleIntakeDetail(id) {
+  const el = document.getElementById('intake_detail_' + id);
+  if (!el) return;
+  const opening = el.style.display === 'none';
+  el.style.display = opening ? 'block' : 'none';
+  const btn = document.getElementById('toggle_detail_btn_' + id);
+  if (btn) btn.textContent = opening ? '▲ 접기' : '📝 메모 · 사진 ▼';
+  if (opening) {
+    const item = _intake.find(i => i.id === id);
+    const memoEl = document.getElementById('memo_' + id);
+    if (memoEl && !memoEl.value && item?.adminMemo) memoEl.value = item.adminMemo;
+    ['left','right'].forEach(eye => {
+      const src = (_intakePhotos[id]||{})[eye] || item?.adminPhotos?.[eye];
+      if (src) _setPhotoPreview(id, eye, src);
+    });
+  }
+}
+
+function _setPhotoPreview(id, eye, src) {
+  const img = document.getElementById(`intake_photo_img_${eye}_${id}`);
+  const ico = document.getElementById(`intake_photo_ico_${eye}_${id}`);
+  if (img) { img.src = src; img.style.display = 'block'; }
+  if (ico) ico.style.display = 'none';
+}
+
+function handleIrisPhoto(id, eye, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    if (!_intakePhotos[id]) _intakePhotos[id] = {};
+    _intakePhotos[id][eye] = e.target.result;
+    _setPhotoPreview(id, eye, e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveIntakeMemo(id) {
+  const memoEl = document.getElementById('memo_' + id);
+  if (!memoEl) return;
+  const memo = memoEl.value;
+  const item = _intake.find(i => i.id === id);
+  if (item) item.adminMemo = memo;
+  if (!_LOCAL_MODE) await apiPost('save_intake_memo', {id, memo});
+}
+
+async function forwardPatient(id) {
+  const item = _intake.find(i => i.id === id);
+  if (!item) return;
+  const memoEl = document.getElementById('memo_' + id);
+  const memo = memoEl?.value || item.adminMemo || '';
+  const photos = _intakePhotos[id] || {};
+  const name = item.name || '이 환자';
+  if (!confirm(`${name} 님의 정보와 홍채사진을 최종관리자에게 전달하시겠습니까?`)) return;
+
+  if (!_LOCAL_MODE) {
+    const r = await apiPost('forward_patient', {id, memo, leftPhoto: photos.left||'', rightPhoto: photos.right||''});
+    if (!r.success) { alert('전달 실패: ' + (r.error||'오류')); return; }
+  }
+  item.status = 'forwarded';
+  item.adminMemo = memo;
+  if (photos.left || photos.right) item.hasPhotos = true;
+  updateIntakeBadge();
+  renderContent();
+  alert(`✅ ${name} 님의 정보가 최종관리자에게 전달되었습니다.\n진단이 완료되면 리포트를 받으실 수 있습니다.`);
+}
+
+function renderIntake() {
+  const list = getIntakeList();
+  const myCode = adminSession?.adminCode || '';
+  const intakeUrl = myCode ? `${location.origin}/intake.html?admin=${myCode}` : `${location.origin}/intake.html`;
+
+  const SYM_KO = {headache:'두통/어지러움',eye:'눈 이상',ent:'귀·코·목',chest:'흉통/호흡곤란',abdominal:'복통/소화불량',joint:'관절/근육통',fatigue:'만성 피로',sleep_sym:'수면 장애',weight:'체중 변화',skin:'피부 이상',urinary:'비뇨기',psych:'불안/우울'};
+  const PMH_KO = {pmh_htn:'고혈압',pmh_dm:'당뇨',pmh_lipid:'고지혈증',pmh_thyroid:'갑상선',pmh_gerd:'역류성 식도염',pmh_gastric:'위염/위궤양',pmh_liver:'간 질환',pmh_renal:'신장 질환',pmh_cardiac:'심장 질환',pmh_neuro:'뇌졸중/신경계',pmh_auto:'자가면역',pmh_cancer:'암 병력'};
+
+  // 최종관리자는 전체 상태, 일반관리자는 본인 업무 상태만
+  const STATUS_SUPER   = { new:'🔴 신규', contacted:'🟡 연락중', forwarded:'📤 전달됨', diagnosing:'🔵 진단중', report_ready:'📄 리포트 준비', done:'🟢 완료', reject:'⚫ 거절' };
+  const STATUS_REGULAR = { new:'🔴 신규', contacted:'🟡 연락중', forwarded:'📤 전달됨', report_ready:'📄 리포트 준비', done:'🟢 완료', reject:'⚫ 거절' };
+  const STATUS = IS_SUPER ? STATUS_SUPER : STATUS_REGULAR;
+
+  // 최종관리자: 전달된 환자를 먼저 정렬
+  const sorted = [...list].sort((a,b) => {
+    const priority = {forwarded:0, report_ready:1, diagnosing:2, new:3, contacted:4, done:5, reject:6};
+    const pa = priority[a.status]??9, pb = priority[b.status]??9;
+    if (pa !== pb) return pa - pb;
+    return b.submittedAt.localeCompare(a.submittedAt);
+  });
+
+  const rows = sorted.map(item => {
+    const syms = (item.symptoms||[]).map(k=>SYM_KO[k]||k).join(', ');
+    const pmhs = (item.pastHistory||[]).map(k=>PMH_KO[k]||k).join(', ');
+    const meds = (item.medications||[]).map(m=>m.name+(m.period?`(${m.period})`:'') ).join(', ');
+    const date = item.submittedAt ? new Date(item.submittedAt).toLocaleDateString('ko-KR') : '–';
+
+    const isForwarded    = item.status === 'forwarded';
+    const isDiagnosing   = item.status === 'diagnosing';
+    const isReportReady  = item.status === 'report_ready';
+    const isDone         = item.status === 'done';
+
+    const statusBg  = {new:'#FEF2F2',contacted:'#FFFBEB',forwarded:'#F5F3FF',diagnosing:'#EFF6FF',report_ready:'#F0FDF4',done:'#F8FAFC',reject:'#F9FAFB'}[item.status]||'#fff';
+    const borderClr = isForwarded?'#A78BFA':isReportReady?'#6EE7B7':'#E2E8F0';
+
+    // ── 하단 액션 영역 ─────────────────────────────────────
+    let bottomHtml = '';
+
+    if (IS_SUPER) {
+      // 최종관리자 뷰
+      const memoDisp = item.adminMemo ? `<div style="background:#F5F3FF;border-left:3px solid #A78BFA;padding:7px 10px;border-radius:0 7px 7px 0;font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:10px"><span style="font-size:10px;font-weight:700;color:#7C3AED;display:block;margin-bottom:2px">담당관리자 메모</span>${item.adminMemo.replace(/</g,'&lt;')}</div>` : '';
+      const photosBadge = item.hasPhotos ? `<span style="font-size:10px;font-weight:700;color:#7C3AED;background:#EDE9FE;padding:2px 8px;border-radius:4px;margin-right:6px">📷 홍채사진 첨부됨</span>` : '';
+      bottomHtml = `
+        ${memoDisp}
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="font-size:10.5px;color:var(--text-light)">
+            ${photosBadge}
+            ${isDone ? '<span style="color:#6B7280;font-weight:700">✅ 완료</span>'
+              : isReportReady ? '<span style="color:#059669;font-weight:800">📄 리포트 전달됨 — 담당관리자 확인 중</span>'
+              : isForwarded   ? '<span style="color:#7C3AED;font-weight:800">📤 전달 수신 — 홍채진단 후 리포트를 작성해주세요</span>'
+              : isDiagnosing  ? '<span style="color:#2563EB;font-weight:700">🔵 진단 진행 중</span>'
+              : ''}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${(isForwarded||isDiagnosing) ? `<button onclick="startDiagFromIntake('${item.id}')"
+              style="padding:8px 20px;background:${isForwarded?'linear-gradient(135deg,#7C3AED,#5B21B6)':'linear-gradient(135deg,#2E6DB4,#1E3A5F)'};color:white;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap">
+              🔬 ${isDiagnosing?'진단 재개':'홍채진단 시작'}
+            </button>` : ''}
+            ${isReportReady && item.patientId ? `<button onclick="openIntakeReport('${item.patientId}','${item.visitId||''}')"
+              style="padding:8px 18px;background:linear-gradient(135deg,#059669,#047857);color:white;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap">
+              🖨 리포트 재출력
+            </button>` : ''}
+          </div>
+        </div>`;
+    } else {
+      // 일반관리자 뷰 — 메모·사진·전달 섹션
+      const canEdit = !isDone && !isReportReady && !isForwarded;
+      const photoBox = (eye, label) => `
+        <div style="flex:1;min-width:80px">
+          <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:4px">${label}</div>
+          <div onclick="${canEdit?`document.getElementById('intake_photo_input_${eye}_${item.id}').click()`:''}"
+            style="width:100%;aspect-ratio:1;border:2px dashed ${canEdit?'#93C5FD':'#E2E8F0'};border-radius:8px;cursor:${canEdit?'pointer':'default'};display:flex;align-items:center;justify-content:center;overflow:hidden;background:#F8FAFC;position:relative">
+            <img id="intake_photo_img_${eye}_${item.id}" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0">
+            <span id="intake_photo_ico_${eye}_${item.id}" style="font-size:22px;color:#CBD5E1">${canEdit?'📷':'—'}</span>
+          </div>
+          ${canEdit?`<input type="file" accept="image/*" id="intake_photo_input_${eye}_${item.id}" style="display:none" onchange="handleIrisPhoto('${item.id}','${eye}',this)">`:''}
+        </div>`;
+
+      bottomHtml = `
+        <div style="margin-top:10px">
+          ${isReportReady ? `
+            <div style="background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+              <div style="font-size:12px;font-weight:800;color:#059669;margin-bottom:8px">📄 리포트가 준비되었습니다!</div>
+              <div style="font-size:11px;color:#374151;margin-bottom:10px">최종관리자가 진단을 완료하고 리포트를 전달했습니다. 아래 버튼으로 출력해서 환자에게 전달해주세요.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                ${item.patientId ? `<button onclick="openIntakeReport('${item.patientId}','${item.visitId||''}')"
+                  style="padding:9px 22px;background:linear-gradient(135deg,#059669,#047857);color:white;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">
+                  🖨 리포트 출력
+                </button>` : ''}
+                <button onclick="setIntakeStatus('${item.id}','done')"
+                  style="padding:9px 16px;border:1px solid #D1D5DB;border-radius:8px;background:white;color:#6B7280;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+                  ✓ 전달 완료 처리
+                </button>
+              </div>
+            </div>` : ''}
+
+          ${isDone ? `<div style="font-size:11px;color:#9CA3AF;text-align:center;padding:8px 0">✅ 리포트 전달 완료</div>` : ''}
+
+          ${isForwarded ? `<div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:10px 12px;font-size:11.5px;color:#7C3AED;margin-bottom:8px">
+            📤 최종관리자에게 전달 완료 — 진단 후 리포트가 준비되면 알림이 옵니다.
+          </div>` : ''}
+
+          ${!isDone && !isReportReady ? `
+            <!-- 메모 · 사진 토글 -->
+            <div style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;margin-bottom:10px">
+              <button id="toggle_detail_btn_${item.id}" onclick="toggleIntakeDetail('${item.id}')"
+                style="width:100%;padding:10px 14px;background:#F8FAFC;border:none;text-align:left;font-size:12px;font-weight:700;color:var(--navy-dark);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:space-between">
+                <span>📝 메모 · 홍채사진 ${item.adminMemo?'<span style="color:#7C3AED;font-size:10px;font-weight:700;margin-left:6px">✓ 메모 있음</span>':''}${item.hasPhotos?'<span style="color:#0284C7;font-size:10px;font-weight:700;margin-left:6px">📷 사진 있음</span>':''}</span>
+                <span style="font-size:11px;color:var(--text-light)">▼</span>
+              </button>
+              <div id="intake_detail_${item.id}" style="display:none;padding:12px 14px;border-top:1px solid #E2E8F0">
+                <div style="margin-bottom:10px">
+                  <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:4px">메모 (환자와 나눈 내용, 추가 소견 등)</div>
+                  <textarea id="memo_${item.id}" rows="4" placeholder="메모를 입력하세요..." onblur="saveIntakeMemo('${item.id}')"
+                    style="width:100%;box-sizing:border-box;border:1px solid #E2E8F0;border-radius:8px;padding:9px 12px;font-size:12px;font-family:inherit;color:var(--text-mid);resize:vertical;line-height:1.6">${(item.adminMemo||'').replace(/</g,'&lt;')}</textarea>
+                </div>
+                ${canEdit ? `
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:var(--text-light);margin-bottom:6px">홍채사진 업로드</div>
+                  <div style="display:flex;gap:10px">${photoBox('left','좌안 (Left)')}${photoBox('right','우안 (Right)')}</div>
+                  <div style="font-size:10px;color:var(--text-light);margin-top:6px">📷 클릭해서 사진 선택 · 최종관리자에게 함께 전달됩니다</div>
+                </div>` : ''}
+              </div>
+            </div>
+
+            ${!isForwarded ? `<button onclick="forwardPatient('${item.id}')"
+              style="width:100%;padding:10px;background:linear-gradient(135deg,#7C3AED,#5B21B6);color:white;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.3px">
+              📤 환자정보 전달 (최종관리자에게)
+            </button>` : ''}
+          ` : ''}
+        </div>`;
+    }
+
+    return `<div style="background:${statusBg};border:1.5px solid ${borderClr};border-radius:12px;padding:16px 18px;margin-bottom:10px${isForwarded&&IS_SUPER?';box-shadow:0 0 0 2px #A78BFA44':''}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div>
+          ${isForwarded&&IS_SUPER?'<span style="font-size:9.5px;font-weight:800;color:white;background:#7C3AED;padding:2px 8px;border-radius:4px;margin-right:8px;vertical-align:middle">진단 요청</span>':''}
+          <span style="font-size:16px;font-weight:800;color:var(--navy-dark)">${item.name}</span>
+          <span style="margin-left:8px;font-size:13px;color:var(--text-mid)">${item.phone}</span>
+          ${item.gender ? `<span style="margin-left:6px;font-size:11px;color:var(--text-light)">${item.gender==='male'?'남':'여'}</span>` : ''}
+          ${item.dob ? `<span style="margin-left:6px;font-size:11px;color:var(--text-light)">${item.dob}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:11px;color:var(--text-light)">${date}</span>
+          <select onchange="setIntakeStatus('${item.id}',this.value)"
+            style="font-size:11px;font-weight:700;border:1px solid #E2E8F0;border-radius:6px;padding:3px 6px;background:white;cursor:pointer;font-family:inherit">
+            ${Object.entries(STATUS).map(([v,l])=>`<option value="${v}"${item.status===v?' selected':''}>${l}</option>`).join('')}
+          </select>
+          <button onclick="deleteIntake('${item.id}')" style="padding:3px 8px;border:1px solid #FCA5A5;border-radius:6px;background:white;color:var(--danger);font-size:11px;cursor:pointer;font-family:inherit">삭제</button>
+        </div>
+      </div>
+      ${syms ? `<div style="margin-bottom:5px"><span style="font-size:10px;font-weight:700;color:var(--text-light);margin-right:6px">증상</span><span style="font-size:12px;color:var(--text-mid)">${syms}</span></div>` : ''}
+      ${pmhs ? `<div style="margin-bottom:5px"><span style="font-size:10px;font-weight:700;color:var(--text-light);margin-right:6px">과거력</span><span style="font-size:12px;color:var(--text-mid)">${pmhs}</span></div>` : ''}
+      ${meds ? `<div style="margin-bottom:5px"><span style="font-size:10px;font-weight:700;color:var(--text-light);margin-right:6px">약물</span><span style="font-size:12px;color:var(--text-mid)">${meds}</span></div>` : ''}
+      ${item.vasScore ? `<div style="margin-bottom:5px"><span style="font-size:10px;font-weight:700;color:var(--text-light);margin-right:6px">통증</span><span style="font-size:12px;color:var(--text-mid)">VAS ${item.vasScore}/10</span></div>` : ''}
+      ${item.memo ? `<div style="margin-top:6px;padding:8px 10px;background:rgba(0,0,0,.03);border-radius:7px;font-size:12px;color:var(--text-mid);line-height:1.6">"${item.memo}"</div>` : ''}
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,.06)">${bottomHtml}</div>
+    </div>`;
+  }).join('') || '<div style="text-align:center;padding:48px 0;color:var(--text-light);font-size:14px">아직 신청 내역이 없습니다.</div>';
+
+  const forwarded = list.filter(i=>i.status==='forwarded').length;
+  return `<div class="tbl-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <div>
+        <div style="font-size:18px;font-weight:800;color:var(--navy-dark)">📝 상담 신청 목록</div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:2px">
+          총 ${list.length}건 · 신규 ${list.filter(i=>i.status==='new').length}건
+          ${forwarded?` · <span style="color:#7C3AED;font-weight:700">진단 요청 ${forwarded}건</span>`:''}
+        </div>
+      </div>
+    </div>
+
+    ${!IS_SUPER ? `<!-- 신청 링크 공유 -->
+    <div style="background:var(--blue-bg);border:1px solid var(--blue-pale);border-radius:10px;padding:14px 16px;margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--navy-mid);margin-bottom:6px">📤 상담 신청 링크 (지인에게 공유)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <code style="flex:1;font-size:11px;background:white;border:1px solid var(--blue-pale);border-radius:6px;padding:7px 10px;color:var(--text-mid);word-break:break-all">${intakeUrl}</code>
+        <button onclick="navigator.clipboard.writeText('${intakeUrl}').then(()=>{this.textContent='복사됨!';setTimeout(()=>this.textContent='링크 복사',1500)})"
+          style="padding:7px 14px;background:var(--blue-primary);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">링크 복사</button>
+      </div>
+    </div>` : ''}
+
+    ${rows}
+  </div>`;
+}
+
 function renderSettings() {
   const records = getRecords();
   const allVisits = records.flatMap(p => p.visits || []);
-  const storageUsed = (() => { try { return (JSON.stringify(localStorage).length / 1024).toFixed(0); } catch(e) { return '?'; } })();
+  const storageUsed = _patients.length + '명 환자 · ' + _patients.reduce((s,p)=>(p.visits||[]).length+s,0) + '건 방문 (서버 DB)';
 
   // Invite codes
-  const codes = JSON.parse(localStorage.getItem('ludia_invite_codes') || '[]');
-  const myCodes = IS_SUPER ? codes : codes.filter(c => c.createdBy === adminSession.userId);
+  const codes = _inviteCodes;
+  const myCodes = IS_SUPER ? codes : codes.filter(c => c.admin_id === adminSession.userId);
   const codesHtml = myCodes.length === 0
     ? `<div style="font-size:12px;color:var(--text-light);padding:10px 0">발급된 초대 코드가 없습니다.</div>`
     : myCodes.map(c => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-light)">
         <div>
           <span style="font-family:monospace;font-size:13px;font-weight:700;color:${c.used?'var(--text-light)':'var(--navy-dark)'}">${c.code}</span>
-          ${c.used ? `<span style="font-size:10px;color:var(--text-light);margin-left:8px">사용됨 (${c.usedAt?c.usedAt.slice(0,10):''})</span>` : '<span style="font-size:10px;color:var(--success);margin-left:8px;font-weight:700">사용 가능</span>'}
+          ${c.used ? `<span style="font-size:10px;color:var(--text-light);margin-left:8px">사용됨 (${(c.used_at||c.usedAt||'').slice(0,10)})</span>` : '<span style="font-size:10px;color:var(--success);margin-left:8px;font-weight:700">사용 가능</span>'}
         </div>
         ${!c.used ? `<button onclick="deleteInviteCode('${c.code}')" style="font-size:11px;padding:3px 9px;border:1px solid #FCA5A5;border-radius:5px;background:none;color:var(--danger);cursor:pointer">삭제</button>` : ''}
       </div>`).join('');
 
   // Admin list (super admin only)
   const adminListHtml = IS_SUPER ? (() => {
-    const users = JSON.parse(localStorage.getItem('ludia_users') || '[]').filter(u => u.role === 'admin');
+    const users = _adminUsers.filter(u => u.role === 'admin');
     if (!users.length) return '<div style="font-size:12px;color:var(--text-light);padding:8px 0">등록된 관리자 없음</div>';
     return users.map(u => `
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-light)">
         <div style="width:30px;height:30px;border-radius:50%;background:${u.isSuperAdmin?'#7C3AED':'var(--blue-primary)'};display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:700;flex-shrink:0">${(u.name||'?')[0]}</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--navy-dark)">${u.name} ${u.isSuperAdmin?'<span style="font-size:10px;color:#7C3AED;background:#F5F3FF;padding:1px 6px;border-radius:3px;font-weight:700">슈퍼</span>':''}</div>
-          <div style="font-size:11px;color:var(--text-light)">${u.email} · <code style="font-size:11px">${u.adminCode||'–'}</code></div>
+          <div style="font-size:11px;color:var(--text-light)">${u.email} · <code style="font-size:11px">${u.admin_code||u.adminCode||'–'}</code></div>
         </div>
         <div style="font-size:11px;color:var(--text-light)">${getRecordsFor(u.id).length}명 담당</div>
       </div>`).join('');
@@ -1177,8 +3065,17 @@ function renderSettings() {
 
     <div class="settings-card" style="margin-bottom:16px">
       <div style="font-size:14px;font-weight:700;color:var(--navy-dark);margin-bottom:10px">📦 저장소 현황</div>
-      <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px">사용 중: 약 ${storageUsed} KB</div>
-      <div style="font-size:12px;color:var(--text-light)">담당 환자: ${records.length}명 · 방문 기록: ${allVisits.length}건 · 사진 포함: ${allVisits.filter(v=>v.leftEyePhoto||v.rightEyePhoto).length}건</div>
+      <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px">${storageUsed}</div>
+      <div style="font-size:12px;color:var(--text-light)">사진 포함: ${allVisits.filter(v=>v.leftEyePhoto||v.rightEyePhoto).length}건</div>
+    </div>
+    <div class="settings-card" style="margin-bottom:16px;border:1.5px solid #6EE7B7">
+      <div style="font-size:14px;font-weight:700;color:#065F46;margin-bottom:8px">🔄 기존 데이터 이전 (LocalStorage → 서버 DB)</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-bottom:14px;line-height:1.7">
+        이 기기에 저장된 기존 환자 데이터 / 관리자 계정 / 상담 신청을 서버 DB로 이전합니다.<br>
+        이미 서버에 있는 데이터는 건너뜁니다. 이전 후에도 로컬 데이터는 삭제되지 않습니다.
+      </div>
+      <button onclick="migrateLocalData()" style="padding:9px 22px;background:linear-gradient(135deg,#059669,#065F46);color:white;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">데이터 이전 시작</button>
+      <div id="migrateResult" style="margin-top:10px;font-size:12px;color:var(--text-mid)"></div>
     </div>
     ${IS_SUPER ? `
     <div class="settings-card" style="border:1px solid #FCA5A5">
@@ -1189,42 +3086,47 @@ function renderSettings() {
 }
 
 function getRecordsFor(userId) {
-  try {
-    return JSON.parse(localStorage.getItem('ludia_records') || '[]').filter(p => p.createdBy === userId);
-  } catch(e) { return []; }
+  return _patients.filter(p => p.admin_id === userId || p.createdBy === userId);
 }
 
-function generateInviteCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = 'INV-';
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  const codes = JSON.parse(localStorage.getItem('ludia_invite_codes') || '[]');
-  codes.push({ code, used: false, usedBy: null, createdBy: adminSession.userId, createdAt: new Date().toISOString() });
-  localStorage.setItem('ludia_invite_codes', JSON.stringify(codes));
-  navigate('settings'); // re-render
+async function generateInviteCode() {
+  const result = await apiPost('create_invite_code');
+  if (result.success) { await reloadData(); navigate('settings'); }
 }
 
-function deleteInviteCode(code) {
-  const codes = JSON.parse(localStorage.getItem('ludia_invite_codes') || '[]');
-  const idx = codes.findIndex(c => c.code === code && !c.used);
-  if (idx >= 0) { codes.splice(idx, 1); localStorage.setItem('ludia_invite_codes', JSON.stringify(codes)); }
-  navigate('settings');
+async function deleteInviteCode(code) {
+  await apiPost('delete_invite_code', {code});
+  await reloadData(); navigate('settings');
 }
 
 function changePassword() {} // legacy – no longer used
 
+async function migrateLocalData() {
+  const el = document.getElementById('migrateResult');
+  if (el) el.textContent = '이전 중...';
+  try {
+    const users   = JSON.parse(localStorage.getItem('ludia_users')       || '[]');
+    const records = JSON.parse(localStorage.getItem('ludia_records')     || '[]');
+    const intake  = JSON.parse(localStorage.getItem('ludia_intake')      || '[]');
+    const result  = await apiPost('migrate', {users, records, intake});
+    const m = result.migrated || {};
+    if (el) el.textContent = `완료! 관리자 ${m.users||0}명 · 환자 ${m.patients||0}명 · 방문 ${m.visits||0}건 · 상담 ${m.intake||0}건 이전됨.`;
+    await reloadData();
+  } catch(e) {
+    if (el) el.textContent = '이전 실패: ' + e.message;
+  }
+}
+
 function clearAllData() {
-  if (!confirm('정말로 모든 환자 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
-  if (!confirm('마지막 확인: 모든 데이터가 영구 삭제됩니다. 계속하시겠습니까?')) return;
-  localStorage.removeItem('ludia_records');
-  navigate('dashboard');
-  alert('모든 데이터가 삭제되었습니다.');
+  alert('서버 DB 전환 후 이 기능은 비활성화되었습니다.\n개별 환자 삭제는 환자 상세 페이지에서 가능합니다.');
 }
 
 // ═══════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════
-navigate('dashboard');
+// 일반 관리자는 바로 환자 관리로, 최종관리자는 대시보드로
+navigate(IS_SUPER ? 'dashboard' : 'patients');
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(() => {}); }
 </script>
 </body>
 </html>

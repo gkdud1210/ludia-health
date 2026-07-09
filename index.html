@@ -7483,8 +7483,11 @@ init();
     </div>
 
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid #E2E8F0">
-      <div style="font-size:9px;font-weight:800;color:#64748B;margin-bottom:7px">저장된 학습 케이스</div>
-      <div id="cases-list" style="font-size:10px;color:#334155;max-height:120px;overflow-y:auto"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+        <div style="font-size:9px;font-weight:800;color:#64748B">저장된 학습 케이스 <span id="cases-count" style="color:#1D4ED8"></span></div>
+        <button onclick="deleteAllCases()" style="padding:3px 9px;border:1px solid #FCA5A5;background:#FFF1F2;color:#DC2626;border-radius:5px;font-size:9px;font-weight:800;cursor:pointer">전체 삭제</button>
+      </div>
+      <div id="cases-list" style="font-size:10px;color:#334155;max-height:160px;overflow-y:auto"></div>
     </div>
   </div>
 </div>
@@ -7957,6 +7960,8 @@ async function saveTrainingCase() {
   if (dbOk) {
     msg.textContent = `☁ DB 저장 완료 (Path ${pathNum})`;
     msg.style.color = '#059669';
+    // 학습 관리 탭 목록 갱신
+    loadCasesList();
   } else if (_LOCAL_MODE) {
     msg.textContent = '로컬 모드 — DB 저장 생략';
     msg.style.color = '#D97706';
@@ -8057,25 +8062,64 @@ async function refreshTrainStatus() {
 }
 
 async function loadCasesList() {
-  if (!_serverOnline) return;
+  const el = document.getElementById('cases-list');
+  const cntEl = document.getElementById('cases-count');
   try {
-    const res  = await fetch(`${AI_SERVER}/cases`);
-    const data = await res.json();
-    const el   = document.getElementById('cases-list');
+    const data = await fetch('api.php', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'list_cases'})
+    }).then(r=>r.json());
+
     if (!data.cases?.length) {
-      el.innerHTML = '<div style="color:#94A3B8;font-size:10px">저장된 케이스 없음</div>';
+      el.innerHTML = '<div style="color:#94A3B8;font-size:10px;padding:6px 0">저장된 케이스 없음</div>';
+      if (cntEl) cntEl.textContent = '';
       return;
     }
+    if (cntEl) cntEl.textContent = `(${data.cases.length}건)`;
     const axClrLocal = {1:'#7C3AED',2:'#1D4ED8',3:'#059669',4:'#D97706',5:'#DC2626'};
     el.innerHTML = data.cases.map(c => {
-      const clr = axClrLocal[c.primary_axis] || '#64748B';
-      return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #F1F5F9">
-        <span style="font-size:8.5px;font-weight:800;color:${clr};background:${clr}18;padding:1px 6px;border-radius:4px;flex-shrink:0">A${c.primary_axis}</span>
-        <span style="font-size:9px;color:#334155;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.case_id}</span>
-        <span style="font-size:8.5px;color:#94A3B8;flex-shrink:0">${(c.saved_at||'').slice(5,16)}</span>
+      const topAx = [c.axis1,c.axis2,c.axis3,c.axis4,c.axis5].reduce((mx,v,i,a)=>v>a[mx]?i:mx,0)+1;
+      const clr = axClrLocal[topAx] || '#64748B';
+      const sxList = (() => { try { return JSON.parse(c.symptoms||'[]').slice(0,3).join(' '); } catch{return '';} })();
+      return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #F1F5F9">
+        <span style="font-size:8.5px;font-weight:800;color:${clr};background:${clr}18;padding:1px 6px;border-radius:4px;flex-shrink:0">A${topAx}</span>
+        <span style="font-size:9px;color:#334155;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sxList||'ID '+c.id}</span>
+        <span style="font-size:8px;color:#94A3B8;flex-shrink:0">${(c.created_at||'').slice(5,16)}</span>
+        <button onclick="deleteCase(${c.id})" style="border:none;background:none;color:#CBD5E1;font-size:11px;cursor:pointer;padding:0 2px;flex-shrink:0" title="삭제">✕</button>
       </div>`;
     }).join('');
-  } catch {}
+  } catch(e) {
+    el.innerHTML = '<div style="color:#94A3B8;font-size:10px;padding:6px 0">DB 연결 확인 필요</div>';
+  }
+}
+
+async function deleteCase(id) {
+  if (!confirm(`케이스 #${id}를 삭제하시겠습니까?`)) return;
+  try {
+    await fetch('api.php', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'delete_case', case_id: id})
+    });
+    loadCasesList();
+  } catch(e) { alert('삭제 실패'); }
+}
+
+async function deleteAllCases() {
+  if (!confirm('저장된 학습 케이스를 전체 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+  try {
+    const res = await fetch('api.php', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'delete_all_cases'})
+    }).then(r=>r.json());
+    if (res.success) {
+      document.getElementById('cases-list').innerHTML = '<div style="color:#94A3B8;font-size:10px;padding:6px 0">저장된 케이스 없음</div>';
+      const cntEl = document.getElementById('cases-count');
+      if (cntEl) cntEl.textContent = '';
+    }
+  } catch(e) { alert('삭제 실패'); }
 }
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(() => {}); }
 </script>

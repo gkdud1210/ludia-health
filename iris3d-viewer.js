@@ -415,38 +415,8 @@ const FRAGMENT_SHADER = /* glsl */ `
 
     vec3 anatomyColor = pupilColor * pupilZone + irisColor * irisZone + scleraColor * scleraZone;
 
-    // ── 조명
-    float diffMain = max(dot(n, lightDir), 0.0);
-    float diffFill = max(dot(n, fillDir), 0.0) * 0.32;
-    float diffAmb  = 0.28;
-    vec3  lit      = anatomyColor * ao * (diffAmb + diffMain * 0.65 + diffFill);
-
-    // ── SSS
-    float depthVal  = depthSample.r;
-    float backLight = pow(max(dot(viewDir, -lightDir), 0.0), 1.5);
-    float wrap      = max(0.0, (dot(n, lightDir) + 0.5) / 1.5);
-    vec3  sss       = vec3(0.80, 0.30, 0.23) * (backLight * 0.7 + wrap * 0.22) * depthVal * uSSSStrength * irisZone;
-
-    // ── 스페큘러 — 홍채 + 각막 캐치라이트
-    vec3  halfMain  = normalize(lightDir + viewDir);
-    float specMain  = pow(max(dot(n, halfMain), 0.0), 48.0) * 0.18;
-    vec3  halfCatch = normalize(catchDir + viewDir);
-    float specCatch = pow(max(dot(normalize(vNormalW), halfCatch), 0.0), 512.0) * 2.2;
-    float catchFade = mix(1.0, 0.35, smoothstep(0.0, 0.55, rNorm));
-    vec3  specular  = vec3(1.0, 0.97, 0.93) * (specMain + specCatch * catchFade);
-
-    // ── 눈물막 간섭(Thin-film iridescence) — 림버스 근처 무지개빛
-    float iridT   = smoothstep(0.62, 0.82, rNorm) * smoothstep(0.96, 0.84, rNorm);
-    float iridPh  = dot(n, viewDir) * 8.0 + uTime * 0.18;
-    vec3  iridCol = vec3(sin(iridPh)*0.5+0.5, sin(iridPh+2.09)*0.5+0.5, sin(iridPh+4.19)*0.5+0.5);
-    vec3  irid    = iridCol * iridT * 0.038 * irisZone;
-
-    // ── 프레넬 + 스캔라인
-    float fresnel = pow(1.0 - max(dot(n, viewDir), 0.0), 2.5);
-    float scan    = smoothstep(0.88, 1.0, sin(vUv.y * 70.0 - uTime * 1.4) * 0.5 + 0.5) * 0.09;
-
-    vec3 color = lit + sss + specular + irid + rimColor * (fresnel * 0.75 + scan);
-    color = mix(color, lit + specular, scleraZone * 0.85);
+    // ── 조명 없음 — 사진 원본 색 그대로 표시 (flat)
+    vec3 color = anatomyColor;
 
     // ── 병소 오버레이 (Lesion Overlay) — fd.irisZoneData 병소를 홍채 위에 표시
     vec4 lesion = texture2D(lesionMap, vUv);
@@ -1157,7 +1127,7 @@ export class Iris3DViewer {
   }
 
   // ── 반사광 제거 — 흰색 하이라이트를 감지 후 주변 홍채 색으로 인페인팅
-  removeSpecularHighlights({ lumThresh = 0.86, satThresh = 0.22 } = {}) {
+  removeSpecularHighlights({ lumThresh = 0.82, satThresh = 0.28 } = {}) {
     const canvas = this._colorCanvas;
     if (!canvas) return 0;
     const W = ATLAS_W, H = ATLAS_H;
@@ -1236,7 +1206,7 @@ export class Iris3DViewer {
 
     // 4) 텍스처 갱신
     ctx.putImageData(new ImageData(cur, W, H), 0, 0);
-    const colorTex = this.material.uniforms.map?.value;
+    const colorTex = this.material.uniforms.colorMap?.value;
     if (colorTex) colorTex.needsUpdate = true;
 
     return W * H - remaining; // 처리된 픽셀 수

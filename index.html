@@ -8917,7 +8917,7 @@ window.openIris3DViewer = async function(side) {
   const container = document.getElementById('iris3dContainer');
 
   try {
-    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js?v=20260711d');
+    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js?v=20260711e');
     window._iris3dMapFn = mapGridToLegacyZones;
     if (window._iris3dViewer) { window._iris3dViewer.dispose(); window._iris3dViewer = null; }
     container.innerHTML = '';

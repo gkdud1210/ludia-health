@@ -8917,7 +8917,7 @@ window.openIris3DViewer = async function(side) {
   const container = document.getElementById('iris3dContainer');
 
   try {
-    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js?v=20260711e');
+    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js?v=20260711f');
     window._iris3dMapFn = mapGridToLegacyZones;
     if (window._iris3dViewer) { window._iris3dViewer.dispose(); window._iris3dViewer = null; }
     container.innerHTML = '';
@@ -9088,6 +9088,53 @@ window.runANRDetect = function() {
 
     document.getElementById('iris3dStatus').textContent =
       `ANR 감지 완료 🔵 ${rPct}%위치 · 수축${result.constrictedSecs.length}섹터 · 확장${result.expandedSecs.length}섹터`;
+
+    // ── 홍채 소견란 자동 기입 ──────────────────────────────────────
+    // wreathType 자동 판정
+    const cLen = result.constrictedSecs.length, eLen = result.expandedSecs.length;
+    let wreathVal = 'normal';
+    if (cLen >= 4 && cLen > eLen * 1.5)      wreathVal = 'narrow';
+    else if (eLen >= 4 && eLen > cLen * 1.5) wreathVal = 'wide';
+    const wreathLabel = { normal:'정상형', narrow:'협착형 (수축)', wide:'확대형 (이완)' }[wreathVal];
+
+    // 임상 소견 텍스트 생성
+    const stdVal = parseFloat(result.stdRNorm);
+    let anrNote = `[자율신경환 · 3D 자동감지]\n`;
+    anrNote += `• 위치: 홍채 내측 ${rPct}% (동공→림버스 기준)${!result.detected ? ' ※추정값' : ''}\n`;
+    anrNote += `• 형태: ${wreathLabel}`;
+    if (stdVal > 0.04) anrNote += ` / 불규칙 파형 (std ${result.stdRNorm})`;
+    anrNote += '\n';
+    if (cGrp) anrNote += `• 수축 구역: ${cGrp} → 교감신경 과활성·해당 장기 긴장 시사\n`;
+    if (eGrp) anrNote += `• 확장 구역: ${eGrp} → 부교감 우세·해당 장기 이완 시사\n`;
+    if (!cGrp && !eGrp) anrNote += `• 전 구역 균형 — 자율신경계 조절력 양호\n`;
+    anrNote = anrNote.trimEnd();
+
+    // overallNote 에 추가 (기존 내용 보존)
+    if (!fd.irisAssessment) fd.irisAssessment = {};
+    const prev = (fd.irisAssessment.overallNote || '').trim();
+    // 이미 ANR 감지 블록이 있으면 교체, 없으면 뒤에 추가
+    const ANR_MARKER = '[자율신경환 · 3D 자동감지]';
+    if (prev.includes(ANR_MARKER)) {
+      const before = prev.slice(0, prev.indexOf(ANR_MARKER)).trimEnd();
+      fd.irisAssessment.overallNote = before ? before + '\n\n' + anrNote : anrNote;
+    } else {
+      fd.irisAssessment.overallNote = prev ? prev + '\n\n' + anrNote : anrNote;
+    }
+    // 텍스트에어리어 DOM 즉시 반영
+    const ta = document.querySelector('textarea[oninput*="overallNote"]');
+    if (ta) ta.value = fd.irisAssessment.overallNote;
+
+    // wreathType 버튼 자동 선택
+    if (!fd.irisBaseType) fd.irisBaseType = {};
+    fd.irisBaseType.wreathType = wreathVal;
+    ['normal','narrow','wide'].forEach(v => {
+      const btn = document.getElementById(`ibt_wt_${v}`);
+      if (!btn) return;
+      const on = v === wreathVal;
+      btn.style.borderColor = on ? '#F59E0B' : 'rgba(255,255,255,.15)';
+      btn.style.background  = on ? 'rgba(245,158,11,.15)' : 'rgba(255,255,255,.04)';
+      btn.style.color       = on ? '#FCD34D' : 'rgba(255,255,255,.6)';
+    });
 
     if (typeof refreshIrisClock === 'function') refreshIrisClock();
   });

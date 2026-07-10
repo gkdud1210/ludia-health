@@ -617,8 +617,9 @@ export class Iris3DViewer {
 
     const local = buildAtlasesFromImage(img, geom, side);
     this.gridStats = local.gridStats; this.backendResult = null;
-    this._depthBuf  = local.depthBuf;  // depth Float32Array (cry/lac 감지)
-    this._brightBuf = local.brightBuf; // 원본 밝기 Float32Array (ANR 감지)
+    this._depthBuf   = local.depthBuf;   // depth Float32Array (cry/lac 감지)
+    this._brightBuf  = local.brightBuf;  // 원본 밝기 Float32Array (ANR 감지)
+    this._colorCanvas = local.colorCanvas; // 반사광 제거용 원본 캔버스
     this._applyTextures(local.colorCanvas, local.depthCanvas, local.normalCanvas, local.aoCanvas);
 
     if (this.aiServer) {
@@ -1153,6 +1154,92 @@ export class Iris3DViewer {
       constrictedSecs,
       expandedSecs,
     };
+  }
+
+  // ── 반사광 제거 — 흰색 하이라이트를 감지 후 주변 홍채 색으로 인페인팅
+  removeSpecularHighlights({ lumThresh = 0.86, satThresh = 0.22 } = {}) {
+    const canvas = this._colorCanvas;
+    if (!canvas) return 0;
+    const W = ATLAS_W, H = ATLAS_H;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, W, H);
+    const src = imgData.data;
+
+    // 1) 반사광 마스크 생성 (홍채 대역 내 고휘도·저채도 픽셀)
+    const mask = new Uint8Array(W * H); // 1 = 반사광, 0 = 정상
+    for (let y = 0; y < H; y++) {
+      const v = y / H;
+      if (v < PUPIL_V || v > SCLERA_V) continue;
+      for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4;
+        const r = src[i], g = src[i+1], b = src[i+2];
+        const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+        const maxC = Math.max(r, g, b), minC = Math.min(r, g, b);
+        const sat  = maxC > 0 ? (maxC - minC) / maxC : 0;
+        if (lum > lumThresh && sat < satThresh) mask[y * W + x] = 1;
+      }
+    }
+
+    // 2) 마스크 2픽셀 팽창 (경계부 부드럽게)
+    const dilated = new Uint8Array(W * H);
+    for (let y = 2; y < H - 2; y++) {
+      for (let x = 2; x < W - 2; x++) {
+        outer: for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          if (mask[(y+dy)*W + ((x+dx+W)%W)]) { dilated[y*W+x] = 1; break outer; }
+        }
+      }
+    }
+
+    // 3) 단계적 인페인팅 (바깥쪽에서 안쪽으로 — 최대 25패스)
+    const filled = new Uint8Array(W * H); // 이미 채워진 픽셀
+    const cur    = new Uint8ClampedArray(src); // 채워나갈 버퍼
+    let remaining = 0;
+    for (let i = 0; i < W * H; i++) if (dilated[i]) remaining++;
+
+    for (let pass = 0; pass < 25 && remaining > 0; pass++) {
+      let changed = 0;
+      for (let y = 1; y < H - 1; y++) {
+        const v = y / H;
+        if (v < PUPIL_V - 0.01 || v > SCLERA_V + 0.01) continue;
+        for (let x = 0; x < W; x++) {
+          if (!dilated[y*W+x] || filled[y*W+x]) continue;
+          let sumR = 0, sumG = 0, sumB = 0, sumW = 0;
+          for (let dy = -3; dy <= 3; dy++) {
+            const ny = y + dy;
+            if (ny < 0 || ny >= H) continue;
+            const nv = ny / H;
+            if (nv < PUPIL_V || nv > SCLERA_V) continue;
+            for (let dx = -3; dx <= 3; dx++) {
+              const nx = ((x + dx) % W + W) % W;
+              if (dilated[ny*W+nx] && !filled[ny*W+nx]) continue; // 아직 안 채워진 마스크 픽셀 건너뜀
+              const d2 = dx*dx + dy*dy;
+              const w  = 1.0 / (d2 + 0.5);
+              const ni = (ny*W+nx) * 4;
+              sumR += cur[ni]*w; sumG += cur[ni+1]*w; sumB += cur[ni+2]*w;
+              sumW += w;
+            }
+          }
+          if (sumW > 0.8) {
+            const pi = (y*W+x) * 4;
+            cur[pi]   = Math.round(sumR / sumW);
+            cur[pi+1] = Math.round(sumG / sumW);
+            cur[pi+2] = Math.round(sumB / sumW);
+            cur[pi+3] = 255;
+            filled[y*W+x] = 1;
+            if (this._brightBuf) this._brightBuf[y*W+x] = 0; // ANR 프로파일에서도 제거
+            remaining--; changed++;
+          }
+        }
+      }
+      if (changed === 0) break;
+    }
+
+    // 4) 텍스처 갱신
+    ctx.putImageData(new ImageData(cur, W, H), 0, 0);
+    const colorTex = this.material.uniforms.map?.value;
+    if (colorTex) colorTex.needsUpdate = true;
+
+    return W * H - remaining; // 처리된 픽셀 수
   }
 
   dispose() {

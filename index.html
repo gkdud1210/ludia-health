@@ -8871,6 +8871,10 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
       style="padding:7px 16px;background:linear-gradient(90deg,#0E4F5C,#0891B2,#22D3EE);border:none;border-radius:8px;color:white;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 0 14px rgba(6,182,212,.45);letter-spacing:.3px">
       🔵 ANR 감지
     </button>
+    <button onclick="runSpecularRemove()"
+      style="padding:7px 16px;background:linear-gradient(90deg,#3B1F6B,#7C3AED,#A78BFA);border:none;border-radius:8px;color:white;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 0 14px rgba(124,58,237,.45);letter-spacing:.3px">
+      ✨ 반사광 제거
+    </button>
   </div>
   <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;text-align:center;padding:0 20px">
     드래그: 회전 &nbsp;·&nbsp; 탭: 구역 확인/병소 선택 &nbsp;·&nbsp; <span style="color:rgba(248,113,113,.7)">"병소 감지"</span>: 크립트·라쿠나 &nbsp;·&nbsp; <span style="color:rgba(34,211,238,.7)">"ANR 감지"</span>: 자율신경환
@@ -8913,7 +8917,7 @@ window.openIris3DViewer = async function(side) {
   const container = document.getElementById('iris3dContainer');
 
   try {
-    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js?v=20260711c');
+    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js?v=20260711d');
     window._iris3dMapFn = mapGridToLegacyZones;
     if (window._iris3dViewer) { window._iris3dViewer.dispose(); window._iris3dViewer = null; }
     container.innerHTML = '';
@@ -8980,6 +8984,25 @@ window.runLesionDetect = function() {
       `병소 감지 완료 — 🔴 크립트 ${cryZones}구역 · 🟡 라쿠나 ${lacZones}구역 3D 표시중`;
 
     if (typeof refreshIrisClock === 'function') refreshIrisClock();
+  });
+};
+
+window.runSpecularRemove = function() {
+  if (!window._iris3dViewer) return;
+  document.getElementById('iris3dStatus').textContent = '반사광 감지 중...';
+  requestAnimationFrame(() => {
+    let count;
+    try {
+      count = window._iris3dViewer.removeSpecularHighlights();
+    } catch(e) {
+      document.getElementById('iris3dStatus').textContent = '반사광 제거 오류: ' + e.message;
+      console.error('[specular]', e);
+      return;
+    }
+    document.getElementById('iris3dStatus').textContent =
+      count > 0
+        ? `반사광 제거 완료 ✨ ${count.toLocaleString()}px 인페인팅`
+        : '반사광 없음 — 흰색 하이라이트가 감지되지 않았습니다';
   });
 };
 

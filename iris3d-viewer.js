@@ -727,15 +727,25 @@ export class Iris3DViewer {
   _pickCell(pos) {
     this.raycaster.setFromCamera(new THREE.Vector2(pos.x, pos.y), this.camera);
     const hit = this.raycaster.intersectObject(this.mesh)[0];
-    if (!hit || !hit.uv) { this._hidePopup(); return; }
-    const clockDeg = hit.uv.x * 360, v = hit.uv.y;
+    if (!hit) { this._hidePopup(); return; }
+
+    // hit.uv.y는 Three.js SphereGeometry UV 기준 (v=0 = Y+ 극)이라서
+    // 셰이더의 phiDeg(Z축 기준)와 좌표계가 달라 hit.point 법선벡터에서 직접 계산
+    const n = hit.point.clone().normalize(); // 구체 원점 기준, 로컬 법선 = 위치 벡터
+    const phiDeg    = Math.acos(Math.max(-1, Math.min(1, n.z))) * 180 / Math.PI;
+    const thetaMathDeg = Math.atan2(n.y, n.x) * 180 / Math.PI;
+    const clockDeg  = ((90 - thetaMathDeg) + 360) % 360; // 셰이더와 동일한 clock 방향
+    const v         = phiDeg / 180;
+
     if (v < PUPIL_V || v > SCLERA_V) { this._hidePopup(); return; }
     const rNorm = (v - PUPIL_V) / (SCLERA_V - PUPIL_V);
     const ringI = Math.min(GRID_RINGS-1, Math.floor(rNorm * GRID_RINGS));
-    const secI  = Math.min(GRID_SECTORS-1, Math.floor((clockDeg/360) * GRID_SECTORS));
+    const secI  = Math.min(GRID_SECTORS-1, Math.floor((clockDeg / 360) * GRID_SECTORS));
     const cell  = this.gridStats?.[ringI * GRID_SECTORS + secI];
     const zoneId = clockDegToZoneId(clockDeg, this._lesionSide || this.side);
-    const cellWithZone = cell ? { ...cell, zoneId } : { gridId: `G${ringI}_${secI}`, brightness: 0, depth: 0, thetaRange: [clockDeg, clockDeg], rNormRange: [rNorm, rNorm], zoneId };
+    const cellWithZone = cell
+      ? { ...cell, zoneId }
+      : { gridId: `G${ringI}_${secI}`, brightness: 0, depth: 0, thetaRange: [clockDeg, clockDeg], rNormRange: [rNorm, rNorm], zoneId };
     this._showPopup(pos.cx, pos.cy, cellWithZone);
   }
 

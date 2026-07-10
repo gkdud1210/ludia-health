@@ -8006,9 +8006,101 @@ function renderAIResult(d) {
     </div>
 
     <!-- Top-3 축 후보 -->
-    <div style="padding:8px 10px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px">
+    <div style="padding:8px 10px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;margin-bottom:12px">
       <div style="font-size:8.5px;color:#64748B;font-weight:700;margin-bottom:6px">시발 축 후보 (Top 3)</div>
       ${top3bars}
+    </div>
+
+    ${_buildAIFullAnalysis(axNum, axClr)}
+  `;
+}
+
+// ── AI 패널 전체 분석 블록 — 유전 메커니즘 + 생리학 + 보충제 ────────────────
+function _buildAIFullAnalysis(axNum, axClr) {
+  const gc = BCP_GROUP_CONTENT[axNum];
+  if (!gc) return '';
+
+  const AX_SUPP = {
+    1: ['아슈와간다 KSM-66 300mg — HPA 축 완충·교감 과항진 억제',
+        '마그네슘 글리시네이트 300mg (취침전) — 신경 진정',
+        '활성형 B5 (판테틴) 500mg — 부신 회복 원료',
+        '5-MTHF 400mcg + 메틸코발라민 1mg — 메틸화 복구·호모시스테인 저하'],
+    2: ['CoQ10 유비퀴놀 200mg — 미토콘드리아 전자전달계 재가동',
+        'L-카르니틴 타르트레이트 1~2g — 지방산 에너지 전환',
+        '벤포티아민(활성 B1) 150mg — 당 독소 차단·신경 대사 복구',
+        '알파리포산 300mg — 미토콘드리아 항산화·인슐린 감수성 개선'],
+    3: ['마그네슘 말레이트 400mg — 말초 혈관 이완·이뇨제 고갈 보상',
+        'CoQ10 유비퀴놀 100mg — 혈관 내피 보호',
+        '오메가-3 EPA 1,800mg — 혈액 점도 저하·미세 혈류 개통',
+        '비타민 K2 MK-7 100mcg — 혈관 석회화 방지'],
+    4: ['베타인 HCl+펩신 — 식사 중·위산 보충·단백질 소화 재개',
+        'L-글루타민 5g×2회 — 장 상피 복구·타이트 정크션 강화',
+        '다균주 프로바이오틱스 100억 CFU+ — SIBO 균형 회복',
+        '소화 효소 복합체 — 췌장 소화 효소 보완'],
+    5: ['NAC 600mg×2 — 글루타치온 전구체 직접 공급',
+        '5-MTHF + 메틸코발라민 — 메틸화 사이클 복구·호모시스테인 저하',
+        '실리마린 80% 300mg — 간세포 CYP450 보호',
+        '타우린 2g + 콜린 500mg — 담즙 흐름 복구'],
+  };
+  const suppList = AX_SUPP[axNum] || [];
+
+  const genHtml = gc.genItems.map(item => `
+    <div style="padding:10px 12px;background:#F8FAFC;border:1px solid ${gc.border};border-left:3px solid ${axClr};border-radius:7px;margin-bottom:7px">
+      <div style="font-size:10px;font-weight:800;color:#0F172A;margin-bottom:4px">${item.title}</div>
+      <div style="font-size:9.5px;color:#475569;line-height:1.65;margin-bottom:3px"><span style="font-weight:700;color:#64748B">기전:</span> ${item.mech}</div>
+      <div style="font-size:9.5px;color:${axClr};line-height:1.65;font-weight:600"><span style="font-weight:800">임상 결과:</span> ${item.result}</div>
+    </div>`).join('');
+
+  const lsHtml = gc.lsItems.map(item => `
+    <div style="padding:9px 11px;background:white;border:1px solid ${gc.border};border-left:3px solid #F59E0B;border-radius:7px;margin-bottom:6px">
+      <div style="display:flex;align-items:flex-start;gap:6px">
+        <span style="font-size:11px;flex-shrink:0;margin-top:1px">⚠️</span>
+        <div>
+          <div style="font-size:10px;font-weight:800;color:#0F172A;margin-bottom:3px">${item.title}</div>
+          <div style="font-size:9.5px;color:#475569;line-height:1.65">${item.result}</div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  const suppHtml = suppList.map(s =>
+    `<div style="display:flex;align-items:flex-start;gap:7px;padding:5px 0;border-bottom:1px solid #F1F5F9;font-size:10px;color:#1E293B;line-height:1.6">
+      <span style="color:${axClr};font-weight:900;flex-shrink:0">▸</span>${s}
+    </div>`).join('');
+
+  return `
+    <!-- 구분선 -->
+    <div style="border-top:1.5px solid #E2E8F0;margin-bottom:12px"></div>
+
+    <!-- 분자생리학 섹션 타이틀 -->
+    <div style="background:linear-gradient(90deg,${axClr},${axClr}CC);border-radius:8px;padding:8px 13px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:10.5px;font-weight:800;color:white;letter-spacing:.6px">🧬 분자생리학 심층 분석</span>
+      <span style="font-size:8.5px;color:rgba(255,255,255,.6)">${gc.name}</span>
+    </div>
+
+    <!-- 유전적·선천적 취약점 -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:9px;font-weight:800;color:${axClr};letter-spacing:.8px;margin-bottom:8px;display:flex;align-items:center;gap:5px">
+        <span style="display:inline-block;width:3px;height:13px;background:${axClr};border-radius:2px"></span>
+        유전적·선천적 취약점 메커니즘
+      </div>
+      ${genHtml}
+    </div>
+
+    <!-- 생활습관 트리거 -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:9px;font-weight:800;color:#92400E;letter-spacing:.8px;margin-bottom:8px;display:flex;align-items:center;gap:5px">
+        <span style="display:inline-block;width:3px;height:13px;background:#F59E0B;border-radius:2px"></span>
+        결정적 생활습관 트리거 (생리학적 기전)
+      </div>
+      <div style="background:${gc.bg};border-radius:8px;padding:10px 10px 4px">${lsHtml}</div>
+    </div>
+
+    <!-- 핵심 보충 프로토콜 -->
+    <div style="background:white;border:1px solid ${axClr}44;border-radius:9px;overflow:hidden;margin-bottom:8px">
+      <div style="background:${axClr};padding:6px 12px;font-size:10px;font-weight:800;color:white;letter-spacing:.4px">
+        💊 Axis ${axNum} 핵심 보충 프로토콜
+      </div>
+      <div style="padding:8px 12px">${suppHtml}</div>
     </div>
   `;
 }
@@ -8338,13 +8430,15 @@ window.openIris3DViewer = async function(side) {
   modal.style.display = 'flex';
   document.getElementById('iris3dTitle').textContent = side === 'left' ? '좌안 3D 홍채 뷰어' : '우안 3D 홍채 뷰어';
   document.getElementById('iris3dStatus').textContent = '3D 모델 빌드 중...';
+  // 브라우저가 flex 레이아웃을 계산·페인트할 때까지 기다린 뒤에 컨테이너 크기를 읽는다
+  // (display:none → flex 전환 직후에는 clientWidth/Height가 0이어서 Three.js 카메라가 NaN이 됨)
+  await new Promise(r => { requestAnimationFrame(() => requestAnimationFrame(r)); });
   const container = document.getElementById('iris3dContainer');
 
   try {
     const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js');
     window._iris3dMapFn = mapGridToLegacyZones;
     if (window._iris3dViewer) { window._iris3dViewer.dispose(); window._iris3dViewer = null; }
-    // container를 비워 이전 캔버스 제거
     container.innerHTML = '';
     window._iris3dViewer = new Iris3DViewer(container, {
       onExamComplete: (gridStats, _side, _backendResult) => {

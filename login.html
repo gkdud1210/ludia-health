@@ -3,10 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>LUDIA HEALTH — 로그인</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A1628">
+<link rel="apple-touch-icon" href="ludia-icon-app.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LUDIA">
 <script>
-(function(){var s=JSON.parse(sessionStorage.getItem('ludia_session')||'null');
-if(s){location.replace(s.role==='admin'||s.role==='super_admin'?'admin.html':'member.html');}})();
+(function(){
+  var s=JSON.parse(sessionStorage.getItem('ludia_session')||localStorage.getItem('ludia_session')||'null');
+  if(s){sessionStorage.setItem('ludia_session',JSON.stringify(s));location.replace(s.role==='admin'||s.role==='super_admin'?'admin.html':'member.html');}
+  // 로컬 개발 환경 자동 감지: file:// 또는 localhost → 관리자 세션 자동 주입
+  var proto=location.protocol, host=location.hostname;
+  if(proto==='file:'||(host==='localhost'||host==='127.0.0.1')){
+    var mock={id:1,name:'로컬테스트',email:'local@test.com',role:'super_admin',loginAt:new Date().toISOString()};
+    sessionStorage.setItem('ludia_session',JSON.stringify(mock));
+    location.replace('admin.html');
+  }
+})();
 </script>
 <style>
 :root{
@@ -99,10 +117,39 @@ body::after{
 /* Footer */
 .login-footer{text-align:center;margin-top:22px;font-size:11px;
   color:rgba(255,255,255,.28);letter-spacing:.5px;}
+
+/* PWA 홈화면 추가 배너 */
+.pwa-banner{display:none;background:rgba(255,255,255,.1);backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18);
+  border-radius:16px;padding:14px 16px;margin-bottom:16px;
+  align-items:center;gap:12px;}
+.pwa-banner.show{display:flex;}
+.pwa-banner-icon{width:46px;height:46px;border-radius:12px;overflow:hidden;flex-shrink:0;
+  box-shadow:0 4px 12px rgba(0,0,0,.3);}
+.pwa-banner-icon img{width:46px;height:46px;object-fit:cover;display:block;}
+.pwa-banner-text{flex:1;color:white;min-width:0;}
+.pwa-banner-text strong{display:block;font-size:13px;font-weight:700;margin-bottom:3px;}
+.pwa-banner-text span{font-size:11px;opacity:.65;line-height:1.4;}
+.pwa-banner-btn{background:white;color:#0A1628;border:none;border-radius:9px;
+  padding:8px 15px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;
+  white-space:nowrap;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.pwa-banner-close{background:none;border:none;color:rgba(255,255,255,.45);
+  font-size:22px;cursor:pointer;line-height:1;padding:2px 4px;flex-shrink:0;}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <!-- PWA 홈화면 추가 배너 -->
+  <div class="pwa-banner" id="pwaBanner">
+    <div class="pwa-banner-icon"><img src="ludia-icon-app.png" alt="LUDIA"></div>
+    <div class="pwa-banner-text">
+      <strong>홈화면에 추가</strong>
+      <span id="pwaBannerSub">앱처럼 빠르게 실행하세요</span>
+    </div>
+    <button class="pwa-banner-btn" id="pwaBannerBtn" onclick="pwaInstall()">추가</button>
+    <button class="pwa-banner-close" onclick="pwaDismiss()">×</button>
+  </div>
+
   <div class="logo-area">
     <div class="logo-icon"><img src="ludia-logo.png" alt="LUDIA"></div>
     <div class="logo-name">LUDIA HEALTH</div>
@@ -179,13 +226,23 @@ function showMsg(text, type) {
   el.textContent = text; el.className = 'msg ' + type;
 }
 
-function simpleHash(str) {
-  let h = 5381;
-  for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
-  return (h >>> 0).toString(36);
+async function apiPost(action, data = {}) {
+  try {
+    const resp = await fetch('api.php', {
+      method: 'POST', credentials: 'include',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action, ...data})
+    });
+    return await resp.json();
+  } catch(e) { return {error: '네트워크 오류'}; }
 }
 
-const SUPER_PW_HASH = 'hdycve'; // simpleHash('chlgkdud0!')
+function storeSession(user, persist) {
+  const data = JSON.stringify({...user, loginAt: new Date().toISOString()});
+  sessionStorage.setItem('ludia_session', data);
+  if (persist) localStorage.setItem('ludia_session', data);
+  else localStorage.removeItem('ludia_session');
+}
 
 function renderForm() {
   const isAdmin = role === 'admin' || role === 'super_admin';
@@ -199,6 +256,12 @@ function renderForm() {
   const modeTabs = document.getElementById('modeTabs');
   if (modeTabs) modeTabs.style.display = isSuper ? 'none' : '';
 
+  const rememberChk = `
+    <label style="display:flex;align-items:center;gap:7px;margin:10px 0 6px;cursor:pointer;width:fit-content">
+      <input type="checkbox" id="rememberMe" style="width:15px;height:15px;accent-color:${isSuper?'#7C3AED':'var(--blue-primary)'};cursor:pointer">
+      <span style="font-size:12px;font-weight:600;color:var(--text-mid)">로그인 유지</span>
+    </label>`;
+
   if (isSuper) {
     document.getElementById('formArea').innerHTML = `
       <div class="form-title" style="color:#7C3AED">최종관리자 접속</div>
@@ -207,6 +270,7 @@ function renderForm() {
         <input class="form-input admin-focus" type="password" id="superPw" placeholder="비밀번호 입력"
           autocomplete="current-password" onkeydown="if(event.key==='Enter')doSuperLogin()">
       </div>
+      ${rememberChk}
       <button class="btn-submit admin" style="background:linear-gradient(135deg,#7C3AED,#4C1D95)" onclick="doSuperLogin()">접속하기</button>
     `;
     return;
@@ -224,6 +288,7 @@ function renderForm() {
         <input class="form-input ${cls}-focus" type="password" id="loginPw" placeholder="비밀번호"
           autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
+      ${rememberChk}
       <button class="btn-submit ${cls}" onclick="doLogin()">로그인</button>
     `;
   } else {
@@ -289,104 +354,104 @@ function updateAdminCodePreview(val) {
   el.innerHTML = '관리자 코드 (자동 생성): <strong style="color:#7C3AED;font-size:14px">' + code + '</strong>';
 }
 
-function doSuperLogin() {
+async function doSuperLogin() {
   const pw = document.getElementById('superPw').value || '';
   if (!pw) { showMsg('비밀번호를 입력해주세요.', 'error'); return; }
-  if (simpleHash(pw) !== SUPER_PW_HASH) { showMsg('비밀번호가 올바르지 않습니다.', 'error'); return; }
-  sessionStorage.setItem('ludia_session', JSON.stringify({
-    userId: 'super_admin', name: '최종관리자', role: 'super_admin', loginAt: new Date().toISOString()
-  }));
+  const persist = document.getElementById('rememberMe')?.checked || false;
+  showMsg('확인 중…', 'success');
+  const result = await apiPost('super_login', { password: pw, remember: persist });
+  if (!result.success) { showMsg(result.error || '비밀번호가 올바르지 않습니다.', 'error'); return; }
+  storeSession(result.user, persist);
   showMsg('인증 완료! 이동 중…', 'success');
-  setTimeout(() => { location.replace('admin.html'); }, 400);
+  setTimeout(() => location.replace('admin.html'), 400);
 }
 
-function doLogin() {
+async function doLogin() {
   const email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
   const pw    = document.getElementById('loginPw').value || '';
   if (!email || !pw) { showMsg('이메일과 비밀번호를 입력해주세요.', 'error'); return; }
-
-  const users = JSON.parse(localStorage.getItem('ludia_users') || '[]');
-  const user  = users.find(u => u.email === email && u.role === role && u.password === simpleHash(pw));
-  if (!user) { showMsg('이메일 또는 비밀번호가 올바르지 않습니다.', 'error'); return; }
-
-  setSession(user);
+  const persist = document.getElementById('rememberMe')?.checked || false;
+  showMsg('확인 중…', 'success');
+  const result = await apiPost('login', { email, password: pw, remember: persist });
+  if (!result.success) { showMsg(result.error || '로그인 실패', 'error'); return; }
+  storeSession(result.user, persist);
   showMsg('로그인 성공! 이동 중…', 'success');
-  setTimeout(() => { location.replace((user.role === 'admin' || user.role === 'super_admin') ? 'admin.html' : 'member.html'); }, 400);
+  const dest = (result.user.role === 'admin' || result.user.role === 'super_admin') ? 'admin.html' : 'member.html';
+  setTimeout(() => location.replace(dest), 400);
 }
 
-function doRegister() {
+async function doRegister() {
   const name  = (document.getElementById('regName').value  || '').trim();
   const email = (document.getElementById('regEmail').value || '').trim().toLowerCase();
   const pw    = document.getElementById('regPw').value  || '';
   const pw2   = document.getElementById('regPw2').value || '';
-  const isAdmin = role === 'admin' || role === 'super_admin';
+  const isAdmin = role === 'admin';
 
   if (!name || !email || !pw || !pw2) { showMsg('모든 항목을 입력해주세요.', 'error'); return; }
   if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { showMsg('올바른 이메일 형식을 입력해주세요.', 'error'); return; }
   if (pw.length < 6) { showMsg('비밀번호는 6자 이상이어야 합니다.', 'error'); return; }
   if (pw !== pw2)    { showMsg('비밀번호가 일치하지 않습니다.', 'error'); return; }
 
-  const users = JSON.parse(localStorage.getItem('ludia_users') || '[]');
-  if (users.find(u => u.email === email)) { showMsg('이미 사용 중인 이메일입니다.', 'error'); return; }
-
-  let newUser = { id:'usr_'+Date.now(), name, email, password:simpleHash(pw), role, createdAt:new Date().toISOString() };
-
+  const payload = { name, email, password: pw, role };
   if (isAdmin) {
     const phoneRaw = (document.getElementById('adminPhone').value || '').replace(/\D/g,'');
-    if (phoneRaw.length < 7) {
-      showMsg('핸드폰 번호를 올바르게 입력해주세요.', 'error'); return;
-    }
-    const code = phoneToCode(phoneRaw);
-    // Check no duplicate admin code
-    if (users.find(u => u.adminCode === code)) {
-      showMsg('이미 등록된 핸드폰 번호입니다. (관리자 코드 중복)', 'error'); return;
-    }
-    newUser.adminCode = code;
-    newUser.phone     = phoneRaw;
-
+    if (phoneRaw.length < 7) { showMsg('핸드폰 번호를 올바르게 입력해주세요.', 'error'); return; }
+    payload.phone = phoneRaw;
   } else {
-    // Member: validate invite code
-    const inviteCodeRaw = (document.getElementById('inviteCode').value || '').trim().toUpperCase();
-    const patientUniqueId = (document.getElementById('patientUniqueId').value || '').trim().toUpperCase();
-    if (!inviteCodeRaw) { showMsg('회원 초대 코드를 입력해주세요.', 'error'); return; }
-    if (!patientUniqueId) { showMsg('어르신 고유번호를 입력해주세요.', 'error'); return; }
-
-    const codes = JSON.parse(localStorage.getItem('ludia_invite_codes') || '[]');
-    const codeObj = codes.find(c => c.code === inviteCodeRaw && !c.used);
-    if (!codeObj) { showMsg('유효하지 않은 초대 코드입니다. 관리자에게 문의해주세요.', 'error'); return; }
-
-    const records = JSON.parse(localStorage.getItem('ludia_records') || '[]');
-    const patient = records.find(p => (p.uniqueId||'').toUpperCase() === patientUniqueId);
-    if (!patient) { showMsg('어르신 고유번호를 찾을 수 없습니다. 다시 확인해주세요.', 'error'); return; }
-
-    // Mark code as used
-    codeObj.used = true; codeObj.usedBy = newUser.id; codeObj.usedAt = new Date().toISOString();
-    localStorage.setItem('ludia_invite_codes', JSON.stringify(codes));
-
-    newUser.linkedPatientUniqueId = patient.uniqueId;
-    newUser.linkedPatientName     = patient.name;
+    const inviteCode    = (document.getElementById('inviteCode').value       || '').trim().toUpperCase();
+    const patientUid    = (document.getElementById('patientUniqueId').value   || '').trim().toUpperCase();
+    if (!inviteCode)  { showMsg('회원 초대 코드를 입력해주세요.', 'error'); return; }
+    if (!patientUid)  { showMsg('어르신 고유번호를 입력해주세요.', 'error'); return; }
+    payload.inviteCode      = inviteCode;
+    payload.patientUniqueId = patientUid;
   }
 
-  users.push(newUser);
-  localStorage.setItem('ludia_users', JSON.stringify(users));
-
-  setSession(newUser);
+  showMsg('처리 중…', 'success');
+  const result = await apiPost('self_register', payload);
+  if (!result.success) { showMsg(result.error || '가입 실패', 'error'); return; }
+  storeSession(result.user, false);
   showMsg('가입 완료! 이동 중…', 'success');
-  setTimeout(() => { location.replace(newUser.role === 'admin' ? 'admin.html' : 'member.html'); }, 400);
-}
-
-function setSession(user) {
-  sessionStorage.setItem('ludia_session', JSON.stringify({
-    userId: user.id, name: user.name, email: user.email, role: user.role,
-    isSuperAdmin: user.isSuperAdmin || false,
-    adminCode: user.adminCode || null,
-    linkedPatientUniqueId: user.linkedPatientUniqueId || null,
-    linkedPatientName: user.linkedPatientName || null,
-    loginAt: new Date().toISOString()
-  }));
+  setTimeout(() => location.replace(result.user.role === 'admin' ? 'admin.html' : 'member.html'), 400);
 }
 
 renderForm();
+
+// ── PWA ──────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+let _deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredPrompt = e;
+  if (!localStorage.getItem('pwa_dismissed')) {
+    document.getElementById('pwaBanner').classList.add('show');
+  }
+});
+
+(function initIOSBanner() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  if (isIOS && !isStandalone && !localStorage.getItem('pwa_dismissed')) {
+    const banner = document.getElementById('pwaBanner');
+    document.getElementById('pwaBannerSub').textContent = '공유 버튼 → "홈 화면에 추가" 탭';
+    document.getElementById('pwaBannerBtn').style.display = 'none';
+    banner.classList.add('show');
+  }
+})();
+
+function pwaInstall() {
+  if (!_deferredPrompt) return;
+  _deferredPrompt.prompt();
+  _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; pwaDismiss(); });
+}
+function pwaDismiss() {
+  document.getElementById('pwaBanner').classList.remove('show');
+  localStorage.setItem('pwa_dismissed', '1');
+}
 </script>
 </body>
 </html>

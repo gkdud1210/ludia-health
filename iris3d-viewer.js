@@ -243,7 +243,7 @@ function buildAtlasesFromImage(imgEl, geom, side) {
       depth:      cell.n ? cell.depth / cell.n : 0,
     });
   }
-  return { colorCanvas, depthCanvas, normalCanvas, aoCanvas, gridStats };
+  return { colorCanvas, depthCanvas, normalCanvas, aoCanvas, gridStats, depthBuf };
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -640,7 +640,7 @@ export class Iris3DViewer {
 
     const local = buildAtlasesFromImage(img, geom, side);
     this.gridStats = local.gridStats; this.backendResult = null;
-    this._depthCanvas = local.depthCanvas; // autoDetectLesions에서 픽셀 접근용
+    this._depthBuf = local.depthBuf; // Float32Array — 알파 프리멀티플라이 문제 없이 depth 직접 접근
     this._applyTextures(local.colorCanvas, local.depthCanvas, local.normalCanvas, local.aoCanvas);
 
     if (this.aiServer) {
@@ -944,14 +944,14 @@ export class Iris3DViewer {
     if (this._currentPopupCell) this._showPopup(this._popupClientX, this._popupClientY, this._currentPopupCell);
   }
 
-  // ── 병소 자동감지 — depthCanvas 픽셀을 직접 스캔해 cry/lac 구역을 3D에 오버레이
+  // ── 병소 자동감지 — depthBuf Float32Array로 직접 스캔해 cry/lac 구역을 3D에 오버레이
   autoDetectLesions({ cryThresh = 0.65, lacMin = 0.35, lacMax = 0.60 } = {}) {
-    if (!this._depthCanvas) return {};
+    if (!this._depthBuf) return {};
     const side = this._lesionSide || this.side;
     const W = ATLAS_W, H = ATLAS_H;
 
-    // 1) depth 픽셀 읽기 (R채널 = depth 값)
-    const dep = this._depthCanvas.getContext('2d').getImageData(0, 0, W, H).data;
+    // 1) Float32Array에서 직접 depth 읽기 (캔버스 알파 프리멀티플라이 문제 없음)
+    const depthBuf = this._depthBuf;
 
     // 2) 픽셀별 cry/lac 마스크 캔버스 생성
     const raw  = document.createElement('canvas'); raw.width = W; raw.height = H;
@@ -964,8 +964,8 @@ export class Iris3DViewer {
       const v = y / H;
       if (v < PUPIL_V || v > SCLERA_V) continue;   // 홍채 밴드만
       for (let x = 0; x < W; x++) {
+        const depth = depthBuf[y * W + x]; // 0.0 ~ 1.0 float
         const pi    = (y * W + x) * 4;
-        const depth = dep[pi] / 255;
 
         // 크립트: 매우 어두운 픽셀 → 빨강
         if (depth >= cryThresh) {

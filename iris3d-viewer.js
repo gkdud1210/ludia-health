@@ -7,7 +7,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export const GRID_RINGS = 8;
 export const GRID_SECTORS = 10;
-export const PHI_BAND_DEG = [14, 42];
+// [8,26] → 림버스 최대 기울기 26°로 낮춰 평탄한 홍채 느낌. 기존 [14,42]는 42° 기울어 돔처럼 보였음.
+export const PHI_BAND_DEG = [8, 26];
 
 const ATLAS_W = 720, ATLAS_H = 360;
 const PUPIL_V  = PHI_BAND_DEG[0] / 180;
@@ -269,26 +270,25 @@ const VERTEX_SHADER = /* glsl */ `
     float rNorm = clamp((v - localPupilV) / (SCLERA_V - localPupilV), 0.0, 1.0);
     float theta_rad = u * 2.0 * PI;
 
-    // 수축 주름(Contraction Furrows) — 외부 홍채 동심 물결
+    // 수축 주름(Contraction Furrows) — 평탄한 표면에서도 굴곡이 보이도록 유지
     float furrowZone = smoothstep(0.55, 0.65, rNorm) * (1.0 - smoothstep(0.95, 1.0, rNorm));
-    float furrow     = sin(rNorm * 28.0 + u * 0.5) * 0.012 * furrowZone;
+    float furrow     = sin(rNorm * 28.0 + u * 0.5) * 0.009 * furrowZone;
 
-    // 콜라렛(Collarette) 능선 — 동공 경계 28% 부근 솟은 파형
-    float collaretteR    = 0.28 + sin(theta_rad * 7.0) * 0.035;
+    // 콜라렛(Collarette) 능선
+    float collaretteR    = 0.28 + sin(theta_rad * 7.0) * 0.030;
     float collaretteMask = smoothstep(0.04, 0.0, abs(rNorm - collaretteR)) * mask;
-    float collaretteRidge = collaretteMask * 0.018;
+    float collaretteRidge = collaretteMask * 0.014;
 
     // 방사형 섬유 능선(Stromal Ridges)
-    float ridge = pow(abs(sin(theta_rad * 70.0 * 0.5)), 5.0) * 0.008 * mask;
+    float ridge = pow(abs(sin(theta_rad * 70.0 * 0.5)), 5.0) * 0.006 * mask;
 
-    // 각막 돌출 프로파일
+    // 각막 돌출 — 매우 완만한 프로파일 (cos 기반으로 림버스까지 부드럽게)
     float bulgeShape;
     if (v < localPupilV) {
-      float t = clamp(v / localPupilV, 0.0, 1.0);
-      bulgeShape = -0.3 * (1.0 - smoothstep(0.0, 1.0, t));
+      bulgeShape = 0.0; // 동공은 돌출 없음
     } else {
       float t = clamp((v - localPupilV) / (SCLERA_V - localPupilV), 0.0, 1.0);
-      bulgeShape = sin(t * PI);
+      bulgeShape = 0.5 - 0.5 * cos(t * PI); // 0→1→0 부드러운 종 모양 (sin보다 완만)
     }
     float bulge = bulgeShape * cornealBulge;
 
@@ -487,15 +487,16 @@ export class Iris3DViewer {
     this.container.appendChild(this.renderer.domElement);
 
     this.scene  = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(42, w / h, 0.05, 100);
-    this.camera.position.set(0, 0, 2.6);
+    // FOV 34° + 거리 1.7 → 홍채가 화면을 75% 채우면서 원근 왜곡이 적어 더 평탄하게 보임
+    this.camera = new THREE.PerspectiveCamera(34, w / h, 0.02, 100);
+    this.camera.position.set(0, 0, 1.7);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.07;
     this.controls.enablePan     = true;
-    this.controls.minDistance   = 0.38;   // ★ 매우 가까이 확대 허용
-    this.controls.maxDistance   = 8.0;
+    this.controls.minDistance   = 0.18;   // 매우 가까이 확대 허용
+    this.controls.maxDistance   = 6.0;
     this.controls.touches       = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     this._initialCamPos = this.camera.position.clone();
     this._initialTarget = this.controls.target.clone();
@@ -529,8 +530,8 @@ export class Iris3DViewer {
         depthMap:          { value: this._solidTexture('#000000') },
         normalMap:         { value: this._solidTexture('#8080ff') },
         aoMap:             { value: this._solidTexture('#ffffff') },
-        displacementScale: { value: 0.19 },
-        cornealBulge:      { value: 0.065 },
+        displacementScale: { value: 0.16 },  // 평탄한 표면에서 굴곡이 과해 보이지 않도록 살짝 줄임
+        cornealBulge:      { value: 0.010 }, // 돔 돌출 거의 제거 — 평탄한 홍채 원반 느낌
         uAOStrength:       { value: 1.1 },
         uSSSStrength:      { value: 1.0 },
         uTime:             { value: 0 },
@@ -758,8 +759,8 @@ export class Iris3DViewer {
     const panScale = offset.length() * 0.12;
     const panX = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 0).multiplyScalar(dx * panScale);
     const panY = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 1).multiplyScalar(dy * panScale);
-    this.camera.position.add(panX.add(panY));
-    this.controls.target.add(panX.add(panY));
+    const pan  = panX.clone().add(panY);
+    this.camera.position.add(pan); this.controls.target.add(pan.clone());
     this.controls.update();
   }
 

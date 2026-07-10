@@ -988,16 +988,42 @@ export class Iris3DViewer {
     return result;
   }
 
-  // ── 자율신경환(ANR) 자동 감지 — 방사형 밝기 프로파일의 국소 최솟값으로 링 위치 추정
+  // ── 자율신경환(ANR) 감지 — 섹터별 방사형 밝기 프로파일로 수축/확장/정상 판별
   detectANR() {
     if (!this._brightBuf) return null;
     const W = ATLAS_W, H = ATLAS_H;
     const brightBuf = this._brightBuf;
+    const side = this._lesionSide || this.side;
 
-    // 1) 60개 rNorm 밴드별 평균 밝기 계산
-    const BANDS = 60;
-    const sum = new Float32Array(BANDS);
-    const cnt = new Uint32Array(BANDS);
+    const BANDS = 50, N_SEC = 24, SMOOTH = 3;
+    const ANR_MIN = Math.floor(0.18 * BANDS), ANR_MAX = Math.floor(0.60 * BANDS);
+
+    // 주어진 밝기 프로파일에서 [minBand, maxBand] 범위 내 국소 최솟값 탐색
+    const findMin = (rawProfile) => {
+      const sm = new Float32Array(BANDS);
+      for (let i = 0; i < BANDS; i++) {
+        let s = 0, c = 0;
+        for (let j = Math.max(0, i-SMOOTH); j <= Math.min(BANDS-1, i+SMOOTH); j++) {
+          if (rawProfile[j] >= 0) { s += rawProfile[j]; c++; }
+        }
+        sm[i] = c > 0 ? s / c : 0;
+      }
+      let minVal = Infinity, minB = -1;
+      for (let i = ANR_MIN; i <= ANR_MAX; i++) {
+        if (sm[i] < minVal) { minVal = sm[i]; minB = i; }
+      }
+      const contrast = minB >= 0
+        ? (sm[Math.max(0, minB-5)] + sm[Math.min(BANDS-1, minB+5)]) / 2 - minVal
+        : 0;
+      return { minB, contrast };
+    };
+
+    // 1) 전체 프로파일 (글로벌 ANR 위치)
+    const gSum = new Float32Array(BANDS).fill(-1), gCnt = new Uint32Array(BANDS);
+    // 2) 섹터별 프로파일 (N_SEC × BANDS)
+    const sSum = Array.from({length: N_SEC}, () => new Float32Array(BANDS).fill(-1));
+    const sCnt = Array.from({length: N_SEC}, () => new Uint32Array(BANDS));
+
     for (let y = 0; y < H; y++) {
       const v = y / H;
       if (v < PUPIL_V || v > SCLERA_V) continue;
@@ -1005,65 +1031,88 @@ export class Iris3DViewer {
       const band  = Math.min(BANDS - 1, Math.floor(rNorm * BANDS));
       for (let x = 0; x < W; x++) {
         const b = brightBuf[y * W + x];
-        if (b === 0) continue; // 동공/공막 픽셀은 0으로 초기화됨
-        sum[band] += b; cnt[band]++;
+        if (b === 0) continue;
+        if (gSum[band] < 0) gSum[band] = 0;
+        gSum[band] += b; gCnt[band]++;
+        const sec = Math.min(N_SEC - 1, Math.floor(x / W * N_SEC));
+        if (sSum[sec][band] < 0) sSum[sec][band] = 0;
+        sSum[sec][band] += b; sCnt[sec][band]++;
       }
     }
-    const profile = new Float32Array(BANDS);
-    for (let i = 0; i < BANDS; i++) profile[i] = cnt[i] > 0 ? sum[i] / cnt[i] : -1;
 
-    // 2) 이동 평균으로 프로파일 스무딩 (±3 밴드)
-    const SMOOTH = 3;
-    const smoothed = new Float32Array(BANDS);
-    for (let i = 0; i < BANDS; i++) {
-      let s = 0, c = 0;
-      for (let j = Math.max(0, i - SMOOTH); j <= Math.min(BANDS - 1, i + SMOOTH); j++) {
-        if (profile[j] >= 0) { s += profile[j]; c++; }
-      }
-      smoothed[i] = c > 0 ? s / c : 0;
+    const gProf = new Float32Array(BANDS);
+    for (let i = 0; i < BANDS; i++) gProf[i] = gCnt[i] > 0 ? gSum[i] / gCnt[i] : -1;
+    const global = findMin(gProf);
+    const globalRNorm = global.minB >= 0 ? global.minB / BANDS : 0.35;
+
+    // 3) 섹터별 ANR rNorm + 인접 섹터로 스무딩 (원형 이동평균 1칸)
+    const rawSec = new Float32Array(N_SEC);
+    const secContrast = new Float32Array(N_SEC);
+    for (let s = 0; s < N_SEC; s++) {
+      const p = new Float32Array(BANDS);
+      for (let i = 0; i < BANDS; i++) p[i] = sCnt[s][i] > 0 ? sSum[s][i] / sCnt[s][i] : -1;
+      const res = findMin(p);
+      rawSec[s] = res.minB >= 0 ? res.minB / BANDS : globalRNorm;
+      secContrast[s] = res.contrast;
+    }
+    // 원형 이동평균으로 섹터 간 rNorm 스무딩 (과도한 픽셀 잡음 제거)
+    const sectorRNorm = new Float32Array(N_SEC);
+    for (let s = 0; s < N_SEC; s++) {
+      const prev = (s - 1 + N_SEC) % N_SEC, next = (s + 1) % N_SEC;
+      sectorRNorm[s] = (rawSec[prev] * 0.25 + rawSec[s] * 0.5 + rawSec[next] * 0.25);
     }
 
-    // 3) rNorm 0.18–0.60 범위에서 국소 최솟값 탐색 (ANR 예상 위치)
-    const iBandMin = Math.floor(0.18 * BANDS);
-    const iBandMax = Math.floor(0.60 * BANDS);
-    let minVal = Infinity, minBand = -1;
-    for (let i = iBandMin; i <= iBandMax; i++) {
-      if (smoothed[i] < minVal) { minVal = smoothed[i]; minBand = i; }
+    // 4) 평균·표준편차 계산 → 수축/확장 임계값
+    let meanR = 0;
+    for (let s = 0; s < N_SEC; s++) meanR += sectorRNorm[s];
+    meanR /= N_SEC;
+    let variance = 0;
+    for (let s = 0; s < N_SEC; s++) variance += Math.pow(sectorRNorm[s] - meanR, 2);
+    const stdR = Math.sqrt(variance / N_SEC);
+    // 임계값: 표준편차 기반 (최소 2%, 최대 8%)
+    const thresh = Math.max(0.02, Math.min(0.08, stdR * 1.2));
+
+    // 5) 섹터 분류
+    const sectorClass = new Array(N_SEC); // 'normal' | 'constricted' | 'expanded'
+    for (let s = 0; s < N_SEC; s++) {
+      const dev = sectorRNorm[s] - meanR;
+      if (dev < -thresh) sectorClass[s] = 'constricted';
+      else if (dev > thresh) sectorClass[s] = 'expanded';
+      else sectorClass[s] = 'normal';
     }
-    if (minBand < 0) return null;
 
-    // 4) 대비 검증 — 주변 대비 1% 미만이면 폴백 rNorm 0.35 사용
-    const prevBand = Math.max(0, minBand - 5);
-    const nextBand = Math.min(BANDS - 1, minBand + 5);
-    const neighborAvg = (smoothed[prevBand] + smoothed[nextBand]) / 2;
-    const contrast = neighborAvg - smoothed[minBand];
-    const detected = contrast >= 0.01;
-    if (!detected) minBand = Math.floor(0.35 * BANDS);
-    const anrRNorm = minBand / BANDS;
-
-    // 5) ANR 링 캔버스 생성 (시안 색상, ±BAND_WIDTH rNorm)
-    const BAND_WIDTH = 0.045;
-    const raw  = document.createElement('canvas'); raw.width = W; raw.height = H;
+    // 6) 섹터별 색상 맵핑 후 x축 선형 보간으로 링 그리기
+    const BAND_W = 0.042;
+    const raw = document.createElement('canvas'); raw.width = W; raw.height = H;
     const rctx = raw.getContext('2d');
     const idat = rctx.createImageData(W, H);
     for (let y = 0; y < H; y++) {
       const v = y / H;
       if (v < PUPIL_V || v > SCLERA_V) continue;
       const rNorm = (v - PUPIL_V) / (SCLERA_V - PUPIL_V);
-      const dist  = Math.abs(rNorm - anrRNorm);
-      if (dist > BAND_WIDTH) continue;
-      const alpha = Math.pow(1 - dist / BAND_WIDTH, 1.5);
       for (let x = 0; x < W; x++) {
+        // 두 인접 섹터 사이를 선형 보간
+        const fSec = (x / W) * N_SEC;
+        const s0 = Math.floor(fSec) % N_SEC, s1 = (s0 + 1) % N_SEC;
+        const t  = fSec - Math.floor(fSec);
+        const anrR = sectorRNorm[s0] * (1 - t) + sectorRNorm[s1] * t;
+        const dist = Math.abs(rNorm - anrR);
+        if (dist > BAND_W) continue;
+        const alpha = Math.pow(1 - dist / BAND_W, 1.5);
         const pi = (y * W + x) * 4;
-        idat.data[pi]   = 6;   // ANR 시안 (LESION_DEFS anr color)
-        idat.data[pi+1] = 182;
-        idat.data[pi+2] = 212;
-        idat.data[pi+3] = Math.round(alpha * 210);
+        // 인접 섹터 중 지배적 클래스로 색 결정
+        const cls = t < 0.5 ? sectorClass[s0] : sectorClass[s1];
+        let cr, cg, cb;
+        if      (cls === 'constricted') { cr=245; cg=90;  cb=40;  } // 오렌지-레드 (수축)
+        else if (cls === 'expanded')    { cr=50;  cg=210; cb=120; } // 초록 (확장)
+        else                            { cr=6;   cg=182; cb=212; } // 시안 (정상)
+        idat.data[pi]=cr; idat.data[pi+1]=cg; idat.data[pi+2]=cb;
+        idat.data[pi+3] = Math.round(alpha * 215);
       }
     }
     rctx.putImageData(idat, 0, 0);
 
-    // 6) 기존 lesionMap 위에 합성 (cry/lac 오버레이 유지)
+    // 7) 기존 lesionMap 위에 합성 + 블러
     const merged = document.createElement('canvas'); merged.width = W; merged.height = H;
     const mctx = merged.getContext('2d');
     const prevTex = this.material.uniforms.lesionMap.value;
@@ -1072,12 +1121,38 @@ export class Iris3DViewer {
     mctx.drawImage(raw, 0, 0);
 
     const prev = this.material.uniforms.lesionMap.value;
-    const tex  = new THREE.CanvasTexture(merged); tex.flipY = false;
+    const tex = new THREE.CanvasTexture(merged); tex.flipY = false;
     this.material.uniforms.lesionMap.value = tex;
     this.material.uniforms.uShowLesions.value = 1.0;
     if (prev) prev.dispose();
 
-    return { rNorm: anrRNorm, contrast: contrast.toFixed(3), detected };
+    // 8) 구역별 결과 요약 (시계 방향 각도 → 구역 ID)
+    const zoneSummary = {};
+    for (let s = 0; s < N_SEC; s++) {
+      const clockDeg = ((s + 0.5) / N_SEC) * 360;
+      const zid = clockDegToZoneId(clockDeg, side);
+      if (!zid) continue;
+      if (!zoneSummary[zid]) zoneSummary[zid] = { cls: 'normal', rNorm: 0, n: 0 };
+      zoneSummary[zid].rNorm += sectorRNorm[s];
+      zoneSummary[zid].n++;
+      // 수축/확장이 하나라도 있으면 우선 적용
+      if (sectorClass[s] !== 'normal') zoneSummary[zid].cls = sectorClass[s];
+    }
+    for (const z of Object.values(zoneSummary)) z.rNorm = +(z.rNorm / z.n).toFixed(3);
+
+    const constrictedSecs = sectorClass.reduce((a,c,i) => c==='constricted' ? [...a,i] : a, []);
+    const expandedSecs    = sectorClass.reduce((a,c,i) => c==='expanded'    ? [...a,i] : a, []);
+
+    return {
+      detected: global.contrast >= 0.01,
+      meanRNorm: +meanR.toFixed(3),
+      stdRNorm:  +stdR.toFixed(3),
+      sectorRNorm: Array.from(sectorRNorm),
+      sectorClass,
+      zoneSummary,
+      constrictedSecs,
+      expandedSecs,
+    };
   }
 
   dispose() {

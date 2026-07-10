@@ -8977,16 +8977,43 @@ window.runANRDetect = function() {
       return;
     }
     const side = window._iris3dSide;
-    const rPct = Math.round(result.rNorm * 100);
-    // fd.irisZoneData의 모든 구역에 anr 코드 추가 (ANR은 전체 링을 가로지름)
+
+    // 섹터 인덱스 → 시계 시각 문자열 (0시 = 12시, 6=3시, 12=6시, 18=9시)
+    const N_SEC = 24;
+    const secToClockStr = (s) => {
+      const deg = (s + 0.5) / N_SEC * 360;
+      const h = Math.round(deg / 30) % 12 || 12;
+      return `${h}시`;
+    };
+    // 연속 섹터 그룹을 "시작~끝" 문자열로 표현
+    const groupSecs = (secs) => {
+      if (!secs.length) return '없음';
+      const groups = []; let i = 0;
+      while (i < secs.length) {
+        let j = i;
+        while (j+1 < secs.length && secs[j+1] === secs[j]+1) j++;
+        groups.push(i === j ? secToClockStr(secs[i]) : `${secToClockStr(secs[i])}–${secToClockStr(secs[j])}`);
+        i = j + 1;
+      }
+      return groups.join(', ');
+    };
+
+    // fd.irisZoneData 업데이트 (수축/확장 구역에 anr 코드 기록)
     if (!fd.irisZoneData) fd.irisZoneData = { left:{}, right:{} };
     if (!fd.irisZoneData[side]) fd.irisZoneData[side] = {};
-    const ZONE_TABLE_IDS = Object.keys(fd.irisZoneData[side]);
-    // 등록된 구역이 없으면 감지 결과만 표시
+    for (const [zid, info] of Object.entries(result.zoneSummary)) {
+      const existing = fd.irisZoneData[side][zid] || [];
+      if (!existing.includes('anr')) fd.irisZoneData[side][zid] = [...existing, 'anr'];
+    }
+
+    const rPct = Math.round(result.meanRNorm * 100);
+    const cStr = result.constrictedSecs.length ? `🟠 수축 ${groupSecs(result.constrictedSecs)}` : '';
+    const eStr = result.expandedSecs.length    ? `🟢 확장 ${groupSecs(result.expandedSecs)}`    : '';
+    const parts = [cStr, eStr].filter(Boolean);
+    const label = result.detected ? '자율신경환 감지' : '자율신경환 추정';
     document.getElementById('iris3dStatus').textContent =
-      result.detected
-        ? `자율신경환 감지 완료 🔵 홍채 내측 ${rPct}% 위치 · 대비 ${result.contrast} · 3D 오버레이 표시중`
-        : `자율신경환 추정 완료 🔵 명확한 링 미감지 — 예상 위치 ${rPct}% 표시중`;
+      `${label} 🔵 평균위치 ${rPct}% · ${parts.length ? parts.join(' · ') : '전구역 정상'} · std ${result.stdRNorm}`;
+
     if (typeof refreshIrisClock === 'function') refreshIrisClock();
   });
 };

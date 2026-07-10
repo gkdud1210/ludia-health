@@ -4487,11 +4487,13 @@ function r8(){
         AI 진단 →
       </button>
     </div>
+  </div>
 
-    <div class="nav">
-      <button class="btn-back" onclick="step=7;renderStep()">← ${t('이전','Back')}</button>
-      <button class="btn-next" onclick="goToReport()">${t('다음 단계','Next')} →</button>
-    </div>
+  ${buildHTTPanel()}
+
+  <div class="nav">
+    <button class="btn-back" onclick="step=7;renderStep()">← ${t('이전','Back')}</button>
+    <button class="btn-next" onclick="goToReport()">${t('다음 단계','Next')} →</button>
   </div>`;
   setTimeout(()=>{initEyeAnnotations();},30);
 }
@@ -5004,7 +5006,6 @@ function r9(){
   const gLabel=biLabel(GENDER_BI,fd.gender)||'–';
 
   document.getElementById('app').innerHTML=`
-  ${buildHTTPanel()}
   ${buildActiveSilentPanel()}
 
   <!-- ══ 리포트 버전 탭 ══ -->
@@ -6851,6 +6852,9 @@ function buildAppReport() {
   const name = fd.name ? fd.name.split(' ')[0]+'님' : '고객님';
   const ax0 = path[0];
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const rid  = fd.reportId || generateReportId();
+  const age  = fd.dob ? Math.floor((new Date()-new Date(fd.dob))/31557600000) : '–';
+  const gLabel = biLabel(GENDER_BI, fd.gender) || '–';
 
   const GC = BCP_GROUP_CONTENT[ax0] || BCP_GROUP_CONTENT[1];
   const AXIS_ICON = {1:'🧠',2:'🔋',3:'🌊',4:'🫃',5:'🔬'};
@@ -7047,128 +7051,202 @@ function buildAppReport() {
   };
   const lifestyleItems = APP_LIFESTYLE[ax0] || APP_LIFESTYLE[4];
 
-  // ── HTML 조립 ────────────────────────────────────────────────────────────────
-  const secStyle = 'margin-bottom:20px;border-radius:14px;overflow:hidden;border:1px solid ';
+  // ── HTML 조립
+  const secStyle = 'margin-bottom:20px;border-radius:10px;overflow:hidden;border:1px solid ';
   const secHead  = (emoji, title, sub, bg) =>
-    `<div style="background:${bg};padding:12px 16px">
-      <div style="font-size:13px;font-weight:900;color:white;letter-spacing:.3px">${emoji} ${title}</div>
-      <div style="font-size:9.5px;color:rgba(255,255,255,.7);margin-top:2px">${sub}</div>
+    `<div style="background:${bg};padding:10px 16px;display:flex;align-items:center;gap:10px">
+      <div>
+        <div style="font-size:11.5px;font-weight:900;color:white;letter-spacing:.3px">${emoji} ${title}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.65);margin-top:1px">${sub}</div>
+      </div>
+    </div>`;
+
+  // ── 홍채 섹션 (MD 리포트와 동일한 SVG + 지도 레이아웃)
+  const irisSection = `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;margin-bottom:10px;padding:6px 12px;background:#6D28D9;border-radius:4px">
+        <span style="font-size:10px;font-weight:800;color:white;letter-spacing:1.2px">👁 홍채 분석 소견 요약</span>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:10px">
+        <!-- 좌안 -->
+        <div style="flex:1;min-width:260px;max-width:400px;border:1px solid #DDD6FE;border-radius:10px;overflow:hidden;background:#FAF5FF">
+          <div style="padding:6px 12px;background:#6D28D9;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:10px;font-weight:800;color:white">좌안 (Left Eye)</span>
+            ${(()=>{const lf=(_izd.left)?Object.values(_izd.left).flat():[];const cnt=lf.length;return cnt?'<span style="font-size:9px;color:#C4B5FD;font-weight:600">'+cnt+'개 소견</span>':''})()}
+          </div>
+          <div style="display:flex;align-items:center;gap:0;padding:8px 6px">
+            <div style="flex:0 0 auto">${buildIrisSVGReport('left')}</div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 6px">
+              <div style="font-size:8px;font-weight:700;color:#7C3AED;letter-spacing:.5px;text-transform:uppercase">홍채 지도</div>
+              <div style="width:100%;max-width:150px;aspect-ratio:1/1.05;background-image:url(iris-chart.png);background-size:200% auto;background-position:100% center;background-repeat:no-repeat;border-radius:8px;border:1px solid #DDD6FE"></div>
+            </div>
+          </div>
+        </div>
+        <!-- 우안 -->
+        <div style="flex:1;min-width:260px;max-width:400px;border:1px solid #DDD6FE;border-radius:10px;overflow:hidden;background:#FAF5FF">
+          <div style="padding:6px 12px;background:#6D28D9;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:10px;font-weight:800;color:white">우안 (Right Eye)</span>
+            ${(()=>{const rf=(_izd.right)?Object.values(_izd.right).flat():[];const cnt=rf.length;return cnt?'<span style="font-size:9px;color:#C4B5FD;font-weight:600">'+cnt+'개 소견</span>':''})()}
+          </div>
+          <div style="display:flex;align-items:center;gap:0;padding:8px 6px">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 6px">
+              <div style="font-size:8px;font-weight:700;color:#7C3AED;letter-spacing:.5px;text-transform:uppercase">홍채 지도</div>
+              <div style="width:100%;max-width:150px;aspect-ratio:1/1.05;background-image:url(iris-chart.png);background-size:200% auto;background-position:0% center;background-repeat:no-repeat;border-radius:8px;border:1px solid #DDD6FE"></div>
+            </div>
+            <div style="flex:0 0 auto">${buildIrisSVGReport('right')}</div>
+          </div>
+        </div>
+      </div>
+      <!-- 세포 배터리 게이지 -->
+      <div style="background:#F3F0FF;border:1px solid #DDD6FE;border-radius:10px;padding:12px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+          <span style="font-size:11px;font-weight:800;color:#4C1D95">🔋 세포 배터리 잔량</span>
+          <span style="font-size:13px;font-weight:900;color:#7C3AED">${Math.max(10,100-Math.round((bcpSc[ax0]||0)/2))}%</span>
+        </div>
+        <div style="height:10px;background:#DDD6FE;border-radius:5px;overflow:hidden">
+          <div style="height:100%;border-radius:5px;width:${Math.max(10,100-Math.round((bcpSc[ax0]||0)/2))}%;background:linear-gradient(90deg,#EF4444,#FCD34D,#34D399);transition:width .5s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:8.5px;color:#94A3B8"><span>← 고갈</span><span>정상 →</span></div>
+        <div style="margin-top:8px;padding:7px 10px;background:white;border:1px solid ${axClr}33;border-left:3px solid ${axClr};border-radius:7px;font-size:10.5px;color:#374151;line-height:1.7">
+          ${AXIS_ICON[ax0]} <b>${GC.name.split(' — ')[1]||GC.name}</b> 취약 패턴이 우선 감지되었습니다.<br>
+          <span style="font-size:9.5px;color:#64748B">${irisNote}</span>
+        </div>
+      </div>
     </div>`;
 
   return `
-  <!-- ══ APP REPORT HEADER ══ -->
-  <div style="background:linear-gradient(135deg,#4C1D95 0%,#7C3AED 60%,#6D28D9 100%);border-radius:14px;padding:20px 22px;margin-bottom:20px;box-shadow:0 4px 20px rgba(124,58,237,.3)">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-      <div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px">📱</div>
-      <div>
-        <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:2px">LUDIA APP</div>
-        <div style="font-size:16px;font-weight:900;color:white;letter-spacing:.3px">${name}의 세포 배터리 리포트</div>
-      </div>
-      <div style="margin-left:auto;text-align:right;flex-shrink:0">
-        <div style="font-size:9px;color:rgba(255,255,255,.5)">${today}</div>
-        <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.8);margin-top:2px">${AXIS_ICON[ax0]} ${GC.name.split(' — ')[1]||GC.name}</div>
-      </div>
-    </div>
-    <!-- 세포 배터리 게이지 -->
-    <div style="background:rgba(0,0,0,.25);border-radius:8px;padding:10px 14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.7)">세포 배터리 잔량</span>
-        <span style="font-size:10px;font-weight:800;color:white">${Math.max(10,100-Math.round((bcpSc[ax0]||0)/2))}%</span>
-      </div>
-      <div style="height:8px;background:rgba(255,255,255,.15);border-radius:4px;overflow:hidden">
-        <div style="height:100%;border-radius:4px;width:${Math.max(10,100-Math.round((bcpSc[ax0]||0)/2))}%;background:linear-gradient(90deg,#34D399,#FCD34D,#EF4444);transition:width .5s"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:8px;color:rgba(255,255,255,.4)"><span>고갈</span><span>정상</span></div>
-    </div>
-  </div>
+  <!-- ══ APP REPORT — same card shell as MD ══ -->
+  <div style="background:white;border-radius:6px;overflow:hidden;box-shadow:0 2px 12px rgba(10,22,40,.10);border:1px solid #CBD5E1">
 
-  <!-- [1] 내 몸의 타고난 성향 -->
-  <div style="${secStyle}#DDD6FE">
-    ${secHead('🧬','[1] 내 몸의 타고난 성향과 생활습관 인풋','My Lifestyle Log','#6D28D9')}
-    <div style="padding:14px 16px;background:#FAF5FF">
-      <div style="padding:10px 13px;background:white;border:1px solid #DDD6FE;border-left:4px solid #7C3AED;border-radius:8px;margin-bottom:12px;font-size:11.5px;color:#1E293B;line-height:1.8">
-        <b>타고난 체질:</b> ${constitutionDesc[ax0]||constitutionDesc[4]}<br>
-        <span style="font-size:10px;color:#64748B;margin-top:4px;display:block">📸 ${irisNote}</span>
+    <!-- LETTERHEAD -->
+    <div style="background:linear-gradient(135deg,#4C1D95 0%,#6D28D9 60%,#7C3AED 100%);padding:14px 28px;display:flex;justify-content:space-between;align-items:center;gap:16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="ludia-logo.png" alt="LUDIA" style="width:40px;height:40px;display:block;object-fit:contain;border-radius:10px;clip-path:inset(0 round 10px);flex-shrink:0">
+        <div>
+          <div style="font-size:12px;font-weight:900;color:white;letter-spacing:2.5px;line-height:1.1">LUDIA HEALTH</div>
+          <div style="font-size:7px;color:#C4B5FD;letter-spacing:2px;margin-top:1px">CELL BATTERY REPORT</div>
+        </div>
+        <div style="width:1px;height:26px;background:rgba(255,255,255,.2);margin:0 8px;flex-shrink:0"></div>
+        <div style="font-size:14px;font-weight:800;color:white;letter-spacing:.3px">📱 세포 배터리 건강 리포트</div>
       </div>
-      <div style="font-size:10px;font-weight:800;color:#6D28D9;margin-bottom:8px">📋 최근 나의 습관 신호</div>
-      <div style="display:flex;flex-direction:column;gap:5px">
-        ${lifestyleInputs.map(li=>`<div style="padding:7px 10px;background:white;border:1px solid #E2E8F0;border-radius:7px;font-size:10.5px;color:#374151">${li}</div>`).join('')}
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.5px;margin-bottom:2px">${today}</div>
+        <div style="font-size:9px;color:#C4B5FD;font-family:monospace;letter-spacing:.5px">${rid}</div>
       </div>
-      ${drugInputs.length ? `<div style="margin-top:10px">
-        <div style="font-size:10px;font-weight:800;color:#B45309;margin-bottom:6px">💊 복용 중인 약물 알림</div>
-        ${drugInputs.map(d=>`<div style="padding:7px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:7px;font-size:10px;color:#92400E;margin-bottom:4px;font-weight:600">⚠️ ${d}</div>`).join('')}
-      </div>` : ''}
     </div>
-  </div>
 
-  <!-- [2] 현재 세포 배터리 경고등 -->
-  <div style="${secStyle}${axClr}44">
-    ${secHead('⚡','[2] 현재 세포 배터리 경고등','생화학 도미노 분석',axClr)}
-    <div style="padding:14px 16px;background:#FAFAFA">
-      <!-- 도미노 체인 -->
-      <div style="margin-bottom:14px">${dominoHtml}</div>
-      <!-- 본문 설명 -->
-      <div style="padding:12px 14px;background:white;border:1.5px solid ${axClr}33;border-left:4px solid ${axClr};border-radius:8px;font-size:11.5px;color:#1E293B;line-height:1.9">
-        ${(APP_BODY[ax0]||APP_BODY[4])()}
+    <!-- PATIENT STRIP -->
+    <div style="background:#F8FAFC;border-bottom:2px solid #DDD6FE;padding:14px 28px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:11px 22px">
+        ${[
+          {lbl:'환자명',     val:fd.name||'-'},
+          {lbl:'생년월일',   val:fd.dob||'-'},
+          {lbl:'성별 / 나이',val:`${gLabel} / ${age}세`},
+          {lbl:'연락처',     val:fd.phone||'-'},
+          {lbl:'이메일',     val:fd.email||'-'},
+          {lbl:'직업',       val:fd.occupation||'-'},
+        ].map(({lbl,val})=>`<div>
+          <div style="font-size:10px;font-weight:600;color:#64748B;margin-bottom:2px;letter-spacing:.2px">${lbl}</div>
+          <div style="font-size:13px;font-weight:700;color:#0F172A">${val}</div>
+        </div>`).join('')}
       </div>
     </div>
-  </div>
 
-  <!-- [3] LUDIA 타임머신 -->
-  <div style="${secStyle}#FECDD3">
-    ${secHead('⏳','[3] LUDIA 타임머신: 10년 후 내 몸 시뮬레이션','지금 관리하지 않으면 일어날 수 있는 일','#BE185D')}
-    <div style="padding:14px 16px;background:#FFF1F2">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        ${timeline.map(tl=>`
-          <div style="padding:12px 13px;background:white;border:1px solid #FECDD3;border-radius:10px">
-            <div style="font-size:9px;font-weight:800;color:#BE185D;letter-spacing:.5px;margin-bottom:4px">${tl.yr}</div>
-            <div style="font-size:15px;margin-bottom:4px">${tl.icon}</div>
-            <div style="font-size:11px;font-weight:800;color:#0F172A;margin-bottom:5px;line-height:1.4">${tl.title}</div>
-            <div style="font-size:10px;color:#475569;line-height:1.7">${tl.body}</div>
-          </div>`).join('')}
-      </div>
-    </div>
-  </div>
+    <!-- BODY -->
+    <div style="padding:20px 24px">
 
-  <!-- [4] 셀프 바이오해킹 가이드 -->
-  <div style="${secStyle}#BBF7D0">
-    ${secHead('💊','[4] 오늘부터 시작하는 셀프 바이오해킹 가이드','세포 전압 부스터 & 생활습관 교정','#059669')}
-    <div style="padding:14px 16px;background:#F0FDF4">
-      <div style="font-size:10px;font-weight:800;color:#059669;margin-bottom:9px">🔋 세포 전압 부스터 매칭 (맞춤 영양제)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px">
-        ${suppItems.map(s=>`
-          <div style="padding:10px 12px;background:white;border:1.5px solid #BBF7D0;border-radius:9px">
-            <div style="font-size:18px;margin-bottom:3px">${s.icon}</div>
-            <div style="font-size:11px;font-weight:800;color:#065F46;margin-bottom:3px">${s.name}</div>
-            <div style="font-size:9.5px;color:#374151;line-height:1.6">${s.desc}</div>
-          </div>`).join('')}
-      </div>
-      <div style="font-size:10px;font-weight:800;color:#059669;margin-bottom:9px">🍽️ 음식 및 생활 습관 교정</div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${lifestyleItems.map(li=>`
-          <div style="padding:9px 12px;background:white;border:1px solid #BBF7D0;border-radius:8px;font-size:10.5px;color:#1E293B;line-height:1.65">${li}</div>`).join('')}
-      </div>
-    </div>
-  </div>
+      ${irisSection}
 
-  <!-- CTA -->
-  <div style="background:linear-gradient(135deg,#1E3A5F,#0A1628);border-radius:14px;padding:20px 22px;text-align:center">
-    <div style="font-size:14px;font-weight:900;color:white;margin-bottom:6px">💡 더 정확한 내 몸의 미래를 바꾸고 싶다면?</div>
-    <div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.8;margin-bottom:14px">
-      ${name}의 홍채 스캔 데이터와 생활습관 로그가 기록된 이 리포트를 가지고<br>
-      <b style="color:#93C5FD">LUDIA 제휴 기능의학 전문 클리닉</b>에 방문해 보세요!<br>
-      의사 선생님께 이 화면을 보여주시면 현재 복용 약물 조절과 함께<br>
-      <b style="color:#6EE7B7">세포 회복 정밀 테라피</b>를 처방받으실 수 있습니다.
+      <!-- [1] 내 몸의 타고난 성향 -->
+      <div style="${secStyle}#DDD6FE">
+        ${secHead('🧬','[1] 내 몸의 타고난 성향과 생활습관 인풋','My Body Constitution Log','#6D28D9')}
+        <div style="padding:14px 16px;background:#FAF5FF">
+          <div style="padding:10px 13px;background:white;border:1px solid #DDD6FE;border-left:4px solid #7C3AED;border-radius:8px;margin-bottom:12px;font-size:11.5px;color:#1E293B;line-height:1.8">
+            <b>타고난 체질:</b> ${constitutionDesc[ax0]||constitutionDesc[4]}
+          </div>
+          <div style="font-size:10px;font-weight:800;color:#6D28D9;margin-bottom:8px">📋 최근 나의 습관 신호</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            ${lifestyleInputs.map(li=>`<div style="padding:7px 10px;background:white;border:1px solid #E2E8F0;border-radius:7px;font-size:10.5px;color:#374151">${li}</div>`).join('')}
+          </div>
+          ${drugInputs.length ? `<div style="margin-top:10px">
+            <div style="font-size:10px;font-weight:800;color:#B45309;margin-bottom:6px">💊 복용 중인 약물 알림</div>
+            ${drugInputs.map(d=>`<div style="padding:7px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:7px;font-size:10px;color:#92400E;margin-bottom:4px;font-weight:600">⚠️ ${d}</div>`).join('')}
+          </div>` : ''}
+        </div>
+      </div>
+
+      <!-- [2] 현재 세포 배터리 경고등 -->
+      <div style="${secStyle}${axClr}44">
+        ${secHead('⚡','[2] 현재 세포 배터리 경고등','생화학 도미노 분석',axClr)}
+        <div style="padding:14px 16px;background:#FAFAFA">
+          <div style="margin-bottom:14px">${dominoHtml}</div>
+          <div style="padding:12px 14px;background:white;border:1.5px solid ${axClr}33;border-left:4px solid ${axClr};border-radius:8px;font-size:11.5px;color:#1E293B;line-height:1.9">
+            ${(APP_BODY[ax0]||APP_BODY[4])()}
+          </div>
+        </div>
+      </div>
+
+      <!-- [3] LUDIA 타임머신 -->
+      <div style="${secStyle}#FECDD3">
+        ${secHead('⏳','[3] LUDIA 타임머신: 10년 후 내 몸 시뮬레이션','지금 관리하지 않으면 일어날 수 있는 일','#BE185D')}
+        <div style="padding:14px 16px;background:#FFF1F2">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${timeline.map(tl=>`
+              <div style="padding:12px 13px;background:white;border:1px solid #FECDD3;border-radius:10px">
+                <div style="font-size:9px;font-weight:800;color:#BE185D;letter-spacing:.5px;margin-bottom:4px">${tl.yr}</div>
+                <div style="font-size:15px;margin-bottom:4px">${tl.icon}</div>
+                <div style="font-size:11px;font-weight:800;color:#0F172A;margin-bottom:5px;line-height:1.4">${tl.title}</div>
+                <div style="font-size:10px;color:#475569;line-height:1.7">${tl.body}</div>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- [4] 셀프 바이오해킹 가이드 -->
+      <div style="${secStyle}#BBF7D0">
+        ${secHead('💊','[4] 오늘부터 시작하는 셀프 바이오해킹 가이드','세포 전압 부스터 & 생활습관 교정','#059669')}
+        <div style="padding:14px 16px;background:#F0FDF4">
+          <div style="font-size:10px;font-weight:800;color:#059669;margin-bottom:9px">🔋 세포 전압 부스터 매칭 (맞춤 영양제)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px">
+            ${suppItems.map(s=>`
+              <div style="padding:10px 12px;background:white;border:1.5px solid #BBF7D0;border-radius:9px">
+                <div style="font-size:18px;margin-bottom:3px">${s.icon}</div>
+                <div style="font-size:11px;font-weight:800;color:#065F46;margin-bottom:3px">${s.name}</div>
+                <div style="font-size:9.5px;color:#374151;line-height:1.6">${s.desc}</div>
+              </div>`).join('')}
+          </div>
+          <div style="font-size:10px;font-weight:800;color:#059669;margin-bottom:9px">🍽️ 음식 및 생활 습관 교정</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${lifestyleItems.map(li=>`
+              <div style="padding:9px 12px;background:white;border:1px solid #BBF7D0;border-radius:8px;font-size:10.5px;color:#1E293B;line-height:1.65">${li}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- 면책 고지 -->
+      <div style="padding:12px 14px;background:#F1F5F9;border:1px solid #E2E8F0;border-radius:8px;font-size:10px;color:#64748B;line-height:1.7">
+        본 세포 배터리 리포트는 AI 홍채 표현형 및 바이오시그널 분석에 기반한 <b style="color:#475569">웰니스 참고 자료</b>이며, 의료법상 의학적 진단서가 아닙니다. 건강 문제가 의심되거나 치료가 필요하신 경우 반드시 전문의 진료를 받으시기 바랍니다.
+      </div>
     </div>
-    <button style="padding:12px 28px;background:linear-gradient(90deg,#7C3AED,#6D28D9);border:none;border-radius:10px;color:white;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 14px rgba(124,58,237,.4)">
-      📍 내 주변 클리닉 예약하기
-    </button>
-    <div style="margin-top:10px;font-size:8.5px;color:rgba(255,255,255,.3)">
-      본 리포트는 웰니스 참고 자료이며 의료법상 의학적 진단서가 아닙니다.
+
+    <!-- FOOTER -->
+    <div style="background:#4C1D95;padding:14px 28px;display:flex;justify-content:space-between;align-items:center;gap:16px">
+      <div style="flex:1">
+        <div style="font-size:10px;color:rgba(255,255,255,.4);line-height:1.7;margin-bottom:10px">
+          ${name}의 홍채 스캔 데이터와 생활습관 로그가 담긴 이 리포트를<br>
+          <b style="color:#C4B5FD">LUDIA 제휴 기능의학 전문 클리닉</b>에 가져가시면 정밀 테라피를 처방받을 수 있습니다.
+        </div>
+        <button style="padding:10px 22px;background:linear-gradient(90deg,#7C3AED,#6D28D9);border:none;border-radius:9px;color:white;font-size:12px;font-weight:800;cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 14px rgba(124,58,237,.5)">
+          📍 내 주변 클리닉 예약하기
+        </button>
+      </div>
+      <div style="font-size:11px;font-weight:900;color:rgba(255,255,255,.2);letter-spacing:2.5px;flex-shrink:0">LUDIA HEALTH</div>
     </div>
+
   </div>
   `;
 }
+
 
 // ── 개인화 도미노 리포트 생성기 ─────────────────────────────────────────────
 function generatePersonalizedDominoReport() {

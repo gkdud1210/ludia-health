@@ -4085,6 +4085,8 @@ function buildIrisClockHTML() {
           +' style="flex:1;min-width:80px;max-width:160px;cursor:pointer;accent-color:#0284C7">';
         overlayBar += '<span id="irisOvlPct" style="font-size:11px;font-weight:700;color:#0284C7;min-width:32px">'+Math.round(_irisPhotoOpacity*100)+'%</span>';
       }
+      overlayBar += '<span style="width:1px;height:18px;background:#E2E8F0;flex-shrink:0"></span>';
+      overlayBar += '<button onclick="openIris3DViewer(\''+eye+'\')" style="padding:4px 11px;border-radius:6px;border:1.5px solid #3B82F6;background:linear-gradient(90deg,#1a2744,#0A1628);color:#60A5FA;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">👁 3D 보이기</button>';
     }
     overlayBar += '</div>';
 

@@ -82,6 +82,18 @@ const ZONE_TABLE = {
   ],
 };
 
+// ── 병소 타입 정의 (색상·한글 레이블)
+const LESION_DEFS = [
+  { id:'lac',   ko:'빈공간',  color:[239,68,68]   },
+  { id:'cry',   ko:'크립트',  color:[234,179,8]   },
+  { id:'pgm',   ko:'색소침착', color:[180,83,9]    },
+  { id:'rad',   ko:'방사선',  color:[249,115,22]  },
+  { id:'anr',   ko:'신경환',  color:[6,182,212]   },
+  { id:'contr', ko:'수축환',  color:[16,185,129]  },
+  { id:'bv',    ko:'혈관확장', color:[220,38,38]   },
+  { id:'def',   ko:'결손',    color:[139,92,246]  },
+];
+
 function clockDegToZoneId(clockDeg, side) {
   const table = ZONE_TABLE[side];
   const d = ((clockDeg % 360) + 360) % 360;
@@ -315,10 +327,12 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform sampler2D normalMap;
   uniform sampler2D aoMap;
   uniform sampler2D depthMap;
+  uniform sampler2D lesionMap;
   uniform float uTime;
   uniform vec3  rimColor;
   uniform float uAOStrength;
   uniform float uSSSStrength;
+  uniform float uShowLesions;
   varying vec3 vLocalNormal;
   varying vec3 vNormalW;
   varying vec3 vTangentW;
@@ -452,6 +466,15 @@ const FRAGMENT_SHADER = /* glsl */ `
     vec3 color = lit + sss + specular + irid + rimColor * (fresnel * 0.75 + scan);
     color = mix(color, lit + specular, scleraZone * 0.85);
 
+    // ── 병소 오버레이 (Lesion Overlay) — fd.irisZoneData 병소를 홍채 위에 표시
+    vec4 lesion = texture2D(lesionMap, vUv);
+    float lAlpha = lesion.a * uShowLesions * irisZone;
+    if (lAlpha > 0.01) {
+      float pulse = 0.80 + 0.20 * sin(uTime * 3.2);
+      color = mix(color, lesion.rgb * 0.75 + color * 0.25, lAlpha * 0.62);
+      color += lesion.rgb * lAlpha * 0.22 * pulse;
+    }
+
     gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
   }
 `;
@@ -464,9 +487,14 @@ export class Iris3DViewer {
     this.container      = container;
     this.aiServer       = opts.aiServer || null;
     this.onExamComplete = opts.onExamComplete || (() => {});
+    this.onLesionToggle = opts.onLesionToggle || null;
     this.side           = 'left';
     this.gridStats      = null;
     this.backendResult  = null;
+    this._irisZoneData  = {};
+    this._lesionSide    = 'left';
+    this._currentPopupCell = null;
+    window._ludiaIris3D = this; // 팝업 버튼 onclick에서 참조
 
     this._initThree();
     this._buildCorneaMesh();
@@ -530,10 +558,12 @@ export class Iris3DViewer {
         depthMap:          { value: this._solidTexture('#000000') },
         normalMap:         { value: this._solidTexture('#8080ff') },
         aoMap:             { value: this._solidTexture('#ffffff') },
+        lesionMap:         { value: this._transparentTexture() },
         displacementScale: { value: 0.17 },
         cornealBulge:      { value: 0.035 }, // 자연스러운 각막 돌출감, 42° 시절(0.065)보다는 완만
         uAOStrength:       { value: 1.1 },
         uSSSStrength:      { value: 1.0 },
+        uShowLesions:      { value: 0.0 },
         uTime:             { value: 0 },
         rimColor:          { value: new THREE.Color(0x55aaff) },
       },
@@ -704,32 +734,71 @@ export class Iris3DViewer {
     const ringI = Math.min(GRID_RINGS-1, Math.floor(rNorm * GRID_RINGS));
     const secI  = Math.min(GRID_SECTORS-1, Math.floor((clockDeg/360) * GRID_SECTORS));
     const cell  = this.gridStats?.[ringI * GRID_SECTORS + secI];
-    if (!cell) return;
-    this._showPopup(pos.cx, pos.cy, cell);
+    const zoneId = clockDegToZoneId(clockDeg, this._lesionSide || this.side);
+    const cellWithZone = cell ? { ...cell, zoneId } : { gridId: `G${ringI}_${secI}`, brightness: 0, depth: 0, thetaRange: [clockDeg, clockDeg], rNormRange: [rNorm, rNorm], zoneId };
+    this._showPopup(pos.cx, pos.cy, cellWithZone);
   }
 
   _showPopup(clientX, clientY, cell) {
     if (!this._popupEl) {
       this._popupEl = document.createElement('div');
       Object.assign(this._popupEl.style, {
-        position: 'fixed', zIndex: 10000, pointerEvents: 'none',
-        background: 'rgba(8,18,36,.93)', border: '1px solid #2E6DB4',
+        position: 'fixed', zIndex: 10000, pointerEvents: 'auto',
+        background: 'rgba(4,10,26,.97)', border: '1px solid #2563EB',
         color: '#E0F2FE', font: '600 12px/1.6 -apple-system,sans-serif',
-        padding: '8px 13px', borderRadius: '9px', whiteSpace: 'nowrap',
-        boxShadow: '0 6px 20px rgba(0,0,0,.5)',
+        padding: '11px 14px', borderRadius: '11px', minWidth: '195px',
+        boxShadow: '0 8px 28px rgba(0,0,0,.7)',
       });
       document.body.appendChild(this._popupEl);
     }
-    const zid = cell.zoneId ? ` · 존 ${cell.zoneId}` : '';
+    this._currentPopupCell = cell;
+    this._popupClientX = clientX;
+    this._popupClientY = clientY;
+
+    const zid = cell.zoneId;
+    const side = this._lesionSide || this.side;
+    const sideData = (this._irisZoneData || {})[side] || {};
+    const activeLesions = zid ? (sideData[zid] || []) : [];
+    const zoneEntry = zid ? (ZONE_TABLE[side] || []).find(z => z[0] === zid) : null;
+    const degRange = zoneEntry ? `${zoneEntry[1]}°–${zoneEntry[2]}°` : '';
+
+    const btnHtml = LESION_DEFS.map(d => {
+      const active = activeLesions.includes(d.id);
+      const [r,g,b] = d.color;
+      const bg = active ? `rgba(${r},${g},${b},0.88)` : `rgba(${r},${g},${b},0.14)`;
+      const bd = active ? `rgba(${r},${g},${b},1)` : `rgba(${r},${g},${b},0.45)`;
+      const fg = active ? '#fff' : `rgba(${r},${g},${b},0.9)`;
+      return `<button onclick="if(window._ludiaIris3D)window._ludiaIris3D._toggleLC('${zid}','${d.id}')" ` +
+        `style="background:${bg};border:1.5px solid ${bd};color:${fg};padding:3px 8px;border-radius:5px;` +
+        `font-size:11px;font-weight:700;cursor:pointer;margin:2px 2px 0 0;font-family:inherit">` +
+        `${d.ko}</button>`;
+    }).join('');
+
     this._popupEl.innerHTML =
-      `<div style="color:#7DD3FC;font-weight:800">격자 ${cell.gridId}${zid}</div>` +
-      `평균 명도: <b>${(cell.brightness*100).toFixed(0)}%</b><br>` +
-      `추정 깊이: <b>${(cell.depth*100).toFixed(0)}%</b>`;
-    this._popupEl.style.left    = `${clientX+14}px`;
-    this._popupEl.style.top     = `${clientY-10}px`;
+      `<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:2px">` +
+      `<span style="color:#7DD3FC;font-weight:900;font-size:13px">👁 ${zid || cell.gridId}</span>` +
+      (degRange ? `<span style="font-size:10px;color:#64748B">${degRange}</span>` : '') +
+      `</div>` +
+      `<div style="font-size:11px;color:#64748B;margin-bottom:8px">` +
+      `명도 ${(cell.brightness*100).toFixed(0)}% · 깊이 ${(cell.depth*100).toFixed(0)}%</div>` +
+      `<div style="font-size:10px;color:#94A3B8;letter-spacing:.4px;margin-bottom:5px">▼ 병소 선택 (탭하여 ON/OFF)</div>` +
+      `<div style="display:flex;flex-wrap:wrap">${btnHtml}</div>` +
+      `<div onclick="if(window._ludiaIris3D)window._ludiaIris3D._hidePopup()" ` +
+      `style="text-align:right;font-size:10px;color:#475569;cursor:pointer;margin-top:8px;padding-top:6px;` +
+      `border-top:1px solid #1e3a5f">닫기 ×</div>`;
+
+    const pw = 210, ph = 180;
+    const lx = Math.min(clientX + 16, window.innerWidth - pw - 8);
+    const ty = Math.max(Math.min(clientY - 30, window.innerHeight - ph - 8), 8);
+    this._popupEl.style.left    = `${lx}px`;
+    this._popupEl.style.top     = `${ty}px`;
     this._popupEl.style.display = 'block';
   }
-  _hidePopup() { if (this._popupEl) this._popupEl.style.display = 'none'; }
+
+  _hidePopup() {
+    if (this._popupEl) this._popupEl.style.display = 'none';
+    this._currentPopupCell = null;
+  }
 
   startExam() {
     if (!this.gridStats) return null;
@@ -777,6 +846,88 @@ export class Iris3DViewer {
     this.renderer.render(this.scene, this.camera);
   }
 
+  // ── 투명 기본 텍스처 (lesionMap 초기값)
+  _transparentTexture() {
+    const c = document.createElement('canvas'); c.width = c.height = 4;
+    const tex = new THREE.CanvasTexture(c); tex.flipY = false;
+    return tex;
+  }
+
+  // ── 병소 아틀라스 생성 — ZONE_TABLE 영역을 lesion 색상으로 칠함
+  _buildLesionAtlas() {
+    const canvas = document.createElement('canvas');
+    canvas.width = ATLAS_W; canvas.height = ATLAS_H;
+    const ctx = canvas.getContext('2d');
+
+    const side     = this._lesionSide || this.side;
+    const sideData = (this._irisZoneData || {})[side] || {};
+    const table    = ZONE_TABLE[side] || [];
+
+    // 홍채 밴드: PHI_BAND_DEG → atlas 픽셀 행
+    const yTop    = Math.floor(PUPIL_V  * ATLAS_H) + 3;
+    const yBot    = Math.ceil (SCLERA_V * ATLAS_H) - 3;
+    const yMid    = (yTop + yBot) / 2;
+
+    for (const [zid, startDeg, endDeg] of table) {
+      const lesions = sideData[zid];
+      if (!lesions?.length) continue;
+
+      const xLeft  = Math.floor(startDeg / 360 * ATLAS_W);
+      const xRight = Math.ceil (endDeg   / 360 * ATLAS_W);
+      const xW     = Math.max(1, xRight - xLeft);
+
+      // 첫 번째 병소 색상 (넓은 기본 채색)
+      const d0 = LESION_DEFS.find(d => d.id === lesions[0]) || LESION_DEFS[0];
+      const [r0,g0,b0] = d0.color;
+      ctx.fillStyle = `rgba(${r0},${g0},${b0},0.68)`;
+      ctx.fillRect(xLeft, yTop, xW, yBot - yTop);
+
+      // 두 번째 병소 색상 (아래 절반에 오버레이)
+      if (lesions.length > 1) {
+        const d1 = LESION_DEFS.find(d => d.id === lesions[1]) || LESION_DEFS[1];
+        const [r1,g1,b1] = d1.color;
+        ctx.fillStyle = `rgba(${r1},${g1},${b1},0.55)`;
+        ctx.fillRect(xLeft, yMid | 0, xW, yBot - (yMid | 0));
+      }
+
+      // 테두리 하이라이트 (1px 왼쪽·오른쪽 엣지)
+      ctx.fillStyle = `rgba(255,255,255,0.35)`;
+      ctx.fillRect(xLeft,   yTop, 1, yBot - yTop);
+      ctx.fillRect(xRight-1,yTop, 1, yBot - yTop);
+    }
+    return canvas;
+  }
+
+  // ── 병소 맵 업데이트 (외부에서 호출 — fd.irisZoneData 변경 시)
+  updateLesionMap(irisZoneData, side) {
+    this._irisZoneData = irisZoneData || {};
+    this._lesionSide   = side || this.side;
+    const canvas = this._buildLesionAtlas();
+    const prev   = this.material.uniforms.lesionMap.value;
+    const tex    = new THREE.CanvasTexture(canvas); tex.flipY = false;
+    this.material.uniforms.lesionMap.value = tex;
+    if (prev) prev.dispose();
+    const hasLesions = Object.values((this._irisZoneData[this._lesionSide] || {}))
+      .some(v => Array.isArray(v) && v.length > 0);
+    this.material.uniforms.uShowLesions.value = hasLesions ? 1.0 : 0.0;
+  }
+
+  // ── 병소 토글 (팝업 버튼 onclick에서 호출)
+  _toggleLC(zoneId, code) {
+    if (!zoneId) return;
+    const side = this._lesionSide || this.side;
+    if (!this._irisZoneData)       this._irisZoneData = {};
+    if (!this._irisZoneData[side]) this._irisZoneData[side] = {};
+    const arr = this._irisZoneData[side][zoneId] ? [...this._irisZoneData[side][zoneId]] : [];
+    const idx = arr.indexOf(code);
+    if (idx >= 0) arr.splice(idx, 1); else arr.push(code);
+    this._irisZoneData[side][zoneId] = arr;
+    this.updateLesionMap(this._irisZoneData, side);
+    if (typeof this.onLesionToggle === 'function') this.onLesionToggle(zoneId, [...arr], side);
+    // 팝업 즉시 갱신 (버튼 active 상태 반영)
+    if (this._currentPopupCell) this._showPopup(this._popupClientX, this._popupClientY, this._currentPopupCell);
+  }
+
   dispose() {
     cancelAnimationFrame(this._raf);
     this._resizeObserver?.disconnect();
@@ -784,5 +935,6 @@ export class Iris3DViewer {
     this.controls.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
+    if (window._ludiaIris3D === this) window._ludiaIris3D = null;
   }
 }

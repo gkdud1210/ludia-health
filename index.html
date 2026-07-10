@@ -8902,7 +8902,19 @@ window.openIris3DViewer = async function(side) {
       }
     });
     await window._iris3dViewer.build(photo, side);
-    document.getElementById('iris3dStatus').textContent = '3D 모델 완료 — 회전/확대 후 "홍채 자동분석" 버튼을 누르세요';
+
+    // 기존 fd.irisZoneData 병소를 3D 뷰어에 표시
+    window._iris3dViewer.updateLesionMap(fd.irisZoneData || {}, side);
+
+    // 팝업에서 병소를 토글하면 fd.irisZoneData에 즉시 반영
+    window._iris3dViewer.onLesionToggle = (zoneId, codes, _side) => {
+      if (!fd.irisZoneData) fd.irisZoneData = { left:{}, right:{} };
+      if (!fd.irisZoneData[_side]) fd.irisZoneData[_side] = {};
+      fd.irisZoneData[_side][zoneId] = codes;
+      if (typeof refreshIrisClock === 'function') refreshIrisClock();
+    };
+
+    document.getElementById('iris3dStatus').textContent = '3D 모델 완료 — 홍채를 탭하면 병소를 선택할 수 있습니다';
   } catch(e) {
     document.getElementById('iris3dStatus').textContent = '오류: ' + e.message;
     console.error('[iris3d]', e);

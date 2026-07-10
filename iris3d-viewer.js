@@ -208,7 +208,7 @@ function buildAtlasesFromImage(imgEl, geom, side) {
   const aoCanvas = document.createElement('canvas'); aoCanvas.width = ATLAS_W; aoCanvas.height = ATLAS_H;
   const actx = aoCanvas.getContext('2d'); const aimg = actx.createImageData(ATLAS_W, ATLAS_H);
 
-  const NORMAL_STRENGTH = 2.8, AO_BLUR = 4, AO_STRENGTH = 1.8;
+  const NORMAL_STRENGTH = 0.7, AO_BLUR = 4, AO_STRENGTH = 0.4;
   function sampleDepthBuf(x, y) {
     return depthBuf[Math.max(0,Math.min(ATLAS_H-1,y))*ATLAS_W + Math.max(0,Math.min(ATLAS_W-1,x))];
   }
@@ -406,8 +406,8 @@ const FRAGMENT_SHADER = /* glsl */ `
 
     // ── 색상 합산 — 사진 베이스 그대로, 크립트·라쿠나만 미세 강조
     vec3 irisColor = base;
-    irisColor = mix(irisColor, vec3(0.010, 0.010, 0.018), cryptMask * 0.82);
-    irisColor = mix(irisColor, irisColor * 0.62, lacunaMask * 0.70);
+    irisColor = mix(irisColor, vec3(0.010, 0.010, 0.018), cryptMask * 0.38);
+    irisColor = mix(irisColor, irisColor * 0.75, lacunaMask * 0.28);
     irisColor = max(vec3(0.0), irisColor);
 
     vec3 scleraColor = base + vec3(scleraTint * 0.4, scleraTint * 0.14, scleraTint * 0.1);

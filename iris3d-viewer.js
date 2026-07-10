@@ -374,41 +374,20 @@ const FRAGMENT_SHADER = /* glsl */ `
 
     float theta_rad = vUv.x * 2.0 * PI;
 
-    // ── [1] 방사형 스트로마 섬유 (Stromal Trabeculae)
-    // 고주파(65Hz) 얇은 결 + 저주파(12Hz) 넓은 밀도 변화 → 느슨도 표현
-    float fibersHF = pow(abs(sin(theta_rad * 65.0)), 12.0) * 0.026;
-    float fibersLF = pow(abs(sin(theta_rad * 12.0)),  2.0) * 0.018; // 넓은 명암 = 조직 밀도 차
-    float fibers   = fibersHF + fibersLF;
-    float fiberZone = smoothstep(0.10, 0.35, rNorm) * (1.0 - smoothstep(0.70, 0.97, rNorm));
-    fibers *= fiberZone * irisZone;
-
-    // ── [2] 콜라렛 고리 (Collarette) — 넓고 완만한 융기
-    float collaretteR = 0.28 + sin(theta_rad * 7.0) * 0.022;
-    float collarette  = smoothstep(0.12, 0.0, abs(rNorm - collaretteR)) * 0.065 * irisZone;
-
-    // ── [3] 수축 주름 (Contraction Furrows) — 살짝 보이게
-    float furrowZone = smoothstep(0.50, 0.70, rNorm) * (1.0 - smoothstep(0.87, 1.0, rNorm));
-    float furrow     = (sin(rNorm * 20.0) * 0.5 + 0.5) * 0.018 * furrowZone * irisZone;
-
-    // ── [4] 크립트 & 라쿠나 — depthMap 실측 깊이로 자동 구분
-    // depthSample.r = 1 - brightness: 사진에서 어두울수록 → 깊은 함몰
+    // ── 사진 원본 위주 렌더링 — 인위적 해부학 레이어 제거
+    // 크립트·라쿠나만 실측 depth로 미세하게 강조
     float rawDepth   = depthSample.r;
-    // 크립트: 매우 어두운(검정) 깊은 함몰
-    float cryptMask  = smoothstep(0.60, 0.84, rawDepth) * irisZone;
-    // 라쿠나: 주변보다 살짝 파인 중간 깊이 (크립트 직전 범위)
-    float lacunaMask = smoothstep(0.30, 0.50, rawDepth)
-                     * (1.0 - smoothstep(0.50, 0.72, rawDepth)) * irisZone;
+    float cryptMask  = smoothstep(0.62, 0.86, rawDepth) * irisZone;
+    float lacunaMask = smoothstep(0.32, 0.52, rawDepth)
+                     * (1.0 - smoothstep(0.52, 0.74, rawDepth)) * irisZone;
 
-    // ── [5] 동공 심도 — 완전한 검정 + 테두리 미세 파란 반사
+    // ── [5] 동공
     float pupilGrad = smoothstep(0.0, 1.0, clamp(v_phi / (localPupilV + 0.001), 0.0, 1.0));
     vec3  pupilBase = mix(vec3(0.0, 0.0, 0.0), vec3(0.015, 0.02, 0.04), pupilGrad);
     float pupilRefl = pow(max(dot(normalize(vNormalW), catchDir), 0.0), 6.0) * 0.05 * pupilZone;
     vec3  pupilColor = pupilBase + vec3(0.04, 0.07, 0.12) * pupilRefl;
 
-    // ── [6] 윤부 색소환 (Limbal Ring)
-    float limbalRing = smoothstep(0.58, 1.0, rNorm) * 0.15 * irisZone;
-
-    // ── [7] 공막 혈관 및 색조 (Sclera)
+    // ── [6] 공막 (Sclera)
     float scleraR    = (v_phi - SCLERA_V) / max(1.0 - SCLERA_V, 0.001);
     float scleraTint = smoothstep(0.0, 0.22, scleraR) * 0.18;
     float vessel     = 0.0;
@@ -423,14 +402,10 @@ const FRAGMENT_SHADER = /* glsl */ `
     }
     vec3 vesselColor = vec3(0.7, 0.16, 0.16);
 
-    // ── 색상 합산
-    float anatScale = 0.65;
-    vec3 irisColor  = base + (vec3(fibers) + vec3(collarette) + vec3(furrow)
-                    - vec3(limbalRing)) * anatScale;
-    // 크립트: 거의 검정(#030306)으로 강하게 덮어씀
-    irisColor = mix(irisColor, vec3(0.012, 0.012, 0.022), cryptMask * 0.90);
-    // 라쿠나: 색조는 유지하고 밝기만 낮춤 (주변보다 ~40% 어둡게)
-    irisColor = mix(irisColor, irisColor * 0.58, lacunaMask * 0.78);
+    // ── 색상 합산 — 사진 베이스 그대로, 크립트·라쿠나만 미세 강조
+    vec3 irisColor = base;
+    irisColor = mix(irisColor, vec3(0.010, 0.010, 0.018), cryptMask * 0.82);
+    irisColor = mix(irisColor, irisColor * 0.62, lacunaMask * 0.70);
     irisColor = max(vec3(0.0), irisColor);
 
     vec3 scleraColor = base + vec3(scleraTint * 0.4, scleraTint * 0.14, scleraTint * 0.1);
@@ -564,8 +539,8 @@ export class Iris3DViewer {
         normalMap:         { value: this._solidTexture('#8080ff') },
         aoMap:             { value: this._solidTexture('#ffffff') },
         lesionMap:         { value: this._transparentTexture() },
-        displacementScale: { value: 0.075 },
-        cornealBulge:      { value: 0.030 },
+        displacementScale: { value: 0.0 },
+        cornealBulge:      { value: 0.022 },
         uAOStrength:       { value: 1.1 },
         uSSSStrength:      { value: 1.0 },
         uShowLesions:      { value: 0.0 },

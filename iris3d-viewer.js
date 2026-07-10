@@ -162,8 +162,9 @@ function buildAtlasesFromImage(imgEl, geom, side) {
   const depthCanvas = document.createElement('canvas'); depthCanvas.width = ATLAS_W; depthCanvas.height = ATLAS_H;
   const dctx = depthCanvas.getContext('2d'); const dimg = dctx.createImageData(ATLAS_W, ATLAS_H);
 
-  const depthBuf = new Float32Array(ATLAS_W * ATLAS_H);
-  const cellSum  = new Array(GRID_RINGS * GRID_SECTORS).fill(0).map(() => ({ depth: 0, bright: 0, n: 0 }));
+  const depthBuf  = new Float32Array(ATLAS_W * ATLAS_H);
+  const brightBuf = new Float32Array(ATLAS_W * ATLAS_H); // ANR 감지용 원본 밝기
+  const cellSum   = new Array(GRID_RINGS * GRID_SECTORS).fill(0).map(() => ({ depth: 0, bright: 0, n: 0 }));
 
   for (let vy = 0; vy < ATLAS_H; vy++) {
     const v = vy / ATLAS_H;
@@ -187,6 +188,7 @@ function buildAtlasesFromImage(imgEl, geom, side) {
         const darkness    = 1 - gray;
         const lowContrast = 1 - Math.min(1, Math.abs(gray - grayBlur) * 6);
         depth = Math.max(0, Math.min(1, 0.6 * darkness + 0.4 * lowContrast));
+        brightBuf[vy * ATLAS_W + ux] = gray; // 원본 밝기 (ANR 프로파일용)
         const ringI = Math.min(GRID_RINGS-1, Math.floor(rNorm * GRID_RINGS));
         const secI  = Math.min(GRID_SECTORS-1, Math.floor(u * GRID_SECTORS));
         const cell  = cellSum[ringI * GRID_SECTORS + secI];
@@ -243,7 +245,7 @@ function buildAtlasesFromImage(imgEl, geom, side) {
       depth:      cell.n ? cell.depth / cell.n : 0,
     });
   }
-  return { colorCanvas, depthCanvas, normalCanvas, aoCanvas, gridStats, depthBuf };
+  return { colorCanvas, depthCanvas, normalCanvas, aoCanvas, gridStats, depthBuf, brightBuf };
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -615,7 +617,8 @@ export class Iris3DViewer {
 
     const local = buildAtlasesFromImage(img, geom, side);
     this.gridStats = local.gridStats; this.backendResult = null;
-    this._depthBuf = local.depthBuf; // Float32Array — 알파 프리멀티플라이 문제 없이 depth 직접 접근
+    this._depthBuf  = local.depthBuf;  // depth Float32Array (cry/lac 감지)
+    this._brightBuf = local.brightBuf; // 원본 밝기 Float32Array (ANR 감지)
     this._applyTextures(local.colorCanvas, local.depthCanvas, local.normalCanvas, local.aoCanvas);
 
     if (this.aiServer) {
@@ -983,6 +986,98 @@ export class Iris3DViewer {
       if (codes.length) result[zid] = codes;
     }
     return result;
+  }
+
+  // ── 자율신경환(ANR) 자동 감지 — 방사형 밝기 프로파일의 국소 최솟값으로 링 위치 추정
+  detectANR() {
+    if (!this._brightBuf) return null;
+    const W = ATLAS_W, H = ATLAS_H;
+    const brightBuf = this._brightBuf;
+
+    // 1) 60개 rNorm 밴드별 평균 밝기 계산
+    const BANDS = 60;
+    const sum = new Float32Array(BANDS);
+    const cnt = new Uint32Array(BANDS);
+    for (let y = 0; y < H; y++) {
+      const v = y / H;
+      if (v < PUPIL_V || v > SCLERA_V) continue;
+      const rNorm = (v - PUPIL_V) / (SCLERA_V - PUPIL_V);
+      const band  = Math.min(BANDS - 1, Math.floor(rNorm * BANDS));
+      for (let x = 0; x < W; x++) {
+        const b = brightBuf[y * W + x];
+        if (b === 0) continue; // 동공/공막 픽셀은 0으로 초기화됨
+        sum[band] += b; cnt[band]++;
+      }
+    }
+    const profile = new Float32Array(BANDS);
+    for (let i = 0; i < BANDS; i++) profile[i] = cnt[i] > 0 ? sum[i] / cnt[i] : -1;
+
+    // 2) 이동 평균으로 프로파일 스무딩 (±3 밴드)
+    const SMOOTH = 3;
+    const smoothed = new Float32Array(BANDS);
+    for (let i = 0; i < BANDS; i++) {
+      let s = 0, c = 0;
+      for (let j = Math.max(0, i - SMOOTH); j <= Math.min(BANDS - 1, i + SMOOTH); j++) {
+        if (profile[j] >= 0) { s += profile[j]; c++; }
+      }
+      smoothed[i] = c > 0 ? s / c : 0;
+    }
+
+    // 3) rNorm 0.18–0.60 범위에서 국소 최솟값 탐색 (ANR 예상 위치)
+    const iBandMin = Math.floor(0.18 * BANDS);
+    const iBandMax = Math.floor(0.60 * BANDS);
+    let minVal = Infinity, minBand = -1;
+    for (let i = iBandMin; i <= iBandMax; i++) {
+      if (smoothed[i] < minVal) { minVal = smoothed[i]; minBand = i; }
+    }
+    if (minBand < 0) return null;
+
+    // 4) 대비 검증 — 주변 대비 1% 미만이면 폴백 rNorm 0.35 사용
+    const prevBand = Math.max(0, minBand - 5);
+    const nextBand = Math.min(BANDS - 1, minBand + 5);
+    const neighborAvg = (smoothed[prevBand] + smoothed[nextBand]) / 2;
+    const contrast = neighborAvg - smoothed[minBand];
+    const detected = contrast >= 0.01;
+    if (!detected) minBand = Math.floor(0.35 * BANDS);
+    const anrRNorm = minBand / BANDS;
+
+    // 5) ANR 링 캔버스 생성 (시안 색상, ±BAND_WIDTH rNorm)
+    const BAND_WIDTH = 0.045;
+    const raw  = document.createElement('canvas'); raw.width = W; raw.height = H;
+    const rctx = raw.getContext('2d');
+    const idat = rctx.createImageData(W, H);
+    for (let y = 0; y < H; y++) {
+      const v = y / H;
+      if (v < PUPIL_V || v > SCLERA_V) continue;
+      const rNorm = (v - PUPIL_V) / (SCLERA_V - PUPIL_V);
+      const dist  = Math.abs(rNorm - anrRNorm);
+      if (dist > BAND_WIDTH) continue;
+      const alpha = Math.pow(1 - dist / BAND_WIDTH, 1.5);
+      for (let x = 0; x < W; x++) {
+        const pi = (y * W + x) * 4;
+        idat.data[pi]   = 6;   // ANR 시안 (LESION_DEFS anr color)
+        idat.data[pi+1] = 182;
+        idat.data[pi+2] = 212;
+        idat.data[pi+3] = Math.round(alpha * 210);
+      }
+    }
+    rctx.putImageData(idat, 0, 0);
+
+    // 6) 기존 lesionMap 위에 합성 (cry/lac 오버레이 유지)
+    const merged = document.createElement('canvas'); merged.width = W; merged.height = H;
+    const mctx = merged.getContext('2d');
+    const prevTex = this.material.uniforms.lesionMap.value;
+    if (prevTex && prevTex.image) mctx.drawImage(prevTex.image, 0, 0);
+    mctx.filter = 'blur(3px)';
+    mctx.drawImage(raw, 0, 0);
+
+    const prev = this.material.uniforms.lesionMap.value;
+    const tex  = new THREE.CanvasTexture(merged); tex.flipY = false;
+    this.material.uniforms.lesionMap.value = tex;
+    this.material.uniforms.uShowLesions.value = 1.0;
+    if (prev) prev.dispose();
+
+    return { rNorm: anrRNorm, contrast: contrast.toFixed(3), detected };
   }
 
   dispose() {

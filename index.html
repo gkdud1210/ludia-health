@@ -8867,9 +8867,13 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
       style="padding:7px 16px;background:linear-gradient(90deg,#7C1D1D,#DC2626,#F97316);border:none;border-radius:8px;color:white;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 0 14px rgba(220,38,38,.45);letter-spacing:.3px">
       🔴 병소 감지
     </button>
+    <button onclick="runANRDetect()"
+      style="padding:7px 16px;background:linear-gradient(90deg,#0E4F5C,#0891B2,#22D3EE);border:none;border-radius:8px;color:white;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 0 14px rgba(6,182,212,.45);letter-spacing:.3px">
+      🔵 ANR 감지
+    </button>
   </div>
   <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;text-align:center;padding:0 20px">
-    드래그: 회전 &nbsp;·&nbsp; 탭: 구역 확인/병소 선택 &nbsp;·&nbsp; <span style="color:rgba(248,113,113,.7)">"병소 감지"</span>: 크립트·라쿠나를 3D에 자동 표시
+    드래그: 회전 &nbsp;·&nbsp; 탭: 구역 확인/병소 선택 &nbsp;·&nbsp; <span style="color:rgba(248,113,113,.7)">"병소 감지"</span>: 크립트·라쿠나 &nbsp;·&nbsp; <span style="color:rgba(34,211,238,.7)">"ANR 감지"</span>: 자율신경환
   </div>
 </div>
 
@@ -8959,6 +8963,30 @@ window.runLesionDetect = function() {
     document.getElementById('iris3dStatus').textContent =
       `병소 감지 완료 — 🔴 크립트 ${cryZones}구역 · 🟡 라쿠나 ${lacZones}구역 3D 표시중`;
 
+    if (typeof refreshIrisClock === 'function') refreshIrisClock();
+  });
+};
+
+window.runANRDetect = function() {
+  if (!window._iris3dViewer) return;
+  document.getElementById('iris3dStatus').textContent = 'ANR 감지 중...';
+  requestAnimationFrame(() => {
+    const result = window._iris3dViewer.detectANR();
+    if (!result) {
+      document.getElementById('iris3dStatus').textContent = 'ANR 감지 실패 — 홍채 이미지가 로드되지 않았습니다';
+      return;
+    }
+    const side = window._iris3dSide;
+    const rPct = Math.round(result.rNorm * 100);
+    // fd.irisZoneData의 모든 구역에 anr 코드 추가 (ANR은 전체 링을 가로지름)
+    if (!fd.irisZoneData) fd.irisZoneData = { left:{}, right:{} };
+    if (!fd.irisZoneData[side]) fd.irisZoneData[side] = {};
+    const ZONE_TABLE_IDS = Object.keys(fd.irisZoneData[side]);
+    // 등록된 구역이 없으면 감지 결과만 표시
+    document.getElementById('iris3dStatus').textContent =
+      result.detected
+        ? `자율신경환 감지 완료 🔵 홍채 내측 ${rPct}% 위치 · 대비 ${result.contrast} · 3D 오버레이 표시중`
+        : `자율신경환 추정 완료 🔵 명확한 링 미감지 — 예상 위치 ${rPct}% 표시중`;
     if (typeof refreshIrisClock === 'function') refreshIrisClock();
   });
 };

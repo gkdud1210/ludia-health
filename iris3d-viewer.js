@@ -1082,7 +1082,7 @@ export class Iris3DViewer {
     }
 
     // 6) 섹터별 색상 맵핑 후 x축 선형 보간으로 링 그리기
-    const BAND_W = 0.042;
+    const BAND_W = 0.058; // 더 두껍게 — 3D에서 잘 보이도록
     const raw = document.createElement('canvas'); raw.width = W; raw.height = H;
     const rctx = raw.getContext('2d');
     const idat = rctx.createImageData(W, H);
@@ -1107,7 +1107,7 @@ export class Iris3DViewer {
         else if (cls === 'expanded')    { cr=50;  cg=210; cb=120; } // 초록 (확장)
         else                            { cr=6;   cg=182; cb=212; } // 시안 (정상)
         idat.data[pi]=cr; idat.data[pi+1]=cg; idat.data[pi+2]=cb;
-        idat.data[pi+3] = Math.round(alpha * 215);
+        idat.data[pi+3] = Math.round(alpha * 230);
       }
     }
     rctx.putImageData(idat, 0, 0);

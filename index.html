@@ -8875,6 +8875,22 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
   <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;text-align:center;padding:0 20px">
     드래그: 회전 &nbsp;·&nbsp; 탭: 구역 확인/병소 선택 &nbsp;·&nbsp; <span style="color:rgba(248,113,113,.7)">"병소 감지"</span>: 크립트·라쿠나 &nbsp;·&nbsp; <span style="color:rgba(34,211,238,.7)">"ANR 감지"</span>: 자율신경환
   </div>
+
+  <!-- ANR 결과 패널 -->
+  <div id="anrPanel" style="display:none;width:min(530px,96vw);margin-top:10px;background:rgba(2,22,40,.92);border:1px solid rgba(6,182,212,.35);border-radius:12px;padding:12px 16px;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:12px">
+      <svg id="anrDiagram" width="80" height="80" viewBox="0 0 100 100" style="flex-shrink:0"></svg>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:800;color:#22D3EE;margin-bottom:4px">자율신경환 분석</div>
+        <div id="anrSummary" style="font-size:10px;color:#CBD5E1;line-height:1.6"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;margin-top:8px;font-size:9px;color:rgba(255,255,255,.45)">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#06B6D4;margin-right:3px;vertical-align:middle"></span>정상</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F59032;margin-right:3px;vertical-align:middle"></span>수축 (ANR 동공쪽으로 당겨짐)</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#32C878;margin-right:3px;vertical-align:middle"></span>확장 (ANR 바깥쪽으로 밀려남)</span>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -8970,49 +8986,85 @@ window.runLesionDetect = function() {
 window.runANRDetect = function() {
   if (!window._iris3dViewer) return;
   document.getElementById('iris3dStatus').textContent = 'ANR 감지 중...';
+  document.getElementById('anrPanel').style.display = 'none';
+
   requestAnimationFrame(() => {
-    const result = window._iris3dViewer.detectANR();
-    if (!result) {
-      document.getElementById('iris3dStatus').textContent = 'ANR 감지 실패 — 홍채 이미지가 로드되지 않았습니다';
+    let result;
+    try {
+      result = window._iris3dViewer.detectANR();
+    } catch(e) {
+      document.getElementById('iris3dStatus').textContent = 'ANR 오류: ' + e.message;
+      console.error('[ANR]', e);
       return;
     }
-    const side = window._iris3dSide;
+    if (!result) {
+      document.getElementById('iris3dStatus').textContent = 'ANR 감지 실패 — 3D 뷰어를 다시 열어주세요';
+      return;
+    }
 
-    // 섹터 인덱스 → 시계 시각 문자열 (0시 = 12시, 6=3시, 12=6시, 18=9시)
+    const side = window._iris3dSide;
     const N_SEC = 24;
-    const secToClockStr = (s) => {
-      const deg = (s + 0.5) / N_SEC * 360;
-      const h = Math.round(deg / 30) % 12 || 12;
-      return `${h}시`;
-    };
-    // 연속 섹터 그룹을 "시작~끝" 문자열로 표현
+
+    // 섹터 → 시계 시각 (12 = 0°, 3 = 90°, ...)
+    const secToH = (s) => { const h = Math.round((s + 0.5) / N_SEC * 12) % 12 || 12; return h; };
+    const secToStr = (s) => `${secToH(s)}시`;
     const groupSecs = (secs) => {
-      if (!secs.length) return '없음';
+      if (!secs.length) return null;
       const groups = []; let i = 0;
       while (i < secs.length) {
         let j = i;
         while (j+1 < secs.length && secs[j+1] === secs[j]+1) j++;
-        groups.push(i === j ? secToClockStr(secs[i]) : `${secToClockStr(secs[i])}–${secToClockStr(secs[j])}`);
-        i = j + 1;
+        groups.push(i===j ? secToStr(secs[i]) : `${secToStr(secs[i])}–${secToStr(secs[j])}`);
+        i = j+1;
       }
       return groups.join(', ');
     };
 
-    // fd.irisZoneData 업데이트 (수축/확장 구역에 anr 코드 기록)
+    // fd.irisZoneData 업데이트
     if (!fd.irisZoneData) fd.irisZoneData = { left:{}, right:{} };
     if (!fd.irisZoneData[side]) fd.irisZoneData[side] = {};
-    for (const [zid, info] of Object.entries(result.zoneSummary)) {
+    for (const [zid] of Object.entries(result.zoneSummary)) {
       const existing = fd.irisZoneData[side][zid] || [];
       if (!existing.includes('anr')) fd.irisZoneData[side][zid] = [...existing, 'anr'];
     }
 
+    // SVG 링 다이어그램 생성 (24섹터 도넛형)
+    const CX = 50, CY = 50, R1 = 26, R2 = 46;
+    const toRad = (deg) => deg * Math.PI / 180;
+    const arcPath = (s, r1, r2) => {
+      const a1 = toRad((s / N_SEC) * 360 - 90);
+      const a2 = toRad(((s+1) / N_SEC) * 360 - 90 - 0.5); // 0.5° 간격
+      const x1=CX+r1*Math.cos(a1), y1=CY+r1*Math.sin(a1);
+      const x2=CX+r2*Math.cos(a1), y2=CY+r2*Math.sin(a1);
+      const x3=CX+r2*Math.cos(a2), y3=CY+r2*Math.sin(a2);
+      const x4=CX+r1*Math.cos(a2), y4=CY+r1*Math.sin(a2);
+      return `M${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)} A${r2},${r2} 0 0,1 ${x3.toFixed(1)},${y3.toFixed(1)} L${x4.toFixed(1)},${y4.toFixed(1)} A${r1},${r1} 0 0,0 ${x1.toFixed(1)},${y1.toFixed(1)}Z`;
+    };
+    const COLOR = { normal:'#06B6D4', constricted:'#F59032', expanded:'#32C878' };
+    let svgInner = result.sectorClass.map((cls,s) =>
+      `<path d="${arcPath(s, R1, R2)}" fill="${COLOR[cls]||'#06B6D4'}" opacity="0.88"/>`
+    ).join('');
+    // 중심 원 (동공 표현)
+    svgInner += `<circle cx="50" cy="50" r="${R1}" fill="rgba(5,15,30,0.9)"/>`;
+    // 12시 방향 눈금
+    svgInner += `<line x1="50" y1="2" x2="50" y2="10" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>`;
+    document.getElementById('anrDiagram').innerHTML = svgInner;
+
+    // 텍스트 요약
     const rPct = Math.round(result.meanRNorm * 100);
-    const cStr = result.constrictedSecs.length ? `🟠 수축 ${groupSecs(result.constrictedSecs)}` : '';
-    const eStr = result.expandedSecs.length    ? `🟢 확장 ${groupSecs(result.expandedSecs)}`    : '';
-    const parts = [cStr, eStr].filter(Boolean);
-    const label = result.detected ? '자율신경환 감지' : '자율신경환 추정';
+    const cGrp = groupSecs(result.constrictedSecs);
+    const eGrp = groupSecs(result.expandedSecs);
+    const lines = [];
+    lines.push(`평균 위치: 홍채 내측에서 <b>${rPct}%</b> (std: ${result.stdRNorm})`);
+    if (cGrp) lines.push(`<span style="color:#F59032">● 수축 구역: ${cGrp}</span> — ANR이 동공 쪽으로 당겨짐`);
+    if (eGrp) lines.push(`<span style="color:#32C878">● 확장 구역: ${eGrp}</span> — ANR이 바깥쪽으로 밀려남`);
+    if (!cGrp && !eGrp) lines.push(`<span style="color:#06B6D4">전 구역 정상 범위</span>`);
+    if (!result.detected) lines.push(`<span style="color:rgba(255,255,255,.4)">(명확한 홈 미감지 — 추정값)</span>`);
+    document.getElementById('anrSummary').innerHTML = lines.join('<br>');
+    document.getElementById('anrPanel').style.display = 'block';
+
     document.getElementById('iris3dStatus').textContent =
-      `${label} 🔵 평균위치 ${rPct}% · ${parts.length ? parts.join(' · ') : '전구역 정상'} · std ${result.stdRNorm}`;
+      `ANR 감지 완료 🔵 ${rPct}%위치 · 수축${result.constrictedSecs.length}섹터 · 확장${result.expandedSecs.length}섹터`;
 
     if (typeof refreshIrisClock === 'function') refreshIrisClock();
   });

@@ -7,8 +7,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export const GRID_RINGS = 8;
 export const GRID_SECTORS = 10;
-// [8,26] → 림버스 최대 기울기 26°로 낮춰 평탄한 홍채 느낌. 기존 [14,42]는 42° 기울어 돔처럼 보였음.
-export const PHI_BAND_DEG = [8, 26];
+// [8,36]: 림버스 36° — 원본 42°보다 완만하고 26°보다 넓어 홍채 면적이 크게 보임
+export const PHI_BAND_DEG = [8, 36];
 
 const ATLAS_W = 720, ATLAS_H = 360;
 const PUPIL_V  = PHI_BAND_DEG[0] / 180;
@@ -487,9 +487,9 @@ export class Iris3DViewer {
     this.container.appendChild(this.renderer.domElement);
 
     this.scene  = new THREE.Scene();
-    // FOV 34° + 거리 1.7 → 홍채가 화면을 75% 채우면서 원근 왜곡이 적어 더 평탄하게 보임
+    // FOV 34° + 거리 2.0 → 홍채가 화면을 가득 채우면서 원근 왜곡은 적음
     this.camera = new THREE.PerspectiveCamera(34, w / h, 0.02, 100);
-    this.camera.position.set(0, 0, 1.7);
+    this.camera.position.set(0, 0, 2.0);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -530,8 +530,8 @@ export class Iris3DViewer {
         depthMap:          { value: this._solidTexture('#000000') },
         normalMap:         { value: this._solidTexture('#8080ff') },
         aoMap:             { value: this._solidTexture('#ffffff') },
-        displacementScale: { value: 0.16 },  // 평탄한 표면에서 굴곡이 과해 보이지 않도록 살짝 줄임
-        cornealBulge:      { value: 0.010 }, // 돔 돌출 거의 제거 — 평탄한 홍채 원반 느낌
+        displacementScale: { value: 0.17 },
+        cornealBulge:      { value: 0.035 }, // 자연스러운 각막 돌출감, 42° 시절(0.065)보다는 완만
         uAOStrength:       { value: 1.1 },
         uSSSStrength:      { value: 1.0 },
         uTime:             { value: 0 },

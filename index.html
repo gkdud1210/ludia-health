@@ -514,6 +514,9 @@ textarea.form-input{min-height:80px;resize:vertical;line-height:1.6;}
   border-radius:20px;font-size:9.5px;font-weight:700;
 }
 </style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"}}
+</script>
 </head>
 <body>
 
@@ -5654,6 +5657,10 @@ function buildEyePhotoHTML() {
         <button class="emb" onclick="clearEyeDraw('${side}')" style="color:var(--danger)">🗑</button>
       </div>
       <button class="btn-add" onclick="removeEyePhoto('${side}')" style="font-size:11px;border-color:#FCA5A5;color:var(--danger)">${t('사진 제거','Remove Photo')}</button>
+      <button class="btn-add" onclick="openIris3DViewer('${side}')"
+        style="font-size:11px;background:linear-gradient(90deg,#1a2744,#0A1628);border-color:#3B82F6;color:#60A5FA;margin-top:4px">
+        👁 3D 홍채 분석
+      </button>
       ${_regPhotoStrip(side)}
     </div>`;
   }
@@ -8279,6 +8286,115 @@ async function deleteAllCases() {
   } catch(e) { alert('삭제 실패'); }
 }
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(() => {}); }
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     홍채 3D 뷰어 모달
+════════════════════════════════════════════════════════════════ -->
+<div id="iris3dModal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(5,12,25,.95);flex-direction:column;align-items:center;justify-content:flex-start">
+  <!-- 헤더 -->
+  <div style="width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;flex-shrink:0">
+    <div>
+      <div id="iris3dTitle" style="font-size:15px;font-weight:800;color:#E0F2FE;letter-spacing:.4px">홍채 3D 뷰어</div>
+      <div id="iris3dStatus" style="font-size:10px;color:#60A5FA;margin-top:2px">초기화 중...</div>
+    </div>
+    <button onclick="closeIris3DViewer()"
+      style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:white;font-size:13px;font-weight:700;padding:6px 14px;cursor:pointer">✕ 닫기</button>
+  </div>
+
+  <!-- Three.js 캔버스 컨테이너 -->
+  <div id="iris3dContainer"
+    style="width:min(560px,100vw);height:min(400px,55vh);background:#0a1628;border-radius:12px;overflow:hidden;position:relative;flex-shrink:0"></div>
+
+  <!-- 컨트롤 버튼 -->
+  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center;padding:0 16px;flex-shrink:0">
+    <button onclick="_iris3dViewer&&_iris3dViewer.zoomIn()"
+      style="padding:7px 14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#CBD5E1;font-size:12px;font-weight:700;cursor:pointer">+ 확대</button>
+    <button onclick="_iris3dViewer&&_iris3dViewer.zoomOut()"
+      style="padding:7px 14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#CBD5E1;font-size:12px;font-weight:700;cursor:pointer">− 축소</button>
+    <button onclick="_iris3dViewer&&_iris3dViewer.resetView()"
+      style="padding:7px 14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#CBD5E1;font-size:12px;font-weight:700;cursor:pointer">↺ 초기화</button>
+    <button onclick="runIris3DExam()"
+      style="padding:7px 18px;background:linear-gradient(90deg,#1D4ED8,#3B82F6);border:none;border-radius:8px;color:white;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 0 14px rgba(59,130,246,.4)">
+      🔬 홍채 자동분석 → 병소 적용
+    </button>
+  </div>
+  <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;text-align:center;padding:0 20px">
+    드래그: 회전 &nbsp;·&nbsp; 두 손가락 핀치: 확대/축소 &nbsp;·&nbsp; "자동분석" 버튼으로 병소 구역을 홍채 지도에 반영
+  </div>
+</div>
+
+<script type="module">
+// 3D 뷰어는 ES 모듈이므로 전역 함수만 여기서 노출한다
+window._iris3dViewer = null;
+window._iris3dSide   = 'left';
+window._iris3dMapFn  = null;
+
+window.openIris3DViewer = async function(side) {
+  const photo = side === 'left' ? fd.leftEyePhoto : fd.rightEyePhoto;
+  if (!photo) { alert('홍채 사진을 먼저 업로드해 주세요.'); return; }
+  window._iris3dSide = side;
+  const modal = document.getElementById('iris3dModal');
+  modal.style.display = 'flex';
+  document.getElementById('iris3dTitle').textContent = side === 'left' ? '좌안 3D 홍채 뷰어' : '우안 3D 홍채 뷰어';
+  document.getElementById('iris3dStatus').textContent = '3D 모델 빌드 중...';
+  const container = document.getElementById('iris3dContainer');
+
+  try {
+    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js');
+    window._iris3dMapFn = mapGridToLegacyZones;
+    if (window._iris3dViewer) { window._iris3dViewer.dispose(); window._iris3dViewer = null; }
+    // container를 비워 이전 캔버스 제거
+    container.innerHTML = '';
+    window._iris3dViewer = new Iris3DViewer(container, {
+      onExamComplete: (gridStats, _side, _backendResult) => {
+        if (window._iris3dMapFn) {
+          const suggestions = window._iris3dMapFn(gridStats, _side);
+          window._applyIris3DSuggestions(_side, suggestions);
+        }
+      }
+    });
+    await window._iris3dViewer.build(photo, side);
+    document.getElementById('iris3dStatus').textContent = '3D 모델 완료 — 회전/확대 후 "홍채 자동분석" 버튼을 누르세요';
+  } catch(e) {
+    document.getElementById('iris3dStatus').textContent = '오류: ' + e.message;
+    console.error('[iris3d]', e);
+  }
+};
+
+window.closeIris3DViewer = function() {
+  document.getElementById('iris3dModal').style.display = 'none';
+  if (window._iris3dViewer) { window._iris3dViewer.dispose(); window._iris3dViewer = null; }
+};
+
+window.runIris3DExam = function() {
+  if (!window._iris3dViewer) return;
+  document.getElementById('iris3dStatus').textContent = '격자 분석 중...';
+  window._iris3dViewer.startExam();
+};
+
+window._applyIris3DSuggestions = function(side, suggestions) {
+  const dat = window._irisData ? window._irisData() : (fd.irisZoneData || (fd.irisZoneData = {left:{},right:{},global:{},guide:{}}));
+  if (!dat[side]) dat[side] = {};
+  let applied = 0;
+  for (const [zoneId, codes] of Object.entries(suggestions)) {
+    if (codes.length > 0) {
+      if (!dat[side][zoneId]) dat[side][zoneId] = [];
+      for (const bmId of codes) {
+        if (!dat[side][zoneId].includes(bmId)) {
+          dat[side][zoneId].push(bmId);
+          applied++;
+        }
+      }
+    }
+  }
+  window.closeIris3DViewer();
+  const msg = applied > 0
+    ? `3D 분석 완료 — ${applied}개 구역에 병소 소견이 제안·적용되었습니다.\n(기존 표기 유지, 비어 있던 구역에만 추가)`
+    : '3D 분석 완료 — 새로운 병소 제안이 없습니다.';
+  alert(msg);
+  if (typeof refreshIrisClock === 'function') refreshIrisClock();
+};
 </script>
 
 </body>

@@ -8917,7 +8917,7 @@ window.openIris3DViewer = async function(side) {
   const container = document.getElementById('iris3dContainer');
 
   try {
-    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js?v=20260711f');
+    const { Iris3DViewer, mapGridToLegacyZones } = await import('./iris3d-viewer.js?v=20260711g');
     window._iris3dMapFn = mapGridToLegacyZones;
     if (window._iris3dViewer) { window._iris3dViewer.dispose(); window._iris3dViewer = null; }
     container.innerHTML = '';
@@ -9095,25 +9095,23 @@ window.runANRDetect = function() {
     let wreathVal = 'normal';
     if (cLen >= 4 && cLen > eLen * 1.5)      wreathVal = 'narrow';
     else if (eLen >= 4 && eLen > cLen * 1.5) wreathVal = 'wide';
-    const wreathLabel = { normal:'정상형', narrow:'협착형 (수축)', wide:'확대형 (이완)' }[wreathVal];
 
-    // 임상 소견 텍스트 생성
-    const stdVal = parseFloat(result.stdRNorm);
-    let anrNote = `[자율신경환 · 3D 자동감지]\n`;
-    anrNote += `• 위치: 홍채 내측 ${rPct}% (동공→림버스 기준)${!result.detected ? ' ※추정값' : ''}\n`;
-    anrNote += `• 형태: ${wreathLabel}`;
-    if (stdVal > 0.04) anrNote += ` / 불규칙 파형 (std ${result.stdRNorm})`;
-    anrNote += '\n';
-    if (cGrp) anrNote += `• 수축 구역: ${cGrp} → 교감신경 과활성·해당 장기 긴장 시사\n`;
-    if (eGrp) anrNote += `• 확장 구역: ${eGrp} → 부교감 우세·해당 장기 이완 시사\n`;
-    if (!cGrp && !eGrp) anrNote += `• 전 구역 균형 — 자율신경계 조절력 양호\n`;
-    anrNote = anrNote.trimEnd();
+    // 패널에 표시된 내용 그대로 plain text 변환
+    const anrNoteLines = [
+      '자율신경환 분석',
+      `평균 위치: 홍채 내측에서 ${rPct}% (std: ${result.stdRNorm})`,
+      ...(cGrp ? [`● 수축 구역: ${cGrp} — ANR이 동공 쪽으로 당겨짐`] : []),
+      ...(eGrp ? [`● 확장 구역: ${eGrp} — ANR이 바깥쪽으로 밀려남`] : []),
+      ...(!cGrp && !eGrp ? ['전 구역 정상 범위'] : []),
+      ...(!result.detected ? ['(명확한 홈 미감지 — 추정값)'] : []),
+    ];
+    const anrNote = anrNoteLines.join('\n');
 
     // overallNote 에 추가 (기존 내용 보존)
     if (!fd.irisAssessment) fd.irisAssessment = {};
     const prev = (fd.irisAssessment.overallNote || '').trim();
     // 이미 ANR 감지 블록이 있으면 교체, 없으면 뒤에 추가
-    const ANR_MARKER = '[자율신경환 · 3D 자동감지]';
+    const ANR_MARKER = '자율신경환 분석';
     if (prev.includes(ANR_MARKER)) {
       const before = prev.slice(0, prev.indexOf(ANR_MARKER)).trimEnd();
       fd.irisAssessment.overallNote = before ? before + '\n\n' + anrNote : anrNote;

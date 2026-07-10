@@ -101,7 +101,7 @@ function clockDegToZoneId(clockDeg, side) {
   return table[table.length - 1][0];
 }
 
-export function mapGridToLegacyZones(gridStats, side, thresholds = { lacDepth: 0.55, cryDepth: 0.38 }) {
+export function mapGridToLegacyZones(gridStats, side, thresholds = { cryDepth: 0.55, lacDepth: 0.35 }) {
   const byZone = {};
   for (const cell of gridStats) {
     const midDeg = (cell.thetaRange[0] + cell.thetaRange[1]) / 2;
@@ -113,8 +113,9 @@ export function mapGridToLegacyZones(gridStats, side, thresholds = { lacDepth: 0
   for (const [zid, agg] of Object.entries(byZone)) {
     const avgDepth = agg.depthSum / agg.n;
     const codes = [];
-    if (avgDepth >= thresholds.lacDepth) codes.push('lac');
-    else if (avgDepth >= thresholds.cryDepth) codes.push('cry');
+    // 깊은 함몰(어두운) = 크립트, 살짝 파임 = 라쿠나
+    if (avgDepth >= thresholds.cryDepth) codes.push('cry');
+    else if (avgDepth >= thresholds.lacDepth) codes.push('lac');
     suggestions[zid] = codes;
   }
   return suggestions;
@@ -389,18 +390,14 @@ const FRAGMENT_SHADER = /* glsl */ `
     float furrowZone = smoothstep(0.50, 0.70, rNorm) * (1.0 - smoothstep(0.87, 1.0, rNorm));
     float furrow     = (sin(rNorm * 20.0) * 0.5 + 0.5) * 0.018 * furrowZone * irisZone;
 
-    // ── [4] 크립트 (Crypts of Fuchs) — 느슨한 조직 표현, 부드러운 가장자리
-    float cryptDark = 0.0;
-    for (int i = 0; i < 10; i++) {
-      float fi         = float(i);
-      float cryptAngle = fi / 10.0 * 2.0 * PI + hash1(fi + 0.1) * 0.3;
-      float cryptR     = 0.22 + hash1(fi + 0.5) * 0.48;
-      float dAngle     = abs(mod(theta_rad - cryptAngle + PI, 2.0*PI) - PI);
-      float dRadius    = abs(rNorm - cryptR);
-      float distCrypt  = sqrt(dAngle * dAngle * 0.04 + dRadius * dRadius);
-      // smoothstep 넓게 → 가장자리가 부드럽게 녹아드는 느슨한 구멍
-      cryptDark = max(cryptDark, smoothstep(0.10, 0.0, distCrypt) * 0.13 * irisZone);
-    }
+    // ── [4] 크립트 & 라쿠나 — depthMap 실측 깊이로 자동 구분
+    // depthSample.r = 1 - brightness: 사진에서 어두울수록 → 깊은 함몰
+    float rawDepth   = depthSample.r;
+    // 크립트: 매우 어두운(검정) 깊은 함몰
+    float cryptMask  = smoothstep(0.60, 0.84, rawDepth) * irisZone;
+    // 라쿠나: 주변보다 살짝 파인 중간 깊이 (크립트 직전 범위)
+    float lacunaMask = smoothstep(0.30, 0.50, rawDepth)
+                     * (1.0 - smoothstep(0.50, 0.72, rawDepth)) * irisZone;
 
     // ── [5] 동공 심도 — 완전한 검정 + 테두리 미세 파란 반사
     float pupilGrad = smoothstep(0.0, 1.0, clamp(v_phi / (localPupilV + 0.001), 0.0, 1.0));
@@ -426,10 +423,14 @@ const FRAGMENT_SHADER = /* glsl */ `
     }
     vec3 vesselColor = vec3(0.7, 0.16, 0.16);
 
-    // ── 색상 합산 — anatomy 0.65x: 사진 베이스 위에 조직감이 녹아들게
+    // ── 색상 합산
     float anatScale = 0.65;
     vec3 irisColor  = base + (vec3(fibers) + vec3(collarette) + vec3(furrow)
-                    - vec3(cryptDark) - vec3(limbalRing)) * anatScale;
+                    - vec3(limbalRing)) * anatScale;
+    // 크립트: 거의 검정(#030306)으로 강하게 덮어씀
+    irisColor = mix(irisColor, vec3(0.012, 0.012, 0.022), cryptMask * 0.90);
+    // 라쿠나: 색조는 유지하고 밝기만 낮춤 (주변보다 ~40% 어둡게)
+    irisColor = mix(irisColor, irisColor * 0.58, lacunaMask * 0.78);
     irisColor = max(vec3(0.0), irisColor);
 
     vec3 scleraColor = base + vec3(scleraTint * 0.4, scleraTint * 0.14, scleraTint * 0.1);

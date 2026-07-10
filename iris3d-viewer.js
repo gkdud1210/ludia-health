@@ -373,21 +373,21 @@ const FRAGMENT_SHADER = /* glsl */ `
 
     float theta_rad = vUv.x * 2.0 * PI;
 
-    // ── [1] 방사형 스트로마 섬유 (Stromal Trabeculae)
-    float fibers = pow(abs(sin(theta_rad * 65.0)), 6.0) * 0.07
-                 + pow(abs(sin(theta_rad * 32.0)), 8.0) * 0.04;
-    float fiberZone = smoothstep(0.05, 0.25, rNorm) * (1.0 - smoothstep(0.78, 1.0, rNorm));
+    // ── [1] 방사형 스트로마 섬유 (Stromal Trabeculae) — 얇고 부드럽게
+    float fibers = pow(abs(sin(theta_rad * 65.0)), 9.0) * 0.038
+                 + pow(abs(sin(theta_rad * 32.0)), 11.0) * 0.018;
+    float fiberZone = smoothstep(0.08, 0.32, rNorm) * (1.0 - smoothstep(0.72, 0.96, rNorm));
     fibers *= fiberZone * irisZone;
 
-    // ── [2] 콜라렛 고리 (Collarette)
-    float collaretteR = 0.28 + sin(theta_rad * 7.0) * 0.035;
-    float collarette  = smoothstep(0.035, 0.0, abs(rNorm - collaretteR)) * 0.18 * irisZone;
+    // ── [2] 콜라렛 고리 (Collarette) — 넓고 완만하게
+    float collaretteR = 0.28 + sin(theta_rad * 7.0) * 0.025;
+    float collarette  = smoothstep(0.065, 0.0, abs(rNorm - collaretteR)) * 0.09 * irisZone;
 
-    // ── [3] 수축 주름 (Contraction Furrows)
-    float furrowZone = smoothstep(0.55, 0.65, rNorm) * (1.0 - smoothstep(0.9, 1.0, rNorm));
-    float furrow     = (sin(rNorm * 28.0) * 0.5 + 0.5) * 0.06 * furrowZone * irisZone;
+    // ── [3] 수축 주름 (Contraction Furrows) — 미세하게
+    float furrowZone = smoothstep(0.52, 0.68, rNorm) * (1.0 - smoothstep(0.88, 1.0, rNorm));
+    float furrow     = (sin(rNorm * 22.0) * 0.5 + 0.5) * 0.028 * furrowZone * irisZone;
 
-    // ── [4] 크립트 (Crypts of Fuchs) — 10개 불규칙 어두운 구멍
+    // ── [4] 크립트 (Crypts of Fuchs) — 10개, 더 얕고 넓게
     float cryptDark = 0.0;
     for (int i = 0; i < 10; i++) {
       float fi         = float(i);
@@ -396,7 +396,7 @@ const FRAGMENT_SHADER = /* glsl */ `
       float dAngle     = abs(mod(theta_rad - cryptAngle + PI, 2.0*PI) - PI);
       float dRadius    = abs(rNorm - cryptR);
       float distCrypt  = sqrt(dAngle * dAngle * 0.04 + dRadius * dRadius);
-      cryptDark = max(cryptDark, smoothstep(0.042, 0.0, distCrypt) * 0.28 * irisZone);
+      cryptDark = max(cryptDark, smoothstep(0.062, 0.0, distCrypt) * 0.14 * irisZone);
     }
 
     // ── [5] 동공 심도 — 완전한 검정 + 테두리 미세 파란 반사
@@ -405,8 +405,8 @@ const FRAGMENT_SHADER = /* glsl */ `
     float pupilRefl = pow(max(dot(normalize(vNormalW), catchDir), 0.0), 6.0) * 0.05 * pupilZone;
     vec3  pupilColor = pupilBase + vec3(0.04, 0.07, 0.12) * pupilRefl;
 
-    // ── [6] 윤부 색소환 (Limbal Ring)
-    float limbalRing = smoothstep(0.70, 1.0, rNorm) * 0.30 * irisZone;
+    // ── [6] 윤부 색소환 (Limbal Ring) — 부드럽게 페이드
+    float limbalRing = smoothstep(0.62, 1.0, rNorm) * 0.18 * irisZone;
 
     // ── [7] 공막 혈관 및 색조 (Sclera)
     float scleraR    = (v_phi - SCLERA_V) / max(1.0 - SCLERA_V, 0.001);
@@ -423,9 +423,10 @@ const FRAGMENT_SHADER = /* glsl */ `
     }
     vec3 vesselColor = vec3(0.7, 0.16, 0.16);
 
-    // ── 색상 합산
-    vec3 irisColor  = base + vec3(fibers) + vec3(collarette) + vec3(furrow)
-                    - vec3(cryptDark) - vec3(limbalRing);
+    // ── 색상 합산 — anatomy 효과를 0.72x 감쇠해 베이스 컬러가 살아나게
+    float anatScale = 0.72;
+    vec3 irisColor  = base + (vec3(fibers) + vec3(collarette) + vec3(furrow)
+                    - vec3(cryptDark) - vec3(limbalRing)) * anatScale;
     irisColor = max(vec3(0.0), irisColor);
 
     vec3 scleraColor = base + vec3(scleraTint * 0.4, scleraTint * 0.14, scleraTint * 0.1);
@@ -559,8 +560,8 @@ export class Iris3DViewer {
         normalMap:         { value: this._solidTexture('#8080ff') },
         aoMap:             { value: this._solidTexture('#ffffff') },
         lesionMap:         { value: this._transparentTexture() },
-        displacementScale: { value: 0.17 },
-        cornealBulge:      { value: 0.035 }, // 자연스러운 각막 돌출감, 42° 시절(0.065)보다는 완만
+        displacementScale: { value: 0.10 },
+        cornealBulge:      { value: 0.032 },
         uAOStrength:       { value: 1.1 },
         uSSSStrength:      { value: 1.0 },
         uShowLesions:      { value: 0.0 },

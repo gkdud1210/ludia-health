@@ -7,8 +7,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export const GRID_RINGS = 8;
 export const GRID_SECTORS = 10;
-// [8,36]: 림버스 36° — 원본 42°보다 완만하고 26°보다 넓어 홍채 면적이 크게 보임
-export const PHI_BAND_DEG = [8, 36];
+// [8,28]: 림버스 28° — 36°보다 완만하여 가장자리 왜곡 감소, 자율신경선 정확도 향상
+export const PHI_BAND_DEG = [8, 28];
 
 const ATLAS_W = 720, ATLAS_H = 360;
 const PUPIL_V  = PHI_BAND_DEG[0] / 180;
@@ -495,9 +495,9 @@ export class Iris3DViewer {
     this.container.appendChild(this.renderer.domElement);
 
     this.scene  = new THREE.Scene();
-    // FOV 34° + 거리 2.0 → 홍채가 화면을 가득 채우면서 원근 왜곡은 적음
+    // FOV 34° + 거리 1.75 → PHI_BAND_DEG 28° 축소로 줄어든 홍채 크기 보상
     this.camera = new THREE.PerspectiveCamera(34, w / h, 0.02, 100);
-    this.camera.position.set(0, 0, 2.0);
+    this.camera.position.set(0, 0, 1.75);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;

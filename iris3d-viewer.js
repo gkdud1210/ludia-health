@@ -640,6 +640,7 @@ export class Iris3DViewer {
 
     const local = buildAtlasesFromImage(img, geom, side);
     this.gridStats = local.gridStats; this.backendResult = null;
+    this._depthCanvas = local.depthCanvas; // autoDetectLesions에서 픽셀 접근용
     this._applyTextures(local.colorCanvas, local.depthCanvas, local.normalCanvas, local.aoCanvas);
 
     if (this.aiServer) {
@@ -941,6 +942,72 @@ export class Iris3DViewer {
     if (typeof this.onLesionToggle === 'function') this.onLesionToggle(zoneId, [...arr], side);
     // 팝업 즉시 갱신 (버튼 active 상태 반영)
     if (this._currentPopupCell) this._showPopup(this._popupClientX, this._popupClientY, this._currentPopupCell);
+  }
+
+  // ── 병소 자동감지 — depthCanvas 픽셀을 직접 스캔해 cry/lac 구역을 3D에 오버레이
+  autoDetectLesions({ cryThresh = 0.65, lacMin = 0.35, lacMax = 0.60 } = {}) {
+    if (!this._depthCanvas) return {};
+    const side = this._lesionSide || this.side;
+    const W = ATLAS_W, H = ATLAS_H;
+
+    // 1) depth 픽셀 읽기 (R채널 = depth 값)
+    const dep = this._depthCanvas.getContext('2d').getImageData(0, 0, W, H).data;
+
+    // 2) 픽셀별 cry/lac 마스크 캔버스 생성
+    const raw  = document.createElement('canvas'); raw.width = W; raw.height = H;
+    const rctx = raw.getContext('2d');
+    const img  = rctx.createImageData(W, H);
+    const px   = img.data;
+    const zoneStats = {};
+
+    for (let y = 0; y < H; y++) {
+      const v = y / H;
+      if (v < PUPIL_V || v > SCLERA_V) continue;   // 홍채 밴드만
+      for (let x = 0; x < W; x++) {
+        const pi    = (y * W + x) * 4;
+        const depth = dep[pi] / 255;
+
+        // 크립트: 매우 어두운 픽셀 → 빨강
+        if (depth >= cryThresh) {
+          px[pi] = 220; px[pi+1] = 50;  px[pi+2] = 50;  px[pi+3] = 218;
+        // 라쿠나: 중간 깊이 → 황금빛
+        } else if (depth >= lacMin && depth < lacMax) {
+          px[pi] = 245; px[pi+1] = 172; px[pi+2] = 22;  px[pi+3] = 195;
+        }
+
+        // 구역별 통계 (fd.irisZoneData 업데이트용)
+        const zid = clockDegToZoneId(x / W * 360, side);
+        if (!zoneStats[zid]) zoneStats[zid] = { cry: 0, lac: 0, n: 0 };
+        zoneStats[zid].n++;
+        if (depth >= cryThresh)                     zoneStats[zid].cry++;
+        else if (depth >= lacMin && depth < lacMax) zoneStats[zid].lac++;
+      }
+    }
+    rctx.putImageData(img, 0, 0);
+
+    // 3) 가장자리를 부드럽게 블러 (픽셀 경계선 제거)
+    const blurred = document.createElement('canvas'); blurred.width = W; blurred.height = H;
+    const bctx = blurred.getContext('2d');
+    bctx.filter = 'blur(5px)';
+    bctx.drawImage(raw, 0, 0);
+
+    // 4) lesionMap 텍스처로 3D에 적용
+    const prev = this.material.uniforms.lesionMap.value;
+    const tex  = new THREE.CanvasTexture(blurred); tex.flipY = false;
+    this.material.uniforms.lesionMap.value = tex;
+    this.material.uniforms.uShowLesions.value = 1.0;
+    if (prev) prev.dispose();
+
+    // 5) 구역별 결과 반환 (fd.irisZoneData 업데이트 위해)
+    const result = {};
+    for (const [zid, s] of Object.entries(zoneStats)) {
+      if (!s.n) continue;
+      const codes = [];
+      if (s.cry / s.n > 0.04) codes.push('cry');
+      if (s.lac / s.n > 0.08) codes.push('lac');
+      if (codes.length) result[zid] = codes;
+    }
+    return result;
   }
 
   dispose() {

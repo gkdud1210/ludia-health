@@ -8860,12 +8860,16 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
     <button onclick="_iris3dViewer&&_iris3dViewer.resetView()"
       style="padding:7px 14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#CBD5E1;font-size:12px;font-weight:700;cursor:pointer">↺ 초기화</button>
     <button onclick="runIris3DExam()"
-      style="padding:7px 18px;background:linear-gradient(90deg,#1D4ED8,#3B82F6);border:none;border-radius:8px;color:white;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 0 14px rgba(59,130,246,.4)">
-      🔬 홍채 자동분석 → 병소 적용
+      style="padding:7px 16px;background:linear-gradient(90deg,#1D4ED8,#3B82F6);border:none;border-radius:8px;color:white;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 0 12px rgba(59,130,246,.35)">
+      🔬 자동분석
+    </button>
+    <button onclick="runLesionDetect()"
+      style="padding:7px 16px;background:linear-gradient(90deg,#7C1D1D,#DC2626,#F97316);border:none;border-radius:8px;color:white;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 0 14px rgba(220,38,38,.45);letter-spacing:.3px">
+      🔴 병소 감지
     </button>
   </div>
   <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:10px;text-align:center;padding:0 20px">
-    드래그: 회전 &nbsp;·&nbsp; 두 손가락 핀치: 확대/축소 &nbsp;·&nbsp; "자동분석" 버튼으로 병소 구역을 홍채 지도에 반영
+    드래그: 회전 &nbsp;·&nbsp; 탭: 구역 확인/병소 선택 &nbsp;·&nbsp; <span style="color:rgba(248,113,113,.7)">"병소 감지"</span>: 크립트·라쿠나를 3D에 자동 표시
   </div>
 </div>
 
@@ -8930,6 +8934,33 @@ window.runIris3DExam = function() {
   if (!window._iris3dViewer) return;
   document.getElementById('iris3dStatus').textContent = '격자 분석 중...';
   window._iris3dViewer.startExam();
+};
+
+window.runLesionDetect = function() {
+  if (!window._iris3dViewer) return;
+  const side = window._iris3dSide;
+  document.getElementById('iris3dStatus').textContent = '병소 감지 중...';
+
+  // 약간 지연: 상태 텍스트가 화면에 반영되고 난 뒤 무거운 픽셀 스캔 실행
+  requestAnimationFrame(() => {
+    const result = window._iris3dViewer.autoDetectLesions();
+
+    // fd.irisZoneData에 병합 (기존 수동 표기 유지, 감지 결과 추가)
+    if (!fd.irisZoneData) fd.irisZoneData = { left:{}, right:{} };
+    if (!fd.irisZoneData[side]) fd.irisZoneData[side] = {};
+    for (const [zid, codes] of Object.entries(result)) {
+      const existing = fd.irisZoneData[side][zid] || [];
+      const merged   = [...new Set([...existing, ...codes])];
+      fd.irisZoneData[side][zid] = merged;
+    }
+
+    const cryZones = Object.values(result).filter(c => c.includes('cry')).length;
+    const lacZones = Object.values(result).filter(c => c.includes('lac')).length;
+    document.getElementById('iris3dStatus').textContent =
+      `병소 감지 완료 — 🔴 크립트 ${cryZones}구역 · 🟡 라쿠나 ${lacZones}구역 3D 표시중`;
+
+    if (typeof refreshIrisClock === 'function') refreshIrisClock();
+  });
 };
 
 window._applyIris3DSuggestions = function(side, suggestions) {
